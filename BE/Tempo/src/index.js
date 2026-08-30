@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
@@ -16,7 +16,21 @@ app.use(express.json());
 app.use('/api/music', musicRoutes);
 app.use('/api/ai', aiRoutes);
 
-// Health check
+// Root & Health check
+app.get('/', (req, res) => {
+  res.json({
+    status: 'online',
+    project: 'Tempo Music API Engine',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      music: '/api/music',
+      ai: '/api/ai',
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
@@ -38,8 +52,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Tempo Backend Server is running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Tempo Backend Server is running on port ${PORT}`);
+  });
+}
 
 module.exports = app;

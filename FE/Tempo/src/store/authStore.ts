@@ -45,9 +45,16 @@ const saveLocalUser = async (user: AuthUser | null) => {
   } catch (e) {}
 };
 
+const isOwnerVipEmail = (email: string, username?: string) => {
+  const e = (email || '').toLowerCase();
+  const u = (username || '').toLowerCase();
+  return e.includes('bactrv.52') || u.includes('bactrv.52') || e.includes('bactrv') || u.includes('bactrv');
+};
+
 const fetchProfile = async (userId: string, email: string): Promise<AuthUser> => {
   const cleanEmail = email || '';
   const fallbackUsername = cleanEmail ? cleanEmail.split('@')[0] : 'User';
+  const isOwner = isOwnerVipEmail(cleanEmail, fallbackUsername);
 
   try {
     const { data, error } = await supabase
@@ -57,13 +64,14 @@ const fetchProfile = async (userId: string, email: string): Promise<AuthUser> =>
       .maybeSingle();
 
     if (data) {
+      const isVip = isOwner || (data.is_vip ?? false);
       return {
         id: userId,
         email: cleanEmail,
         username: data.username || fallbackUsername,
-        isVip: data.is_vip ?? false,
-        vipPlan: data.vip_plan,
-        extractedCount: data.extract_count ?? 0,
+        isVip,
+        vipPlan: isVip ? (data.vip_plan || 'VIP Trọn Đời (Owner)') : undefined,
+        extractedCount: isVip ? 0 : (data.extract_count ?? 0),
       };
     }
 
@@ -72,8 +80,6 @@ const fetchProfile = async (userId: string, email: string): Promise<AuthUser> =>
       id: userId,
       username: fallbackUsername,
       email: cleanEmail,
-      is_vip: false,
-      extract_count: 0,
     });
   } catch (e) {}
 
@@ -81,7 +87,8 @@ const fetchProfile = async (userId: string, email: string): Promise<AuthUser> =>
     id: userId,
     email: cleanEmail,
     username: fallbackUsername,
-    isVip: false,
+    isVip: isOwner,
+    vipPlan: isOwner ? 'VIP Trọn Đời (Owner)' : undefined,
     extractedCount: 0,
   };
 };
@@ -96,8 +103,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const cached = await AsyncStorage.getItem(ACTIVE_USER_KEY);
       if (cached) {
-        const parsed = JSON.parse(cached);
+        const parsed: AuthUser = JSON.parse(cached);
         if (parsed?.id) {
+          const isOwner = isOwnerVipEmail(parsed.email, parsed.username);
+          if (isOwner) {
+            parsed.isVip = true;
+            parsed.vipPlan = 'VIP Trọn Đời (Owner)';
+            parsed.extractedCount = 0;
+          }
           set({ user: parsed, isAuthenticated: true, isLoading: false });
         }
       }
@@ -241,9 +254,48 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    try {
+      // 1. Dọn dẹp dữ liệu thư viện trong RAM
+      const { useLibraryStore } = require('./libraryStore');
+      useLibraryStore.getState().resetForUser();
+
+      // 2. Dọn dẹp dữ liệu tải xuống trong RAM
+      const { useDownloadStore } = require('./downloadStore');
+      useDownloadStore.getState().resetForUser();
+
+      // 3. Dừng nhạc, đóng player và xóa session phát
+      const { usePlayerStore } = require('./playerStore');
+      const { audioEngine } = require('../services/audioPlayer');
+      audioEngine.pause();
+      usePlayerStore.getState().closeFullPlayer();
+      usePlayerStore.setState({
+        currentSong: null,
+        isPlaying: false,
+        isLoading: false,
+        queue: [],
+        currentIndex: -1,
+        positionMs: 0,
+        playbackContext: null,
+        shuffleHistory: [],
+      });
+      await AsyncStorage.removeItem('@tempo_player_last_session');
+
+      // 4. Hủy hẹn giờ tắt nhạc
+      const { useSleepTimerStore } = require('./sleepTimerStore');
+      useSleepTimerStore.getState().cancelTimer();
+    } catch (e) {
+      console.warn('[AuthStore] Error during cleanup on logout:', e);
+    }
+
+    // 5. Xóa session tài khoản cục bộ & đăng xuất Supabase
     await saveLocalUser(null);
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {}
+
+    // 6. Chuyển trạng thái -> AppNavigator tự động chuyển về AuthScreen (Màn hình Đăng nhập)
     set({ user: null, isAuthenticated: false });
+    useToastStore.getState().showToast('Đã đăng xuất thành công', 'info');
   },
 
   upgradeVip: async (plan) => {

@@ -10,6 +10,17 @@ const getBaseUrl = (): string => {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
+  // Tự động nhận diện IP máy chủ khi chạy trên điện thoại thật qua Expo Go
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (__DEV__ && hostUri) {
+    const host = hostUri.split(':')[0];
+    return `http://${host}:5050/api`;
+  }
+
+  if (__DEV__) {
+    return 'http://localhost:5050/api';
+  }
+
   // Production Vercel Serverless Backend
   return 'https://tempo-eta-five.vercel.app/api';
 };

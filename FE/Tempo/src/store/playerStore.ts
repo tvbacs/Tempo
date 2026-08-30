@@ -359,30 +359,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     toggleShuffle: () => {
-      try {
-        const { useAuthStore } = require('./authStore');
-        const { useToastStore } = require('./toastStore');
-        const user = useAuthStore.getState().user;
-        const isVip = user?.isVip;
-
-        if (!isVip) {
-          // Khóa chế độ phát ngẫu nhiên cho người dùng Free
-          set({ isShuffle: true });
-          saveSettings(true, get().repeatMode);
-          useToastStore.getState().showToast(
-            'Nâng cấp VIP để mở khóa tính năng tắt trộn bài & nghe theo thứ tự!',
-            'vip'
-          );
-          return;
-        }
-      } catch (e) {}
-
       const newShuffle = !get().isShuffle;
       set({
         isShuffle: newShuffle,
         shuffleHistory: get().currentSong ? [get().currentSong!.id] : [],
       });
       saveSettings(newShuffle, get().repeatMode);
+
+      try {
+        const { useToastStore } = require('./toastStore');
+        useToastStore.getState().showToast(
+          newShuffle ? 'Đã bật phát ngẫu nhiên' : 'Đã tắt phát ngẫu nhiên',
+          'info'
+        );
+      } catch (e) {}
     },
 
     cycleRepeat: () => {
@@ -392,6 +382,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       set({ repeatMode: nextMode });
       saveSettings(get().isShuffle, nextMode);
+
+      try {
+        const { useToastStore } = require('./toastStore');
+        useToastStore.getState().showToast(
+          nextMode === 'one'
+            ? 'Lặp lại 1 bài'
+            : nextMode === 'all'
+            ? 'Lặp lại danh sách'
+            : 'Tắt lặp lại',
+          'info'
+        );
+      } catch (e) {}
     },
 
     openFullPlayer: () => {

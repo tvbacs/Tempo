@@ -51,6 +51,7 @@ import { apiClient } from "../api/client";
 import { LyricData, UnifiedSong } from "../types/music";
 import { SleepTimerModal } from "../components/SleepTimerModal";
 import { SongOptionsModal } from "../components/SongOptionsModal";
+import { Toast } from "../components/Toast";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 import { formatDurationMs } from "../utils/format";
 
@@ -160,20 +161,10 @@ export const PlayerModalScreen: React.FC = () => {
 
   const handleToggleShuffle = () => {
     toggleShuffle();
-    showToast(!isShuffle ? "Đã bật phát ngẫu nhiên" : "Đã tắt phát ngẫu nhiên", "info");
   };
 
   const handleCycleRepeat = () => {
     cycleRepeat();
-    const nextMode = repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
-    showToast(
-      nextMode === "one"
-        ? "Lặp lại 1 bài"
-        : nextMode === "all"
-        ? "Lặp lại danh sách"
-        : "Tắt lặp lại",
-      "info"
-    );
   };
 
   const handlePlayNext = () => {
@@ -704,6 +695,9 @@ export const PlayerModalScreen: React.FC = () => {
 
         {/* Global Synchronized Sleep Timer Modal */}
         <SleepTimerModal />
+
+        {/* In-Modal Synchronized Toast */}
+        <Toast />
       </View>
     </Modal>
   );

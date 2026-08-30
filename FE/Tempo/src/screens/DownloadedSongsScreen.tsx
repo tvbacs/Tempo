@@ -96,7 +96,6 @@ export const DownloadedSongsScreen: React.FC<{
 
   const handleToggleShuffle = () => {
     toggleShuffle();
-    showToast(!isShuffle ? "Đã bật phát ngẫu nhiên" : "Đã tắt phát ngẫu nhiên", "info");
   };
 
   const toggleSelect = (id: string) => {

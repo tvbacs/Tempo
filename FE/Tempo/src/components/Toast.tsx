@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CheckCircle2, AlertCircle, AlertTriangle, Info, Sparkles } from 'lucide-react-native';
+import { CheckCircle2, AlertCircle, AlertTriangle, Info } from 'lucide-react-native';
 import { useToastStore } from '../store/toastStore';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
@@ -20,7 +20,6 @@ export const Toast: React.FC = () => {
       case 'warning':
         return <AlertTriangle size={18} color="#F59E0B" />;
       case 'vip':
-        return <Sparkles size={18} color="#EAB308" />;
       case 'info':
       default:
         return <Info size={18} color={COLORS.accentPrimary} />;
@@ -38,11 +37,6 @@ export const Toast: React.FC = () => {
     >
       <View style={styles.contentRow}>
         <View style={styles.iconBox}>{renderIcon()}</View>
-        {type === 'vip' && (
-          <View style={styles.vipBadge}>
-            <Text style={styles.vipBadgeText}>VIP</Text>
-          </View>
-        )}
         <Text numberOfLines={2} style={styles.messageText}>
           {message}
         </Text>

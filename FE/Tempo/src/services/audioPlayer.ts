@@ -16,6 +16,7 @@ class AudioEngine {
   private currentLoadId = 0;
 
   async init() {
+    if (this.isInitialized) return;
     try {
       await Audio.setIsEnabledAsync(true);
       await Audio.setAudioModeAsync({

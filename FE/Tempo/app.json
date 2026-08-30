@@ -2,6 +2,7 @@
   "expo": {
     "name": "Tempo",
     "slug": "tempo-music",
+    "owner": "bactrv",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
@@ -13,6 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.bactrv.tempo",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -20,6 +22,7 @@
       }
     },
     "android": {
+      "package": "com.bactrv.tempo",
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#000000"

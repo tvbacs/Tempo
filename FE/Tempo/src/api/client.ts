@@ -10,14 +10,8 @@ const getBaseUrl = (): string => {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  // Auto-detect host IP from Expo Metro bundler connection
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    return `http://${ip}:5050/api`;
-  }
-
-  return 'http://172.20.10.3:5050/api';
+  // Production Vercel Serverless Backend
+  return 'https://tempo-eta-five.vercel.app/api';
 };
 
 export const API_BASE_URL = getBaseUrl();

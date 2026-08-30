@@ -359,6 +359,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     toggleShuffle: () => {
+      try {
+        const { useAuthStore } = require('./authStore');
+        const { useToastStore } = require('./toastStore');
+        const user = useAuthStore.getState().user;
+        const isVip = user?.isVip;
+
+        // Người dùng Free: Khóa chế độ phát ngẫu nhiên (ép bật shuffle)
+        if (!isVip) {
+          set({ isShuffle: true });
+          saveSettings(true, get().repeatMode);
+          useToastStore.getState().showToast(
+            'Nâng cấp VIP để mở khóa tính năng tắt trộn bài & nghe theo thứ tự!',
+            'info'
+          );
+          return;
+        }
+      } catch (e) {}
+
+      // Người dùng VIP (như bactrv.52@gmail.com): Mở khóa bật/tắt tự do
       const newShuffle = !get().isShuffle;
       set({
         isShuffle: newShuffle,

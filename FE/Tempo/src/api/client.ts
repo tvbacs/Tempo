@@ -21,8 +21,8 @@ const getBaseUrl = (): string => {
     return 'http://localhost:5050/api';
   }
 
-  // Production Vercel Serverless Backend
-  return 'https://tempo-eta-five.vercel.app/api';
+  // Production Render Cloud Backend
+  return 'https://tempo-y734.onrender.com/api';
 };
 
 export const API_BASE_URL = getBaseUrl();

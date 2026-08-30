@@ -20,13 +20,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Bell, Play, Music, RefreshCw, Heart } from "lucide-react-native";
+import { Bell, Play, Music, RefreshCw, Heart, Download, WifiOff, Clock } from "lucide-react-native";
 import { apiClient } from "../api/client";
 import { HomeFeedData, ChartData, UnifiedSong } from "../types/music";
 import { SongItem } from "../components/SongItem";
 import { HomeScreenSkeleton } from "../components/SkeletonLoader";
 import { usePlayerStore } from "../store/playerStore";
 import { useLibraryStore } from "../store/libraryStore";
+import { useDownloadStore } from "../store/downloadStore";
 import { AppAvatarBadge } from "../components/AppAvatarBadge";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 
@@ -39,6 +40,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
   const { playSong, positionMs, durationMs, currentSong } = usePlayerStore();
   const {
@@ -52,8 +54,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     fetchLastPlayedContext,
   } = useLibraryStore();
 
+  const { downloadedSongs, fetchDownloads } = useDownloadStore();
+
   const loadData = useCallback(async () => {
     setHasError(false);
+    // Luôn load local data trước (lịch sử, yêu thích, tải xuống)
+    await Promise.all([fetchHistory(), fetchLikedSongs(), fetchLastPlayedContext(), fetchDownloads()]);
     try {
       const [feedData, chartData] = await Promise.all([
         apiClient.getHome(),
@@ -61,15 +67,17 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       ]);
       setFeed(feedData);
       setChart(chartData);
-      await Promise.all([fetchHistory(), fetchLikedSongs(), fetchLastPlayedContext()]);
-    } catch (e) {
+      setIsOffline(false);
+    } catch (e: any) {
       console.error("Failed to load home data:", e);
-      setHasError(true);
+      // Không có mạng → hiện nội dung offline, không hiện lỗi trắng
+      setIsOffline(true);
+      setHasError(false);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, [fetchHistory, fetchLikedSongs, fetchLastPlayedContext]);
+  }, [fetchHistory, fetchLikedSongs, fetchLastPlayedContext, fetchDownloads]);
 
   useEffect(() => {
     loadData();
@@ -211,7 +219,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Quick Shelf: 3 Card Full Background ngay trong Hero Section */}
+          {/* Quick Shelf: 3 Card Full Background ngay trong Hero Section (Luôn hiện đủ 3 card kể cả khi offline) */}
           <View style={styles.quickShelfSection}>
             {/* Card 1: Bài hát đã thích */}
             <TouchableOpacity
@@ -239,8 +247,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </View>
             </TouchableOpacity>
 
-            {/* Card 2: Album gần đây hoặc Album gợi ý */}
-            {currentAlbum && (
+            {/* Card 2: Album gần đây / gợi ý HOẶC Đã tải xuống khi offline */}
+            {currentAlbum ? (
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() =>
@@ -267,10 +275,35 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   </Text>
                 </View>
               </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate("Downloads")}
+                style={styles.quickShelfCard}
+              >
+                <LinearGradient
+                  colors={["#059669", "#10B981"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View style={styles.quickShelfOverlay} />
+                <View style={styles.quickShelfIconTop}>
+                  <Download size={20} color={COLORS.white} />
+                </View>
+                <View style={styles.quickShelfTextBottom}>
+                  <Text numberOfLines={1} style={styles.quickShelfTitle}>
+                    Đã tải xuống
+                  </Text>
+                  <Text style={styles.quickShelfSub}>
+                    {downloadedSongs.length > 0 ? `${downloadedSongs.length} bài` : "Ngoại tuyến"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
             )}
 
-            {/* Card 3: Playlist gần đây hoặc Playlist gợi ý */}
-            {currentPlaylist && (
+            {/* Card 3: Playlist gần đây / gợi ý HOẶC Nghe gần đây khi offline */}
+            {currentPlaylist ? (
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() =>
@@ -297,6 +330,36 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   </Text>
                 </View>
               </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() =>
+                  navigation.navigate("SeeAll", {
+                    type: "history",
+                    title: "Nghe gần đây",
+                  })
+                }
+                style={styles.quickShelfCard}
+              >
+                <LinearGradient
+                  colors={["#4F46E5", "#6366F1"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View style={styles.quickShelfOverlay} />
+                <View style={styles.quickShelfIconTop}>
+                  <Clock size={20} color={COLORS.white} />
+                </View>
+                <View style={styles.quickShelfTextBottom}>
+                  <Text numberOfLines={1} style={styles.quickShelfTitle}>
+                    Nghe gần đây
+                  </Text>
+                  <Text style={styles.quickShelfSub}>
+                    {history.length > 0 ? `${history.length} bài` : "Lịch sử"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -304,27 +367,113 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {/* Main Feed Content */}
         {isLoading ? (
           <HomeScreenSkeleton />
-        ) : hasError && !feed && !chart ? (
-          /* Empty / Error State */
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconBox}>
-              <Music size={36} color={COLORS.textMuted} />
+        ) : isOffline ? (
+          /* === OFFLINE MODE: Hiện nội dung local thay vì lỗi trắng === */
+          <View style={styles.feedContent}>
+            {/* Banner thông báo offline kèm nút Thử lại */}
+            <View style={styles.offlineBanner}>
+              <View style={styles.offlineBannerLeft}>
+                <WifiOff size={16} color={COLORS.accentPrimary} />
+                <Text style={styles.offlineBannerText} numberOfLines={1}>
+                  Không có mạng · Chế độ Offline
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setIsLoading(true);
+                  loadData();
+                }}
+                style={styles.offlineRetryBtn}
+              >
+                <RefreshCw size={12} color={COLORS.white} style={{ marginRight: 4 }} />
+                <Text style={styles.offlineRetryBtnText}>Thử lại</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.emptyTitle}>Không thể tải dữ liệu</Text>
-            <Text style={styles.emptySubtitle}>
-              Vui lòng kiểm tra kết nối mạng của bạn và thử lại
-            </Text>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => {
-                setIsLoading(true);
-                loadData();
-              }}
-              style={styles.retryButton}
-            >
-              <RefreshCw size={16} color={COLORS.white} style={{ marginRight: 6 }} />
-              <Text style={styles.retryButtonText}>Thử lại</Text>
-            </TouchableOpacity>
+
+            {/* Section Nghe tiếp (từ lịch sử local) */}
+            {history.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Nghe tiếp</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding }}
+                >
+                  {history.slice(0, 8).map((item) => {
+                    const song = item.song;
+                    const isCurrent = currentSong?.id === song.id;
+                    const songDur = isCurrent && durationMs > 0 ? durationMs : item.durationMs;
+                    const songPos = isCurrent ? positionMs : item.lastPositionMs;
+                    const progressRatio = songDur > 0 ? Math.min(songPos / songDur, 1) : 0;
+                    return (
+                      <TouchableOpacity
+                        key={song.id}
+                        activeOpacity={0.85}
+                        onPress={() => handlePlaySong(song, history.map((h) => h.song), { type: 'single', title: 'Nghe tiếp' })}
+                        style={styles.continueCard}
+                      >
+                        <View style={styles.continueCoverWrapper}>
+                          <Image source={{ uri: song.thumbnail || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300" }} style={styles.continueCover} />
+                          <View style={styles.continuePlayBtn}>
+                            <Play size={14} color={COLORS.black} fill={COLORS.black} style={{ marginLeft: 2 }} />
+                          </View>
+                          <View style={styles.continueProgressTrack}>
+                            <View style={[styles.continueProgressBar, { width: `${Math.max(progressRatio * 100, 8)}%` }]} />
+                          </View>
+                        </View>
+                        <Text numberOfLines={1} style={styles.continueTitle}>{song.title}</Text>
+                        <Text numberOfLines={1} style={styles.continueArtist}>{song.artistsNames}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Section Đã tải xuống */}
+            {downloadedSongs.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Đã tải xuống</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate("Downloads")}>
+                    <Text style={styles.seeAllText}>Xem tất cả</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ paddingHorizontal: SPACING.screenPadding }}>
+                  {downloadedSongs.slice(0, 5).map((song) => (
+                    <SongItem
+                      key={song.id}
+                      song={song}
+                      onPress={() => handlePlaySong(song, downloadedSongs, { type: 'downloaded', title: 'Đã tải xuống' })}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Khi không có gì để hiện offline */}
+            {history.length === 0 && downloadedSongs.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyIconBox}>
+                  <Download size={36} color={COLORS.textMuted} />
+                </View>
+                <Text style={styles.emptyTitle}>Chưa có nội dung offline</Text>
+                <Text style={styles.emptySubtitle}>
+                  Tải xuống bài hát yêu thích để nghe khi không có mạng
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => { setIsLoading(true); loadData(); }}
+                  style={styles.retryButton}
+                >
+                  <RefreshCw size={16} color={COLORS.white} style={{ marginRight: 6 }} />
+                  <Text style={styles.retryButtonText}>Thử lại</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         ) : (
           /* Real Data Content Feed */
@@ -969,5 +1118,42 @@ const styles = StyleSheet.create({
   emptyListText: {
     fontSize: TYPOGRAPHY.sizeCaption,
     color: COLORS.textMuted,
+  },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginHorizontal: SPACING.screenPadding,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    backgroundColor: "rgba(252,71,92,0.1)",
+    borderRadius: LAYOUT.radiusMd,
+  },
+  offlineBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  offlineBannerText: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    color: COLORS.textSecondary,
+    fontWeight: "500",
+  },
+  offlineRetryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.accentPrimary,
+    paddingHorizontal: SPACING.sm + 4,
+    paddingVertical: SPACING.xs + 1,
+    borderRadius: LAYOUT.radiusFull,
+  },
+  offlineRetryBtnText: {
+    fontSize: TYPOGRAPHY.sizeCaption - 1,
+    fontWeight: "700",
+    color: COLORS.white,
   },
 });

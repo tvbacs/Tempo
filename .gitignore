@@ -33,3 +33,4 @@ Thumbs.db
 # Temp and downloads
 tempo_downloads/
 **/tempo_downloads/
+*.exe

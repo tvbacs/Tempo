@@ -64,8 +64,22 @@ class AudioEngine {
       }
 
       // Resolve audio stream URL
+      // Ưu tiên 1: Kiểm tra bài đã tải xuống từ bất kỳ màn hình nào (Yêu thích, Lịch sử, v.v.)
       let streamUrl = song.localUri || song.audioUrl;
-      if (!streamUrl) {
+      if (!streamUrl || !streamUrl.startsWith('file://')) {
+        try {
+          const { useDownloadStore } = require('../store/downloadStore');
+          const downloadedSongs = useDownloadStore.getState().downloadedSongs;
+          const downloadedVersion = downloadedSongs.find((s: any) => s.id === song.id);
+          if (downloadedVersion?.localUri?.startsWith('file://')) {
+            streamUrl = downloadedVersion.localUri;
+            console.log('[AudioEngine] Using downloaded local file for:', song.title);
+          }
+        } catch (e) {}
+      }
+
+      if (!streamUrl || !streamUrl.startsWith('file://')) {
+        // Ưu tiên 2: Gọi API backend để lấy stream URL
         try {
           const streamData = await apiClient.getSongStream(song.id, song.title, song.artistsNames);
           streamUrl = streamData.audioUrl;

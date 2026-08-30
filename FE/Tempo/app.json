@@ -17,6 +17,7 @@
       "bundleIdentifier": "com.bactrv.tempo",
       "infoPlist": {
         "UIBackgroundModes": [
+          "audio",
           "audio"
         ]
       }
@@ -30,7 +31,12 @@
       "permissions": [
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "WAKE_LOCK",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "scheme": "tempo",
@@ -45,6 +51,17 @@
           "microphonePermission": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "715b9cf2-386f-4a4a-afe5-23f05fc58f50"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/715b9cf2-386f-4a4a-afe5-23f05fc58f50"
+    }
   }
 }

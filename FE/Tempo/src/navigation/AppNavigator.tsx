@@ -28,6 +28,9 @@ import { AuthScreen } from "../screens/AuthScreen";
 import { useAuthStore } from "../store/authStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { useNavStore } from "../store/navStore";
+import { usePlayerStore } from "../store/playerStore";
+import { useSleepTimerStore } from "../store/sleepTimerStore";
+import { useDownloadStore } from "../store/downloadStore";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 
 export const navigationRef = createNavigationContainerRef<any>();
@@ -129,6 +132,9 @@ export const AppNavigator: React.FC = () => {
 
   React.useEffect(() => {
     initSession();
+    usePlayerStore.getState().init();
+    useSleepTimerStore.getState().init();
+    useDownloadStore.getState().fetchDownloads();
   }, [initSession]);
 
   React.useEffect(() => {

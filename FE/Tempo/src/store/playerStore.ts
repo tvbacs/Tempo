@@ -1,8 +1,11 @@
 /**
- * Global Player State Machine (Zustand)
+ * Global Player State Machine (Zustand + AsyncStorage Persistence)
+ * Lưu trữ chế độ trộn bài (isShuffle), lặp bài (repeatMode), phiên phát gần nhất vào AsyncStorage.
+ * Hỗ trợ Smart Random Shuffle (phát ngẫu nhiên không trùng lặp đến hết danh sách).
  * Strictly follows STANDARDS.md
  */
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UnifiedSong } from '../types/music';
 import { audioEngine } from '../services/audioPlayer';
 import { useLibraryStore } from './libraryStore';
@@ -14,6 +17,9 @@ export interface PlaybackContext {
   title: string;
   id?: string;
 }
+
+const PLAYER_SETTINGS_STORAGE_KEY = '@tempo_player_settings';
+const PLAYER_LAST_SESSION_STORAGE_KEY = '@tempo_player_last_session';
 
 interface PlayerState {
   currentSong: UnifiedSong | null;
@@ -27,8 +33,10 @@ interface PlayerState {
   repeatMode: RepeatMode;
   isFullPlayerVisible: boolean;
   playbackContext: PlaybackContext | null;
+  shuffleHistory: string[]; // Danh sách ID các bài đã phát trong phiên shuffle
 
   // Actions
+  init: () => Promise<void>;
   playSong: (song: UnifiedSong, newQueue?: UnifiedSong[], context?: PlaybackContext) => Promise<void>;
   setPlaybackContext: (context: PlaybackContext | null) => void;
   togglePlayPause: () => Promise<void>;
@@ -42,6 +50,39 @@ interface PlayerState {
   setQueue: (queue: UnifiedSong[]) => void;
   addToQueue: (song: UnifiedSong) => void;
 }
+
+const saveSettings = async (isShuffle: boolean, repeatMode: RepeatMode) => {
+  try {
+    await AsyncStorage.setItem(
+      PLAYER_SETTINGS_STORAGE_KEY,
+      JSON.stringify({ isShuffle, repeatMode })
+    );
+  } catch (e) {
+    console.warn('[PlayerStore] Failed to save settings:', e);
+  }
+};
+
+const saveLastSession = async (
+  currentSong: UnifiedSong | null,
+  queue: UnifiedSong[],
+  currentIndex: number,
+  playbackContext: PlaybackContext | null
+) => {
+  try {
+    if (!currentSong) return;
+    await AsyncStorage.setItem(
+      PLAYER_LAST_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        currentSong,
+        queue: queue.slice(0, 50), // Lưu tối đa 50 bài gần nhất
+        currentIndex,
+        playbackContext,
+      })
+    );
+  } catch (e) {
+    console.warn('[PlayerStore] Failed to save last session:', e);
+  }
+};
 
 export const usePlayerStore = create<PlayerState>((set, get) => {
   // Listen to engine playback updates
@@ -100,6 +141,37 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     repeatMode: 'off',
     isFullPlayerVisible: false,
     playbackContext: null,
+    shuffleHistory: [],
+
+    init: async () => {
+      try {
+        // Khôi phục cài đặt player (isShuffle, repeatMode)
+        const settingsRaw = await AsyncStorage.getItem(PLAYER_SETTINGS_STORAGE_KEY);
+        if (settingsRaw) {
+          const settings = JSON.parse(settingsRaw);
+          if (settings.isShuffle !== undefined) set({ isShuffle: !!settings.isShuffle });
+          if (settings.repeatMode) set({ repeatMode: settings.repeatMode });
+        }
+
+        // Khôi phục phiên phát nhạc gần nhất (MiniPlayer sẵn sàng)
+        const sessionRaw = await AsyncStorage.getItem(PLAYER_LAST_SESSION_STORAGE_KEY);
+        if (sessionRaw) {
+          const session = JSON.parse(sessionRaw);
+          if (session.currentSong && !get().currentSong) {
+            set({
+              currentSong: session.currentSong,
+              queue: session.queue || [session.currentSong],
+              currentIndex: session.currentIndex ?? 0,
+              playbackContext: session.playbackContext || null,
+              durationMs: session.currentSong.duration ? session.currentSong.duration * 1000 : 0,
+              shuffleHistory: [session.currentSong.id],
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[PlayerStore] Init error:', err);
+      }
+    },
 
     setPlaybackContext: (context) => set({ playbackContext: context }),
 
@@ -130,16 +202,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         };
       }
 
+      // Cập nhật shuffleHistory: thêm bài hiện tại vào danh sách đã nghe
+      const prevHistory = get().shuffleHistory;
+      const updatedHistory = prevHistory.includes(song.id)
+        ? prevHistory
+        : [...prevHistory, song.id];
+
       set({
         currentSong: song,
         queue,
         currentIndex,
         playbackContext: currentContext,
+        shuffleHistory: updatedHistory,
         isLoading: true,
         isPlaying: false,
         positionMs: 0,
         durationMs: song.duration ? song.duration * 1000 : 0,
       });
+
+      // Lưu phiên phát nhạc gần nhất vào AsyncStorage
+      saveLastSession(song, queue, currentIndex, currentContext);
 
       // Ghi nhận lịch sử nghe nhạc tự động từ mọi nơi (Home, Search, Artist, Playlist, SeeAll)
       useLibraryStore.getState().recordHistory(song);
@@ -167,40 +249,99 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     playNext: async () => {
-      const { queue, currentIndex, isShuffle, playSong, seekTo } = get();
+      const { queue, currentIndex, isShuffle, repeatMode, shuffleHistory, playSong, seekTo } = get();
       if (queue.length === 0) return;
 
       if (queue.length === 1) {
-        await seekTo(0);
+        if (repeatMode === 'off') {
+          await seekTo(0);
+          await audioEngine.pause();
+          set({ isPlaying: false });
+        } else {
+          await seekTo(0);
+          await audioEngine.play();
+        }
         return;
       }
 
-      let nextIndex = currentIndex + 1;
+      // 1. Chế độ Trộn Bài (Shuffle = TRUE): Smart Random không lặp lại bài đã nghe
       if (isShuffle) {
-        let rand = Math.floor(Math.random() * queue.length);
-        if (rand === currentIndex && queue.length > 1) {
-          rand = (rand + 1) % queue.length;
+        // Lấy danh sách các bài chưa phát trong hàng chờ
+        const unplayed = queue.filter((s) => !shuffleHistory.includes(s.id));
+
+        if (unplayed.length > 0) {
+          // Chọn ngẫu nhiên 1 bài trong số các bài CHƯA phát
+          const randIdx = Math.floor(Math.random() * unplayed.length);
+          const nextSong = unplayed[randIdx];
+          await playSong(nextSong, queue);
+          return;
+        } else {
+          // Đã nghe hết toàn bộ danh sách ở chế độ shuffle
+          if (repeatMode === 'all') {
+            // Lặp lại toàn bộ: reset pool đã nghe (giữ lại bài vừa xong) và chọn bài ngẫu nhiên tiếp theo
+            const currentSongId = get().currentSong?.id;
+            const freshCandidates = queue.filter((s) => s.id !== currentSongId);
+            const randIdx = Math.floor(Math.random() * freshCandidates.length);
+            const nextSong = freshCandidates[randIdx] || queue[0];
+            set({ shuffleHistory: [nextSong.id] });
+            await playSong(nextSong, queue);
+            return;
+          } else {
+            // repeatMode === 'off': dừng phát khi hết playlist
+            set({ shuffleHistory: [] });
+            await seekTo(0);
+            await audioEngine.pause();
+            set({ isPlaying: false });
+            return;
+          }
         }
-        nextIndex = rand;
-      } else if (nextIndex >= queue.length) {
-        nextIndex = 0;
       }
 
-      const nextSong = queue[nextIndex];
-      if (nextSong) {
+      // 2. Chế độ Phát Tuần Tự (Shuffle = FALSE): Theo đúng thứ tự 1, 2, 3...
+      const nextIndex = currentIndex + 1;
+
+      if (nextIndex < queue.length) {
+        const nextSong = queue[nextIndex];
         await playSong(nextSong, queue);
+      } else {
+        // Đã đến cuối danh sách
+        if (repeatMode === 'all') {
+          // Lặp lại từ bài đầu tiên
+          await playSong(queue[0], queue);
+        } else {
+          // repeatMode === 'off': Dừng phát
+          await seekTo(0);
+          await audioEngine.pause();
+          set({ isPlaying: false });
+        }
       }
     },
 
     playPrev: async () => {
-      const { queue, currentIndex, positionMs, playSong, seekTo } = get();
+      const { queue, currentIndex, isShuffle, shuffleHistory, positionMs, playSong, seekTo } = get();
       if (queue.length === 0) return;
 
+      // Nếu đang phát quá 3 giây -> tua lại đầu bài hiện tại
       if (positionMs > 3000) {
         await seekTo(0);
         return;
       }
 
+      // Nếu đang ở chế độ shuffle và có lịch sử shuffle
+      if (isShuffle && shuffleHistory.length > 1) {
+        const updatedHistory = [...shuffleHistory];
+        updatedHistory.pop(); // Bỏ bài hiện tại
+        const prevSongId = updatedHistory[updatedHistory.length - 1];
+        const prevSong = queue.find((s) => s.id === prevSongId);
+
+        if (prevSong) {
+          set({ shuffleHistory: updatedHistory });
+          await playSong(prevSong, queue);
+          return;
+        }
+      }
+
+      // Mặc định tuần tự: lùi lại 1 bài
       let prevIndex = currentIndex - 1;
       if (prevIndex < 0) {
         prevIndex = queue.length - 1;
@@ -227,6 +368,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         if (!isVip) {
           // Khóa chế độ phát ngẫu nhiên cho người dùng Free
           set({ isShuffle: true });
+          saveSettings(true, get().repeatMode);
           useToastStore.getState().showToast(
             'Nâng cấp VIP để mở khóa tính năng tắt trộn bài & nghe theo thứ tự!',
             'vip'
@@ -235,16 +377,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         }
       } catch (e) {}
 
-      set((state) => ({ isShuffle: !state.isShuffle }));
+      const newShuffle = !get().isShuffle;
+      set({
+        isShuffle: newShuffle,
+        shuffleHistory: get().currentSong ? [get().currentSong!.id] : [],
+      });
+      saveSettings(newShuffle, get().repeatMode);
     },
 
     cycleRepeat: () => {
-      set((state) => {
-        const modes: RepeatMode[] = ['off', 'all', 'one'];
-        const currentIdx = modes.indexOf(state.repeatMode);
-        const nextMode = modes[(currentIdx + 1) % modes.length];
-        return { repeatMode: nextMode };
-      });
+      const modes: RepeatMode[] = ['off', 'all', 'one'];
+      const currentIdx = modes.indexOf(get().repeatMode);
+      const nextMode = modes[(currentIdx + 1) % modes.length];
+
+      set({ repeatMode: nextMode });
+      saveSettings(get().isShuffle, nextMode);
     },
 
     openFullPlayer: () => {

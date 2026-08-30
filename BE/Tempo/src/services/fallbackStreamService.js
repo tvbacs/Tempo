@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Smart Fallback Audio Stream Resolver
  * Thứ tự ưu tiên:
  * 1. Zing MP3 (Nếu là bài miễn phí)
@@ -60,22 +60,36 @@ const resolveAudioStream = async (songId, title = "", artist = "") => {
   }
 
   console.log(
-    `[Fallback] Tìm bản gốc cho bài VIP: "${songTitle}" - "${songArtist}"`
+    `[Fallback] Tìm luồng phát thay thế cho bài VIP: "${songTitle}" - "${songArtist}"`
   );
 
-  // 3. ƯU TIÊN HÀNG ĐẦU: YouTube via yt-dlp để lấy đúng BẢN GỐC CHÍNH THỨC của ca sĩ
+  // 3. ƯU TIÊN 1: Tìm bản phát miễn phí trên Zing MP3 (Cực nhanh ~100ms, chất lượng Zing CDN)
   if (songTitle) {
     try {
-      const ytResult = await resolveYouTubeStream(songTitle, songArtist);
-      if (ytResult?.audioUrl) {
-        return ytResult;
+      const searchRes = await zingService.search(songTitle);
+      if (searchRes?.songs) {
+        for (const altSong of searchRes.songs) {
+          if (altSong.rawId !== rawId && !altSong.isVip) {
+            try {
+              const stream = await zingService.getSongStream(altSong.rawId);
+              if (stream?.audioUrl) {
+                console.log(`[Zing Alt] OK - Tìm thấy bản phát cho "${songTitle}" (${altSong.artistsNames})`);
+                return {
+                  audioUrl: stream.audioUrl,
+                  quality: "128kbps",
+                  isFallback: true,
+                  fallbackSource: "zing_alt",
+                  message: `Đang phát bản thay thế (${altSong.artistsNames})`,
+                };
+              }
+            } catch (_) {}
+          }
+        }
       }
-    } catch (ytErr) {
-      console.warn("[Fallback YouTube] Lỗi:", ytErr.message);
-    }
+    } catch (e) {}
   }
 
-  // 4. ƯU TIÊN 2: Audius
+  // 4. ƯU TIÊN 2: Kho nhạc quốc tế Audius (~200ms)
   if (songTitle) {
     try {
       const query = `${songTitle} ${songArtist}`.trim();
@@ -95,29 +109,16 @@ const resolveAudioStream = async (songId, title = "", artist = "") => {
     }
   }
 
-  // 5. Dự phòng cuối: Tìm bản thay thế trên Zing
+  // 5. ƯU TIÊN 3: YouTube via yt-dlp (nếu môi trường có hỗ trợ yt-dlp / local)
   if (songTitle) {
     try {
-      const searchRes = await zingService.search(songTitle);
-      if (searchRes?.songs) {
-        for (const altSong of searchRes.songs) {
-          if (altSong.rawId !== rawId && !altSong.isVip) {
-            try {
-              const stream = await zingService.getSongStream(altSong.rawId);
-              if (stream?.audioUrl) {
-                return {
-                  audioUrl: stream.audioUrl,
-                  quality: "128kbps",
-                  isFallback: true,
-                  fallbackSource: "zing_alt",
-                  message: `Đang phát bản thay thế (${altSong.artistsNames})`,
-                };
-              }
-            } catch (_) {}
-          }
-        }
+      const ytResult = await resolveYouTubeStream(songTitle, songArtist);
+      if (ytResult?.audioUrl) {
+        return ytResult;
       }
-    } catch (e) {}
+    } catch (ytErr) {
+      console.warn("[Fallback YouTube] Lỗi:", ytErr.message);
+    }
   }
 
   throw new Error(

@@ -6,23 +6,19 @@ import Constants from 'expo-constants';
 import { HomeFeedData, ChartData, SearchResults, UnifiedSong, LyricData, AIDJResponse } from '../types/music';
 
 const getBaseUrl = (): string => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-
-  // Tự động nhận diện IP máy chủ khi chạy trên điện thoại thật qua Expo Go
+  // 1. Tự động nhận diện IP của máy tính khi chạy Expo Go trên điện thoại thật
   const hostUri = Constants.expoConfig?.hostUri;
-  if (__DEV__ && hostUri) {
+  if (hostUri) {
     const host = hostUri.split(':')[0];
     return `http://${host}:5050/api`;
   }
 
-  if (__DEV__) {
-    return 'http://localhost:5050/api';
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  // Production Render Cloud Backend
-  return 'https://tempo-y734.onrender.com/api';
+  // 2. Mặc định máy chủ Localhost máy tính
+  return 'http://172.20.10.3:5050/api';
 };
 
 export const API_BASE_URL = getBaseUrl();

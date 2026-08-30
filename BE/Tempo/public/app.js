@@ -1,9 +1,9 @@
-﻿// Tempo Connect Web Player Client Engine
+// Tempo Connect Web Player Client Engine
 const SUPABASE_URL = 'https://lrtudzxzytqwhhiiszun.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_7TDL7BAku8jkwBtYBfHT1A_yXSQ7o2F';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const DEVICE_ID = 'web-player-' + Math.random().toString(36).substring(2, 8);
+const DEVICE_ID = 'web-player-pc';
 const DEVICE_NAME = 'Web Player (PC)';
 
 const audio = document.getElementById('audioElement');
@@ -16,8 +16,6 @@ const miniArtist = document.getElementById('miniArtist');
 const btnPlayPause = document.getElementById('btnPlayPause');
 const btnPrev = document.getElementById('btnPrev');
 const btnNext = document.getElementById('btnNext');
-const btnShuffle = document.getElementById('btnShuffle');
-const btnRepeat = document.getElementById('btnRepeat');
 const progressFill = document.getElementById('progressFill');
 const progressHandle = document.getElementById('progressHandle');
 const progressTrack = document.getElementById('progressTrack');
@@ -31,7 +29,6 @@ const lyricsContainer = document.getElementById('lyricsContainer');
 
 let currentSong = null;
 let isLocalPlaying = false;
-let isRemoteControlled = true;
 let isSeeking = false;
 let lyrics = [];
 
@@ -39,7 +36,7 @@ function formatTime(seconds) {
   if (isNaN(seconds) || seconds < 0) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-  return ${mins}:;
+  return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
 // 1. Kết nối Supabase Realtime Broadcast Channel
@@ -91,7 +88,6 @@ async function handleRemoteCommand(payload) {
   const { command, data } = payload;
 
   if (command === 'transfer_playback' && data?.targetDeviceId === DEVICE_ID) {
-    // Chuyển quyền phát sang Máy tính (Loa PC)
     if (data.song) {
       playSongLocally(data.song, data.positionMs || 0);
     }
@@ -122,7 +118,7 @@ async function handleRemoteCommand(payload) {
 
   if (command === 'set_volume' && typeof data?.volume === 'number') {
     audio.volume = Math.max(0, Math.min(1, data.volume));
-    volumeSlider.value = audio.volume;
+    if (volumeSlider) volumeSlider.value = audio.volume;
     return;
   }
 }
@@ -130,25 +126,24 @@ async function handleRemoteCommand(payload) {
 // 3. Xử lý khi điện thoại đang tự phát (Mirroring State UI)
 function handleRemoteState(state) {
   if (state.activeDeviceId && state.activeDeviceId !== DEVICE_ID) {
-    // Điện thoại đang phát, máy tính hiển thị trạng thái đang nghe trên điện thoại
     isLocalPlaying = false;
-    audio.pause();
-    
+    if (!audio.paused) audio.pause();
+
     deviceStatus.classList.add('online');
-    deviceStatusText.textContent = 📱 Đang nghe trên ;
-    
+    deviceStatusText.textContent = `📱 Đang nghe trên ${state.activeDeviceName || 'Điện thoại'}`;
+
     if (state.currentSong) {
       updateTrackMeta(state.currentSong);
     }
-    
+
     updatePlayPauseUI(state.isPlaying);
-    
+
     if (state.durationMs > 0 && !isSeeking) {
       const pct = (state.positionMs / state.durationMs) * 100;
-      progressFill.style.width = ${pct}%;
-      progressHandle.style.left = ${pct}%;
-      currentTimeLabel.textContent = formatTime(state.positionMs / 1000);
-      totalDurationLabel.textContent = formatTime(state.durationMs / 1000);
+      if (progressFill) progressFill.style.width = `${pct}%`;
+      if (progressHandle) progressHandle.style.left = `${pct}%`;
+      if (currentTimeLabel) currentTimeLabel.textContent = formatTime(state.positionMs / 1000);
+      if (totalDurationLabel) totalDurationLabel.textContent = formatTime(state.durationMs / 1000);
     }
   }
 }
@@ -161,7 +156,8 @@ async function playSongLocally(song, startPosMs = 0) {
   let streamUrl = song.audioUrl;
   if (!streamUrl || streamUrl.startsWith('file://')) {
     try {
-      const res = await fetch(/api/music/song/?title=&artist=);
+      const encoded = encodeURIComponent;
+      const res = await fetch(`/api/music/song/?title=${encoded(song.title)}&artist=${encoded(song.artistsNames || '')}`);
       const json = await res.json();
       streamUrl = json.data?.audioUrl;
     } catch (e) {
@@ -179,23 +175,24 @@ async function playSongLocally(song, startPosMs = 0) {
       broadcastState();
     }).catch(err => {
       console.warn('Audio play autoplay restricted, click to interact:', err);
+      updatePlayPauseUI(false);
     });
   }
 }
 
 function updateTrackMeta(song) {
-  trackTitle.textContent = song.title || 'Chưa có bài hát';
-  trackArtist.textContent = song.artistsNames || 'Tempo Music';
-  miniTitle.textContent = song.title || 'Chưa có bài hát';
-  miniArtist.textContent = song.artistsNames || 'Tempo Music';
-  
+  if (trackTitle) trackTitle.textContent = song.title || 'Chưa có bài hát';
+  if (trackArtist) trackArtist.textContent = song.artistsNames || 'Tempo Music';
+  if (miniTitle) miniTitle.textContent = song.title || 'Chưa có bài hát';
+  if (miniArtist) miniArtist.textContent = song.artistsNames || 'Tempo Music';
+
   const cover = song.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600';
-  coverImg.src = cover;
-  miniCover.src = cover;
+  if (coverImg) coverImg.src = cover;
+  if (miniCover) miniCover.src = cover;
 }
 
 function updatePlayPauseUI(isPlaying) {
-  btnPlayPause.textContent = isPlaying ? '⏸' : '▶';
+  if (btnPlayPause) btnPlayPause.textContent = isPlaying ? '⏸' : '▶';
 }
 
 function broadcastState() {
@@ -207,7 +204,7 @@ function broadcastState() {
       activeDeviceName: DEVICE_NAME,
       isPlaying: !audio.paused,
       positionMs: Math.floor(audio.currentTime * 1000),
-      durationMs: Math.floor(audio.duration * 1000) || (currentSong?.duration ? currentSong.duration * 1000 : 0),
+      durationMs: Math.floor((audio.duration || 0) * 1000) || (currentSong?.duration ? currentSong.duration * 1000 : 0),
       currentSong: currentSong,
       volume: audio.volume,
     }
@@ -218,10 +215,10 @@ function broadcastState() {
 audio.addEventListener('timeupdate', () => {
   if (!isSeeking && audio.duration) {
     const pct = (audio.currentTime / audio.duration) * 100;
-    progressFill.style.width = ${pct}%;
-    progressHandle.style.left = ${pct}%;
-    currentTimeLabel.textContent = formatTime(audio.currentTime);
-    totalDurationLabel.textContent = formatTime(audio.duration);
+    if (progressFill) progressFill.style.width = `${pct}%`;
+    if (progressHandle) progressHandle.style.left = `${pct}%`;
+    if (currentTimeLabel) currentTimeLabel.textContent = formatTime(audio.currentTime);
+    if (totalDurationLabel) totalDurationLabel.textContent = formatTime(audio.duration);
     syncLyrics(audio.currentTime * 1000);
   }
 });
@@ -237,7 +234,6 @@ audio.addEventListener('pause', () => {
 });
 
 audio.addEventListener('ended', () => {
-  // Gửi lệnh Next bài sang điện thoại/hàng đợi
   channel.send({
     type: 'broadcast',
     event: 'command',
@@ -246,87 +242,92 @@ audio.addEventListener('ended', () => {
 });
 
 // 5. Điều khiển từ giao diện Web Player
-btnPlayPause.addEventListener('click', () => {
-  if (audio.src) {
-    if (audio.paused) {
+if (btnPlayPause) {
+  btnPlayPause.addEventListener('click', () => {
+    if (audio.src && !audio.paused) {
+      audio.pause();
+    } else if (audio.src) {
       audio.play();
     } else {
-      audio.pause();
+      channel.send({
+        type: 'broadcast',
+        event: 'command',
+        payload: { command: 'toggle_play_pause' }
+      });
     }
-  } else {
-    // Gửi lệnh toggle play/pause sang điện thoại
+  });
+}
+
+if (btnNext) {
+  btnNext.addEventListener('click', () => {
+    channel.send({ type: 'broadcast', event: 'command', payload: { command: 'next' } });
+  });
+}
+
+if (btnPrev) {
+  btnPrev.addEventListener('click', () => {
+    channel.send({ type: 'broadcast', event: 'command', payload: { command: 'prev' } });
+  });
+}
+
+if (volumeSlider) {
+  volumeSlider.addEventListener('input', (e) => {
+    audio.volume = e.target.value;
+    broadcastState();
+  });
+}
+
+if (progressTrack) {
+  progressTrack.addEventListener('click', (e) => {
+    const rect = progressTrack.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    if (audio.duration) {
+      audio.currentTime = pct * audio.duration;
+      broadcastState();
+    } else {
+      const posMs = pct * (currentSong?.duration ? currentSong.duration * 1000 : 0);
+      channel.send({
+        type: 'broadcast',
+        event: 'command',
+        payload: { command: 'seek', data: { positionMs: posMs } }
+      });
+    }
+  });
+}
+
+if (takeoverBtn) {
+  takeoverBtn.addEventListener('click', () => {
     channel.send({
       type: 'broadcast',
       event: 'command',
-      payload: { command: 'toggle_play_pause' }
+      payload: { command: 'transfer_playback', data: { targetDeviceId: DEVICE_ID } }
     });
-  }
-});
-
-btnNext.addEventListener('click', () => {
-  channel.send({
-    type: 'broadcast',
-    event: 'command',
-    payload: { command: 'next' }
+    deviceStatusText.textContent = '🔊 Đang yêu cầu phát qua Loa Máy Tính...';
   });
-});
-
-btnPrev.addEventListener('click', () => {
-  channel.send({
-    type: 'broadcast',
-    event: 'command',
-    payload: { command: 'prev' }
-  });
-});
-
-volumeSlider.addEventListener('input', (e) => {
-  audio.volume = e.target.value;
-  broadcastState();
-});
-
-progressTrack.addEventListener('click', (e) => {
-  const rect = progressTrack.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const pct = clickX / rect.width;
-  if (audio.duration) {
-    audio.currentTime = pct * audio.duration;
-    broadcastState();
-  }
-});
-
-takeoverBtn.addEventListener('click', () => {
-  channel.send({
-    type: 'broadcast',
-    event: 'command',
-    payload: {
-      command: 'transfer_playback',
-      data: { targetDeviceId: DEVICE_ID }
-    }
-  });
-});
+}
 
 // 6. Lời bài hát (Lyrics)
 async function loadLyrics(songId) {
-  lyricsContainer.innerHTML = '<p class=\"lyrics-placeholder\">Đang tải lời bài hát...</p>';
+  if (!lyricsContainer) return;
+  lyricsContainer.innerHTML = '<p class="lyrics-placeholder">Đang tải lời bài hát...</p>';
   try {
-    const res = await fetch(/api/music/lyrics/);
+    const res = await fetch(`/api/music/lyrics/${songId}`);
     const json = await res.json();
     if (json.success && json.data?.sentences?.length > 0) {
       lyrics = json.data.sentences;
       renderLyrics(lyrics);
     } else {
-      lyricsContainer.innerHTML = '<p class=\"lyrics-placeholder\">Chưa có lời bài hát cho bản nhạc này</p>';
+      lyricsContainer.innerHTML = '<p class="lyrics-placeholder">Chưa có lời bài hát cho bản nhạc này</p>';
     }
   } catch (e) {
-    lyricsContainer.innerHTML = '<p class=\"lyrics-placeholder\">Không thể tải lời bài hát</p>';
+    lyricsContainer.innerHTML = '<p class="lyrics-placeholder">Không thể tải lời bài hát</p>';
   }
 }
 
 function renderLyrics(sentences) {
-  lyricsContainer.innerHTML = sentences.map((s, idx) => 
-    <div class=\"lyric-line\" data-idx=\"\" data-start=\"\">
-      
-    </div>
+  if (!lyricsContainer) return;
+  lyricsContainer.innerHTML = sentences.map((s, idx) =>
+    `<div class="lyric-line" data-idx="${idx}" data-start="${s.startMs || s.start || 0}">${s.words || s.text || ''}</div>`
   ).join('');
 }
 

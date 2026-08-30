@@ -81,13 +81,21 @@ async function extractSoundCloudViaNoembed(url) {
     url,
   ];
 
-  for (const exe of ["python", "yt-dlp"]) {
+  const candidates = [
+    { exe: "python3", args: ["-m", "yt_dlp", ...directArgs] },
+    { exe: "python", args: ["-m", "yt_dlp", ...directArgs] },
+    { exe: "yt-dlp", args: directArgs },
+    { exe: "/home/render/.local/bin/yt-dlp", args: directArgs },
+    { exe: "/usr/local/bin/yt-dlp", args: directArgs },
+  ];
+
+  for (const { exe, args } of candidates) {
     try {
-      const result = await execFileAsync(
-        exe,
-        exe === "python" ? ["-m", "yt_dlp", ...directArgs] : directArgs,
-        { timeout: 15000, windowsHide: true, maxBuffer: 10 * 1024 * 1024 }
-      );
+      const result = await execFileAsync(exe, args, {
+        timeout: 15000,
+        windowsHide: true,
+        maxBuffer: 10 * 1024 * 1024,
+      });
 
       const data = JSON.parse(result.stdout);
       const audioUrl = data.url || data.requested_downloads?.[0]?.url;
@@ -206,9 +214,17 @@ const resolveYouTubeStream = async (title, artist = "") => {
       query,
     ];
 
-    for (const exe of ["python", "yt-dlp"]) {
+    const execCandidates = [
+      { exe: "python3", args: ["-m", "yt_dlp", ...baseArgs] },
+      { exe: "python", args: ["-m", "yt_dlp", ...baseArgs] },
+      { exe: "yt-dlp", args: baseArgs },
+      { exe: "/home/render/.local/bin/yt-dlp", args: baseArgs },
+      { exe: "/usr/local/bin/yt-dlp", args: baseArgs },
+    ];
+
+    for (const { exe, args } of execCandidates) {
       try {
-        const result = await execFileAsync(exe, exe === "python" ? ["-m", "yt_dlp", ...baseArgs] : baseArgs, {
+        const result = await execFileAsync(exe, args, {
           timeout: 12000,
           windowsHide: true,
         });
@@ -217,7 +233,7 @@ const resolveYouTubeStream = async (title, artist = "") => {
         const item = raw.entries ? raw.entries[0] : raw;
 
         if (item && item.url) {
-          console.log(`[yt-dlp] OK - Found: "${item.title}" (Duration: ${item.duration}s)`);
+          console.log(`[yt-dlp ${exe}] OK - Found: "${item.title}" (Duration: ${item.duration}s)`);
           const streamInfo = {
             audioUrl: item.url,
             duration: item.duration || 0,
@@ -232,7 +248,7 @@ const resolveYouTubeStream = async (title, artist = "") => {
           return streamInfo;
         }
       } catch (err) {
-        // Fallback to next query or string get-url
+        // Fallback to next candidate
       }
     }
   }
@@ -307,12 +323,13 @@ const extractYouTubeMetadata = async (rawUrl) => {
     cleanUrl,
   ];
 
-  const strategies = isSoundCloud
-    ? [{ exe: "python", args: ["-m", "yt_dlp", ...baseArgs] }]
-    : [
-        { exe: "python", args: ["-m", "yt_dlp", ...baseArgs] },
-        { exe: "yt-dlp", args: baseArgs },
-      ];
+  const strategies = [
+    { exe: "python3", args: ["-m", "yt_dlp", ...baseArgs] },
+    { exe: "python", args: ["-m", "yt_dlp", ...baseArgs] },
+    { exe: "yt-dlp", args: baseArgs },
+    { exe: "/home/render/.local/bin/yt-dlp", args: baseArgs },
+    { exe: "/usr/local/bin/yt-dlp", args: baseArgs },
+  ];
 
   for (const { exe, args } of strategies) {
     try {

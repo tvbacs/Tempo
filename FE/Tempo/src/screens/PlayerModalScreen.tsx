@@ -265,7 +265,61 @@ export const PlayerModalScreen: React.FC = () => {
   if (!currentSong) return null;
 
   const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
-  const nextSong = queue.find((s) => s.id !== currentSong.id) || queue[0];
+  
+  // Tính toán chính xác bài tiếp theo dựa trên chế độ phát thực tế (Lặp lại 1 bài, Trộn bài, Lặp lại danh sách, Tuần tự)
+  const getNextTrackInfo = (): { song: UnifiedSong; label: string } | null => {
+    if (!currentSong || queue.length === 0) return null;
+
+    // 1. Chế độ lặp lại 1 bài duy nhất
+    if (repeatMode === 'one') {
+      return {
+        song: currentSong,
+        label: 'BÀI TIẾP THEO (LẶP LẠI BÀI NÀY)',
+      };
+    }
+
+    // 2. Chế độ Trộn bài (Shuffle)
+    if (isShuffle) {
+      const { shuffleHistory } = usePlayerStore.getState();
+      const unplayed = queue.filter((s) => !shuffleHistory.includes(s.id));
+      if (unplayed.length > 0) {
+        return {
+          song: unplayed[0],
+          label: 'BÀI TIẾP THEO (TRỘN NGẪU NHIÊN)',
+        };
+      }
+      if (repeatMode === 'all') {
+        const otherSongs = queue.filter((s) => s.id !== currentSong.id);
+        const nextInLoop = otherSongs[0] || currentSong;
+        return {
+          song: nextInLoop,
+          label: 'BÀI TIẾP THEO (LẶP LẠI DANH SÁCH)',
+        };
+      }
+      return null;
+    }
+
+    // 3. Chế độ phát tuần tự (Sequential)
+    const { currentIndex } = usePlayerStore.getState();
+    const nextIdx = currentIndex + 1;
+    if (nextIdx < queue.length) {
+      return {
+        song: queue[nextIdx],
+        label: 'BÀI TIẾP THEO',
+      };
+    }
+
+    if (repeatMode === 'all') {
+      return {
+        song: queue[0],
+        label: 'BÀI TIẾP THEO (LẶP LẠI TỪ ĐẦU)',
+      };
+    }
+
+    return null;
+  };
+
+  const nextTrackInfo = getNextTrackInfo();
   const safeTopPadding = insets.top > 0 ? insets.top + SPACING.xs : SPACING.lg;
   const safeBottomPadding = insets.bottom > 0 ? insets.bottom + SPACING.md : SPACING.xxxl;
 
@@ -547,24 +601,24 @@ export const PlayerModalScreen: React.FC = () => {
             )}
 
             {/* 1. BÀI TIẾP THEO TRONG DANH SÁCH (ĐƯỢC ĐẶT LÊN TRÊN PHẦN NGHỆ SĨ) */}
-            {nextSong && nextSong.id !== currentSong.id && (
+            {nextTrackInfo && (
               <View style={styles.nextSongCard}>
                 <View style={styles.nextSongHeader}>
                   <ListMusic size={16} color={COLORS.accentPrimary} />
-                  <Text style={styles.nextSongLabel}>BÀI TIẾP THEO</Text>
+                  <Text style={styles.nextSongLabel}>{nextTrackInfo.label}</Text>
                 </View>
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  onPress={() => playSong(nextSong, queue)}
+                  onPress={() => playSong(nextTrackInfo.song, queue)}
                   style={styles.nextSongRow}
                 >
-                  <Image source={{ uri: nextSong.thumbnail }} style={styles.nextThumb} />
+                  <Image source={{ uri: nextTrackInfo.song.thumbnail }} style={styles.nextThumb} />
                   <View style={styles.nextInfo}>
                     <Text numberOfLines={1} style={styles.nextTitle}>
-                      {nextSong.title}
+                      {nextTrackInfo.song.title}
                     </Text>
                     <Text numberOfLines={1} style={styles.nextArtist}>
-                      {nextSong.artistsNames}
+                      {nextTrackInfo.song.artistsNames}
                     </Text>
                   </View>
                   <Play size={18} color={COLORS.textPrimary} />

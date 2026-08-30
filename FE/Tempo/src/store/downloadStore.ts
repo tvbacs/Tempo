@@ -87,7 +87,8 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       downloadingIds: [...downloadingIds, song.id],
       downloadProgress: { ...get().downloadProgress, [song.id]: 0 },
     });
-    useToastStore.getState().showToast(`Bắt đầu tải "${song.title}"...`, 'info');
+    useToastStore.getState().showToast(`Bắt đầu tải "${song.title.length > 22 ? song.title.substring(0, 22) + '…' : song.title}"...`, 'info');
+    useToastStore.getState().showDownloadToast(song.id, song.title, 0);
 
     try {
       await ensureDirExists();
@@ -108,8 +109,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       const safeId = song.id.replace(/[^a-zA-Z0-9_-]/g, '_');
       const fileUri = `${DOWNLOADS_DIR}${safeId}.mp3`;
 
-      // Tải với progress callback
-      let lastToastPct = 0;
+      // Tải với progress callback — cập nhật real-time progress bar
       const downloadResumable = FileSystem.createDownloadResumable(
         sourceUrl,
         fileUri,
@@ -119,16 +119,8 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
           if (totalBytesExpectedToWrite > 0) {
             const pct = totalBytesWritten / totalBytesExpectedToWrite;
             set({ downloadProgress: { ...get().downloadProgress, [song.id]: pct } });
-
-            // Hiện toast mỗi 25%
-            const pctInt = Math.floor(pct * 100);
-            if (pctInt >= lastToastPct + 25 && pctInt < 100) {
-              lastToastPct = Math.floor(pctInt / 25) * 25;
-              useToastStore.getState().showToast(
-                `Đang tải "${song.title}" — ${lastToastPct}%`,
-                'info'
-              );
-            }
+            // Cập nhật progress bar toast liên tục
+            useToastStore.getState().showDownloadToast(song.id, song.title, pct);
           }
         }
       );

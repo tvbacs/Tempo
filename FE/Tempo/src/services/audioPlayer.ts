@@ -21,8 +21,8 @@ class AudioEngine {
       await Audio.setIsEnabledAsync(true);
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,      // ← giữ audio session khi lock screen / background
+        playsInSilentModeIOS: true,         // ← phát cả khi điện thoại để chế độ im lặng
         interruptionModeIOS: InterruptionModeIOS.DoNotMix,
         interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
         shouldDuckAndroid: true,
@@ -33,6 +33,7 @@ class AudioEngine {
       console.error('Failed to configure audio mode:', e);
     }
   }
+
 
   setStatusCallback(cb: (status: AVPlaybackStatus) => void) {
     this.onStatusUpdateCallback = cb;

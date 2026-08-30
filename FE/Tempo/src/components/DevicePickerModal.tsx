@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DevicePickerModal Component (Spotify Connect Clone)
  * Directly matches reference design from Spotify Connect
  */
@@ -53,7 +53,7 @@ export const DevicePickerModal: React.FC = () => {
   if (!isConnectModalVisible) return null;
 
   const isWebActive = activeDevice.type === 'web';
-  const activeColor = '#1DB954'; // Spotify Connect Green
+  const activeColor = COLORS.accentPrimary;
 
   return (
     <Modal

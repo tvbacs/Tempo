@@ -89,7 +89,7 @@ export const MiniPlayer: React.FC = () => {
               onPress={openConnectModal}
               style={styles.iconBtn}
             >
-              <Cast size={18} color={isWebActive ? '#1DB954' : COLORS.textSecondary} />
+              <Cast size={18} color={isWebActive ? COLORS.accentPrimary : COLORS.textSecondary} />
             </TouchableOpacity>
 
             <GradientPlayButton onPress={togglePlayPause} size={38}>
@@ -107,7 +107,7 @@ export const MiniPlayer: React.FC = () => {
         {/* Thanh ngang gradient thời lượng ở đáy card */}
         <View style={styles.bottomProgressTrack}>
           <LinearGradient
-            colors={isWebActive ? ['#1DB954', '#10B981'] : [COLORS.gradientTop, COLORS.gradientBottom]}
+            colors={isWebActive ? [COLORS.accentPrimary, '#10B981'] : [COLORS.gradientTop, COLORS.gradientBottom]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={[styles.bottomProgressBar, { width: `${progress * 100}%` }]}
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   connectPillText: {
     fontSize: TYPOGRAPHY.sizeMicro,
-    color: '#1DB954',
+    color: COLORS.accentPrimary,
     fontWeight: '600',
   },
   connectPillChange: {

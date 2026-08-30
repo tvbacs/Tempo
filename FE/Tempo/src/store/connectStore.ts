@@ -171,7 +171,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
     if (device.type === 'web') {
       // 1. Chuyển quyền phát sang Loa Máy Tính
       await audioEngine.pause();
-      useToastStore.getState().showToast(Đang nghe trên , 'info');
+      useToastStore.getState().showToast(`Đang nghe trên ${device.deviceName}`, 'info');
 
       if (realtimeChannel && song) {
         realtimeChannel.send({
@@ -180,7 +180,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           payload: {
             command: 'transfer_playback',
             data: {
-              targetDeviceId: device.deviceId,
+              targetDeviceId: 'web-player-pc',
               song,
               positionMs: pos,
             },
@@ -188,6 +188,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         });
       }
     } else {
+
       // 2. Chuyển ngược lại về Loa Điện Thoại
       useToastStore.getState().showToast('Đang phát qua Điện thoại này', 'info');
       if (realtimeChannel) {

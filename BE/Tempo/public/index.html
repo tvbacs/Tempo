@@ -1,0 +1,126 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tempo Web Player · Spotify Connect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-icon">🎵</div>
+        <div class="brand-text">
+          <h1>TEMPO</h1>
+          <span class="badge">CONNECT</span>
+        </div>
+      </div>
+      
+      <div class="device-status-badge" id="deviceStatus">
+        <span class="status-dot"></span>
+        <span id="deviceStatusText">Đang đợi kết nối từ điện thoại...</span>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn-primary" id="takeoverBtn">🔊 Phát qua loa máy tính</button>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="main-content">
+      <!-- Left Artwork & Info -->
+      <section class="player-visual">
+        <div class="artwork-card" id="artworkCard">
+          <img id="coverImg" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600" alt="Cover">
+          <div class="artwork-glow"></div>
+        </div>
+
+        <div class="track-meta">
+          <h2 id="trackTitle">Chưa có bài hát nào</h2>
+          <p id="trackArtist">Mở app Tempo trên điện thoại để bắt đầu phát</p>
+        </div>
+
+        <div class="connect-banner" id="connectBanner">
+          <div class="phone-icon">📱</div>
+          <div class="banner-info">
+            <h4 id="bannerTitle">Sẵn sàng đồng bộ</h4>
+            <p id="bannerSub">Mọi thao tác trên điện thoại sẽ tự động truyền về máy tính</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Visualizer & Synced Lyrics -->
+      <section class="lyrics-visualizer-panel">
+        <div class="panel-header">
+          <button class="tab-btn active" id="tabLyrics">Lời bài hát</button>
+          <button class="tab-btn" id="tabVisualizer">Visualizer 3D</button>
+        </div>
+
+        <div class="tab-content" id="lyricsContent">
+          <div class="lyrics-scroll" id="lyricsContainer">
+            <p class="lyrics-placeholder">Lời bài hát sẽ tự động chạy theo nhạc...</p>
+          </div>
+        </div>
+
+        <div class="tab-content hidden" id="visualizerContent">
+          <canvas id="visualizerCanvas"></canvas>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Spotify-style Player Bar -->
+    <footer class="bottom-bar">
+      <!-- Mini Info Left -->
+      <div class="mini-meta">
+        <img id="miniCover" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120" alt="Mini Cover">
+        <div class="mini-text">
+          <div id="miniTitle" class="mini-title">Tempo Web Player</div>
+          <div id="miniArtist" class="mini-artist">Sẵn sàng</div>
+        </div>
+      </div>
+
+      <!-- Playback Controls Center -->
+      <div class="player-controls">
+        <div class="control-buttons">
+          <button class="control-btn" id="btnShuffle" title="Trộn bài">🔀</button>
+          <button class="control-btn" id="btnPrev" title="Bài trước">⏮</button>
+          <button class="play-pause-btn" id="btnPlayPause" title="Phát/Dừng">▶</button>
+          <button class="control-btn" id="btnNext" title="Bài tiếp">⏭</button>
+          <button class="control-btn" id="btnRepeat" title="Lặp lại">🔁</button>
+        </div>
+
+        <div class="progress-bar-container">
+          <span id="currentTime" class="time-label">0:00</span>
+          <div class="progress-track" id="progressTrack">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-handle" id="progressHandle"></div>
+          </div>
+          <span id="totalDuration" class="time-label">0:00</span>
+        </div>
+      </div>
+
+      <!-- Device & Volume Right -->
+      <div class="device-volume-controls">
+        <div class="active-device-indicator" id="activeDeviceBadge">
+          <span class="device-icon">💻</span>
+          <span class="device-name">Web Player (PC)</span>
+        </div>
+
+        <div class="volume-slider-box">
+          <button id="btnMute" class="vol-icon">🔊</button>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8">
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <audio id="audioElement" preload="auto"></audio>
+  <script src="/app.js"></script>
+</body>
+</html>

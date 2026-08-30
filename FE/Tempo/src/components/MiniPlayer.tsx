@@ -7,10 +7,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Play, Pause, Cast } from 'lucide-react-native';
+import { Play, Pause, Cast, Radio } from 'lucide-react-native';
 import { GradientPlayButton } from './GradientButton';
 import { usePlayerStore } from '../store/playerStore';
 import { useNavStore } from '../store/navStore';
+import { useConnectStore } from '../store/connectStore';
+import { DevicePickerModal } from './DevicePickerModal';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 export const MiniPlayer: React.FC = () => {
@@ -26,8 +28,11 @@ export const MiniPlayer: React.FC = () => {
     openFullPlayer,
   } = usePlayerStore();
 
+  const { activeDevice, openConnectModal } = useConnectStore();
+
   if (!currentSong) return null;
 
+  const isWebActive = activeDevice.type === 'web';
   const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
   const bottomInset = insets.bottom > 0 ? insets.bottom : SPACING.sm;
   const bottomPosition = hasTabBar
@@ -35,63 +40,86 @@ export const MiniPlayer: React.FC = () => {
     : bottomInset + SPACING.xs;
 
   return (
-    <View style={[styles.wrapper, { bottom: bottomPosition }]}>
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={openFullPlayer}
-        style={styles.container}
-      >
-        <Image
-          source={{
-            uri:
-              currentSong.thumbnail ||
-              'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120',
-          }}
-          style={styles.thumbnail}
-        />
-
-        <View style={styles.info}>
-          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
-            {currentSong.title}
-          </Text>
-          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.artist}>
-            {currentSong.artistsNames}
-          </Text>
-        </View>
-
-        <View style={styles.controls}>
+    <>
+      <View style={[styles.wrapper, { bottom: bottomPosition }]}>
+        {/* Floating Connect Device Pill Banner (Spotify Style) */}
+        {isWebActive && (
           <TouchableOpacity
-            activeOpacity={0.7}
-            hitSlop={{ top: SPACING.md, bottom: SPACING.md, left: SPACING.md, right: SPACING.md }}
-            style={styles.iconBtn}
+            activeOpacity={0.85}
+            onPress={openConnectModal}
+            style={styles.connectPillBanner}
           >
-            <Cast size={18} color={COLORS.textSecondary} />
+            <View style={styles.connectPillLeft}>
+              <Radio size={14} color="#1DB954" />
+              <Text style={styles.connectPillText} numberOfLines={1}>
+                Đang nghe trên <Text style={{ fontWeight: '800' }}>{activeDevice.deviceName}</Text>
+              </Text>
+            </View>
+            <Text style={styles.connectPillChange}>Thay đổi</Text>
           </TouchableOpacity>
+        )}
 
-          <GradientPlayButton onPress={togglePlayPause} size={38}>
-            {isLoading ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : isPlaying ? (
-              <Pause size={18} color={COLORS.white} fill={COLORS.white} />
-            ) : (
-              <Play size={18} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 2 }} />
-            )}
-          </GradientPlayButton>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={openFullPlayer}
+          style={styles.container}
+        >
+          <Image
+            source={{
+              uri:
+                currentSong.thumbnail ||
+                'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120',
+            }}
+            style={styles.thumbnail}
+          />
+
+          <View style={styles.info}>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
+              {currentSong.title}
+            </Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.artist}>
+              {isWebActive ? `🔊 ${activeDevice.deviceName}` : currentSong.artistsNames}
+            </Text>
+          </View>
+
+          <View style={styles.controls}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={{ top: SPACING.md, bottom: SPACING.md, left: SPACING.md, right: SPACING.md }}
+              onPress={openConnectModal}
+              style={styles.iconBtn}
+            >
+              <Cast size={18} color={isWebActive ? '#1DB954' : COLORS.textSecondary} />
+            </TouchableOpacity>
+
+            <GradientPlayButton onPress={togglePlayPause} size={38}>
+              {isLoading ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : isPlaying ? (
+                <Pause size={18} color={COLORS.white} fill={COLORS.white} />
+              ) : (
+                <Play size={18} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 2 }} />
+              )}
+            </GradientPlayButton>
+          </View>
+        </TouchableOpacity>
+
+        {/* Thanh ngang gradient thời lượng ở đáy card */}
+        <View style={styles.bottomProgressTrack}>
+          <LinearGradient
+            colors={isWebActive ? ['#1DB954', '#10B981'] : [COLORS.gradientTop, COLORS.gradientBottom]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.bottomProgressBar, { width: `${progress * 100}%` }]}
+          />
         </View>
-      </TouchableOpacity>
-
-      {/* Thanh ngang gradient thời lượng ở đáy card */}
-      <View style={styles.bottomProgressTrack}>
-        <LinearGradient
-          colors={[COLORS.gradientTop, COLORS.gradientBottom]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.bottomProgressBar, { width: `${progress * 100}%` }]}
-        />
       </View>
-    </View>
+
+      <DevicePickerModal />
+    </>
   );
 };
+
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -166,5 +194,33 @@ const styles = StyleSheet.create({
   bottomProgressBar: {
     height: '100%',
     backgroundColor: COLORS.accentPrimary,
+  },
+  connectPillBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E1E24',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  connectPillLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  connectPillText: {
+    fontSize: TYPOGRAPHY.sizeMicro,
+    color: '#1DB954',
+    fontWeight: '600',
+  },
+  connectPillChange: {
+    fontSize: TYPOGRAPHY.sizeMicro,
+    color: COLORS.white,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

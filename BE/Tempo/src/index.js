@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const musicRoutes = require('./routes/musicRoutes');
 const aiRoutes = require('./routes/aiRoutes');
@@ -11,6 +12,7 @@ const PORT = process.env.PORT || 5050;
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Routes
 app.use('/api/music', musicRoutes);

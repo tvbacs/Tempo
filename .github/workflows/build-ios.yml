@@ -12,31 +12,34 @@ on:
 jobs:
   build-ios:
     name: Build Unsigned iOS IPA
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
 
     steps:
       - name: 1. Checkout repository
         uses: actions/checkout@v4
 
-      - name: 2. Setup Node.js 20
+      - name: 2. Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: 3. Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: 3. Install Node dependencies
+      - name: 4. Install Node dependencies
         working-directory: FE/Tempo
         run: npm install
 
-      - name: 4. Expo Prebuild (Generate Native iOS Project)
+      - name: 5. Expo Prebuild (Generate Native iOS Project)
         working-directory: FE/Tempo
         run: npx expo prebuild --platform ios --clean
 
-      - name: 5. Install CocoaPods Dependencies
+      - name: 6. Install CocoaPods Dependencies
         working-directory: FE/Tempo/ios
         run: pod install
 
-      - name: 6. Build Native iOS App Binary
+      - name: 7. Build Native iOS App Binary
         working-directory: FE/Tempo/ios
         run: |
           xcodebuild \
@@ -50,7 +53,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES
 
-      - name: 7. Package App into IPA
+      - name: 8. Package App into IPA
         working-directory: FE/Tempo/ios
         run: |
           mkdir -p Payload
@@ -59,7 +62,7 @@ jobs:
           mkdir -p ../dist
           mv Tempo.ipa ../dist/Tempo.ipa
 
-      - name: 8. Upload IPA to GitHub Artifacts
+      - name: 9. Upload IPA to GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Tempo-iOS-IPA

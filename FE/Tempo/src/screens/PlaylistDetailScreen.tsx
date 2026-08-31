@@ -48,7 +48,7 @@ export const PlaylistDetailScreen: React.FC<{
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const { currentSong, isPlaying, playSong, togglePlayPause, isShuffle, toggleShuffle } = usePlayerStore();
-  const { playlists, setLastPlayedContext, toggleSaveAlbum, isAlbumSaved } = useLibraryStore();
+  const { playlists, savedAlbums, setLastPlayedContext, toggleSaveAlbum, isAlbumSaved } = useLibraryStore();
   const { showToast } = useToastStore();
 
   const isLiked = id ? isAlbumSaved(id) : false;
@@ -59,7 +59,7 @@ export const PlaylistDetailScreen: React.FC<{
 
     const loadPlaylist = async () => {
       try {
-        // 0. Nếu được truyền trực tiếp danh sách bài hát (Daily Mix / Theme Activity)
+        // 0. Nếu được truyền trực tiếp danh sách bài hát (Daily Mix / Theme / Saved Albums)
         if (initialSongs && Array.isArray(initialSongs) && initialSongs.length > 0) {
           if (isMounted) {
             setPlaylist({
@@ -82,6 +82,77 @@ export const PlaylistDetailScreen: React.FC<{
           return;
         }
 
+        // 0b. Kiểm tra xem có trong danh sách Album đã lưu với đầy đủ bài hát không
+        const savedAl = savedAlbums.find((a) => a.id === id);
+        if (savedAl && savedAl.songs && savedAl.songs.length > 0) {
+          if (isMounted) {
+            setPlaylist({
+              id: savedAl.id,
+              title: savedAl.title || initTitle || "Album đã lưu",
+              thumbnail: savedAl.thumbnail || initThumb || "",
+              artistsNames: savedAl.artistsNames || `${savedAl.songs.length} bài hát`,
+              songs: savedAl.songs,
+            });
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        // 0c. Nếu là Chủ đề & Không gian mở bằng ID thuần
+        if (id === "theme_coffee") {
+          const res = await apiClient.search("Cà Phê Sáng").catch(() => ({ songs: [] }));
+          if (res?.songs?.length && isMounted) {
+            setPlaylist({
+              id: "theme_coffee",
+              title: initTitle || "Cà phê sáng",
+              thumbnail: initThumb || "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500",
+              artistsNames: initArtists || "Acoustic, Indie & Jazz nhẹ nhàng",
+              songs: res.songs,
+            });
+            setIsLoading(false);
+            return;
+          }
+        } else if (id === "theme_focus") {
+          const res = await apiClient.search("Lofi Chill").catch(() => ({ songs: [] }));
+          if (res?.songs?.length && isMounted) {
+            setPlaylist({
+              id: "theme_focus",
+              title: initTitle || "Góc làm việc tập trung",
+              thumbnail: initThumb || "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=500",
+              artistsNames: initArtists || "Deep Focus & Lofi Beats",
+              songs: res.songs,
+            });
+            setIsLoading(false);
+            return;
+          }
+        } else if (id === "theme_drive") {
+          const res = await apiClient.search("Lái Xe Thư Giãn").catch(() => ({ songs: [] }));
+          if (res?.songs?.length && isMounted) {
+            setPlaylist({
+              id: "theme_drive",
+              title: initTitle || "Lái xe thư giãn",
+              thumbnail: initThumb || "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=500",
+              artistsNames: initArtists || "City Pop & Night Drive",
+              songs: res.songs,
+            });
+            setIsLoading(false);
+            return;
+          }
+        } else if (id === "theme_rain") {
+          const res = await apiClient.search("Nhạc Mưa").catch(() => ({ songs: [] }));
+          if (res?.songs?.length && isMounted) {
+            setPlaylist({
+              id: "theme_rain",
+              title: initTitle || "Nhạc mưa chill",
+              thumbnail: initThumb || "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=500",
+              artistsNames: initArtists || "Rainy Lofi & Piano Sleep",
+              songs: res.songs,
+            });
+            setIsLoading(false);
+            return;
+          }
+        }
+
         // 1. Kiểm tra xem có phải playlist cá nhân do user tự tạo không
         const customPl = playlists.find((p) => p.id === id);
         if (customPl) {
@@ -102,20 +173,19 @@ export const PlaylistDetailScreen: React.FC<{
           return;
         }
 
-        // 2. Nếu là playlist/album trực tuyến từ API
+        // 2. Nếu là playlist/album trực tuyến từ Zing API
         const data = await apiClient.getPlaylistDetail(id);
         if (isMounted && data) {
           setPlaylist(data);
         }
       } catch (e: any) {
         console.warn("Playlist API fallback:", e?.message || e);
-        // Graceful fallback without breaking screen
         if (isMounted && !playlist) {
           setPlaylist({
             id: id || "unknown",
             title: initTitle || "Tuyển tập âm nhạc",
             thumbnail: initThumb || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
-            artistsNames: "Zing MP3",
+            artistsNames: "Tuyển tập đặc sắc",
             songs: [],
           });
         }
@@ -185,6 +255,7 @@ export const PlaylistDetailScreen: React.FC<{
       title: displayTitle,
       thumbnail: displayThumb,
       artistsNames: playlist?.artistsNames,
+      songs: songList,
     });
   };
 

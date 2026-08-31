@@ -59,6 +59,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [focusSongs, setFocusSongs] = useState<UnifiedSong[]>([]);
   const [driveSongs, setDriveSongs] = useState<UnifiedSong[]>([]);
   const [rainSongs, setRainSongs] = useState<UnifiedSong[]>([]);
+  const [dailyMix1Songs, setDailyMix1Songs] = useState<UnifiedSong[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -179,11 +180,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return { greeting: "ĐÊM KHUYA", moodTitle: "Giai Điệu Dễ Ngủ", timeSlot: "night" };
   }, [currentHour]);
 
-  // 2. Tuyển tập Daily Mix cá nhân hóa từ Lịch sử nghe & Bài hát yêu thích
-  const dailyMixes = useMemo(() => {
-    const artistStats: Record<string, { name: string; count: number; songs: UnifiedSong[]; thumbnail: string }> = {};
-
-    // Gom bài hát từ cả lịch sử và bài hát đã thích
+  // 1. Phân tích danh sách các ca sĩ từ Lịch sử nghe & Bài hát yêu thích
+  const uniqueArtists = useMemo(() => {
+    const artistMap = new Map<string, number>();
     const allUserSongs = [
       ...history.map((h) => h.song),
       ...likedSongs,
@@ -192,86 +191,127 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     allUserSongs.forEach((song) => {
       if (!song?.artistsNames) return;
       const primaryArtist = song.artistsNames.split(",")[0].trim();
-      if (!primaryArtist) return;
-
-      if (!artistStats[primaryArtist]) {
-        artistStats[primaryArtist] = {
-          name: primaryArtist,
-          count: 0,
-          songs: [],
-          thumbnail: song.thumbnail,
-        };
-      }
-      artistStats[primaryArtist].count += 1;
-      if (!artistStats[primaryArtist].songs.some((s) => s.id === song.id)) {
-        artistStats[primaryArtist].songs.push(song);
+      if (primaryArtist) {
+        artistMap.set(primaryArtist, (artistMap.get(primaryArtist) || 0) + 1);
       }
     });
 
-    const sortedArtists = Object.values(artistStats).sort((a, b) => b.count - a.count);
-    const topArtist1 = sortedArtists[0];
-    const topArtist2 = sortedArtists[1];
+    // Lấy top 4 ca sĩ nghe nhiều nhất
+    return Array.from(artistMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map((entry) => entry[0])
+      .slice(0, 4);
+  }, [history, likedSongs]);
 
-    // Daily Mix 1: Top Nghệ sĩ nghe nhiều nhất #1
-    const mix1Songs = topArtist1
-      ? [
-          ...topArtist1.songs,
-          ...topChartSongs.filter((s) => s.artistsNames?.toLowerCase().includes(topArtist1.name.toLowerCase()) && !topArtist1.songs.some((t) => t.id === s.id)),
-          ...topChartSongs.filter((s) => !topArtist1.songs.some((t) => t.id === s.id)),
-        ].slice(0, 15)
-      : topChartSongs.slice(0, 15);
+  // Tự động tìm kiếm tuyển tập bài hát chính thức của từng ca sĩ từ Zing API
+  useEffect(() => {
+    if (uniqueArtists.length === 0) return;
+
+    let isMounted = true;
+    Promise.all(
+      uniqueArtists.map((artistName) =>
+        apiClient
+          .search(artistName)
+          .then((res) => {
+            if (!res?.songs?.length) return [];
+            const matched = res.songs.filter(
+              (s) =>
+                s.artistsNames?.toLowerCase().includes(artistName.toLowerCase()) ||
+                s.title?.toLowerCase().includes(artistName.toLowerCase())
+            );
+            // Lấy 4 bài hay nhất của ca sĩ này
+            return (matched.length > 0 ? matched : res.songs).slice(0, 4);
+          })
+          .catch(() => [])
+      )
+    ).then((results) => {
+      if (isMounted) {
+        const combined = results.flat();
+        if (combined.length > 0) {
+          setDailyMix1Songs(combined);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [uniqueArtists]);
+
+  // 2. Tuyển tập Daily Mix cá nhân hóa
+  const dailyMixes = useMemo(() => {
+    // === DAILY MIX 1: Tuyển tập toàn bộ bài hát của các ca sĩ bạn đã nghe ===
+    const mix1ArtistsSummary =
+      uniqueArtists.length > 0
+        ? uniqueArtists.slice(0, 3).join(", ") + (uniqueArtists.length > 3 ? " và hơn thế nữa..." : "")
+        : "Tuyển tập các ca khúc dành riêng cho bạn";
 
     const mix1 = {
       id: "daily_mix_1",
-      title: topArtist1 ? `Daily Mix 1 · ${topArtist1.name}` : "Daily Mix 1",
-      tag: topArtist1 ? "NGHỆ SĨ YÊU THÍCH" : "V-POP & R&B",
-      subtitle: topArtist1
-        ? `Tuyển tập hay nhất của ${topArtist1.name} & gợi ý liên quan`
-        : "Tuyển tập các bản hit V-Pop thịnh hành nhất",
+      title: "Daily Mix 1 · Ca Sĩ Yêu Thích",
+      tag: "DÀNH CHO BẠN",
+      subtitle: mix1ArtistsSummary,
       gradient: ["#EC4899", "#8B5CF6"] as [string, string],
       thumbnail:
-        topArtist1?.thumbnail ||
+        dailyMix1Songs[0]?.thumbnail ||
         topChartSongs[0]?.thumbnail ||
         "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80",
-      songs: mix1Songs,
+      songs: dailyMix1Songs.length > 0 ? dailyMix1Songs : topChartSongs.slice(0, 15),
     };
 
-    // Daily Mix 2: Top Nghệ sĩ #2 (lấy các bài cùng phong cách / BXH, không trộn nhạc Lofi)
-    const mix2Songs = topArtist2
-      ? [
-          ...topArtist2.songs,
-          ...topChartSongs.filter((s) => s.artistsNames?.toLowerCase().includes(topArtist2.name.toLowerCase()) && !topArtist2.songs.some((t) => t.id === s.id)),
-          ...topChartSongs.slice(2, 16).filter((s) => !topArtist2.songs.some((t) => t.id === s.id)),
-          ...globalTrendingSongs.filter((s) => !topArtist2.songs.some((t) => t.id === s.id)),
-        ].slice(0, 15)
-      : topChartSongs.slice(4, 18);
+    // === DAILY MIX 2: Tùy biến theo thời gian trong ngày (Sáng, Trưa, Chiều, Tối, Đêm) ===
+    let mix2Config = {
+      title: "Daily Mix 2 · Khởi Đầu Ngày Mới",
+      tag: "BUỔI SÁNG · ACOUSTIC",
+      subtitle: "Acoustic & Indie tươi tắn cho ngày mới tràn đầy hứng khởi",
+      gradient: ["#F59E0B", "#F97316"] as [string, string],
+      thumbnail: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&q=80",
+      songs: coffeeSongs.length > 0 ? coffeeSongs : topChartSongs.slice(0, 15),
+    };
+
+    if (currentHour >= 11 && currentHour < 17) {
+      mix2Config = {
+        title: "Daily Mix 2 · Năng Lượng Làm Việc",
+        tag: "BUỔI CHIỀU · FOCUS",
+        subtitle: "Deep Focus & Lofi nhịp nhàng giúp duy trì sự tỉnh táo và hiệu suất",
+        gradient: ["#8B5CF6", "#3B82F6"] as [string, string],
+        thumbnail: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=400&q=80",
+        songs: focusSongs.length > 0 ? focusSongs : topChartSongs.slice(2, 16),
+      };
+    } else if (currentHour >= 17 && currentHour < 22) {
+      mix2Config = {
+        title: "Daily Mix 2 · Thư Giãn Buổi Tối",
+        tag: "BUỔI TỐI · CHILL OUT",
+        subtitle: "Giai điệu Pop, Ballad & R&B nhẹ nhàng giải tỏa căng thẳng cuối ngày",
+        gradient: ["#EC4899", "#8B5CF6"] as [string, string],
+        thumbnail: "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=400&q=80",
+        songs: driveSongs.length > 0 ? driveSongs : globalTrendingSongs.slice(0, 15),
+      };
+    } else if (currentHour >= 22 || currentHour < 5) {
+      mix2Config = {
+        title: "Daily Mix 2 · Giai Điệu Dễ Ngủ",
+        tag: "ĐÊM KHUYA · SLEEP",
+        subtitle: "Nhạc mưa, Piano & Lofi êm dịu vỗ về giấc ngủ ngon",
+        gradient: ["#06B6D4", "#1E3A8A"] as [string, string],
+        thumbnail: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=400&q=80",
+        songs: rainSongs.length > 0 ? rainSongs : topChartSongs.slice(4, 18),
+      };
+    }
 
     const mix2 = {
       id: "daily_mix_2",
-      title: topArtist2
-        ? `Daily Mix 2 · ${topArtist2.name}`
-        : "Daily Mix 2 · Nhạc Trẻ Hot",
-      tag: topArtist2 ? "DÀNH CHO BẠN" : "THỊNH HÀNH",
-      subtitle: topArtist2
-        ? `Giai điệu từ ${topArtist2.name} và các ca khúc cùng phong cách`
-        : "Tuyển tập các bài hát nổi bật được yêu thích nhất",
-      gradient: ["#06B6D4", "#3B82F6"] as [string, string],
-      thumbnail:
-        topArtist2?.thumbnail ||
-        topChartSongs[1]?.thumbnail ||
-        "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=400&q=80",
-      songs: mix2Songs,
+      ...mix2Config,
     };
 
-    // Daily Mix 3: Xu hướng mới & Khám phá
+    // === DAILY MIX 3: Khám phá bài hát mới & Xu hướng thịnh hành ===
     const mix3Songs =
       globalTrendingSongs.length > 0 ? globalTrendingSongs.slice(0, 15) : topChartSongs.slice(5, 18);
     const mix3 = {
       id: "daily_mix_3",
-      title: "Daily Mix 3 · Khám Phá",
+      title: "Daily Mix 3 · Khám Phá Mới",
       tag: "XU HƯỚNG MỚI",
-      subtitle: "Giai điệu mới mẻ và thịnh hành có thể bạn sẽ thích",
-      gradient: ["#F59E0B", "#EF4444"] as [string, string],
+      subtitle: "Giai điệu thịnh hành & bài hát mới nổi bật hôm nay",
+      gradient: ["#10B981", "#06B6D4"] as [string, string],
       thumbnail:
         globalTrendingSongs[0]?.thumbnail ||
         "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
@@ -279,7 +319,17 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     };
 
     return [mix1, mix2, mix3];
-  }, [history, likedSongs, topChartSongs, focusSongs, globalTrendingSongs, timeGreeting.timeSlot]);
+  }, [
+    uniqueArtists,
+    dailyMix1Songs,
+    topChartSongs,
+    globalTrendingSongs,
+    coffeeSongs,
+    focusSongs,
+    driveSongs,
+    rainSongs,
+    currentHour,
+  ]);
 
   // 3. Khám phá theo Chủ đề & Không gian (Tự động ưu tiên đưa chủ đề phù hợp giờ lên đầu)
   const activityThemes = useMemo(() => {

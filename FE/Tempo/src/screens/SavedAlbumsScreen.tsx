@@ -124,6 +124,8 @@ export const SavedAlbumsScreen: React.FC<{ navigation: any }> = ({
                       id: album.id,
                       title: album.title,
                       thumbnail: album.thumbnail,
+                      artistsNames: album.artistsNames,
+                      songs: album.songs,
                     })
                   }
                   style={styles.albumCard}
@@ -140,7 +142,9 @@ export const SavedAlbumsScreen: React.FC<{ navigation: any }> = ({
                     {album.title}
                   </Text>
                   <Text numberOfLines={1} style={styles.albumArtist}>
-                    {album.artistsNames || "Album tuyển chọn"}
+                    {album.songs?.length
+                      ? `${album.songs.length} bài hát`
+                      : album.artistsNames || "Album tuyển chọn"}
                   </Text>
                 </TouchableOpacity>
               ))}

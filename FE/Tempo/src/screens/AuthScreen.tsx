@@ -1,5 +1,5 @@
 /**
- * AuthScreen - Màn hình Đăng Nhập / Đăng Ký bắt buộc
+ * AuthScreen - Màn hình Đăng Nhập / Đăng Ký Siêu Cấp (Visual Artwork & Glassmorphism)
  * Thiết kế chuẩn Spotify / Apple Music, 100% Tokenized, Zero Borders, No Emojis
  */
 import React, { useState } from 'react';
@@ -16,7 +16,7 @@ import {
   Dimensions,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Music,
@@ -28,8 +28,13 @@ import {
   Sparkles,
   ShieldCheck,
   Headphones,
+  Zap,
+  ArrowRight,
+  Disc,
+  DownloadCloud,
   CheckCircle2,
 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -37,8 +42,8 @@ import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const AuthScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const [isLoginTab, setIsLoginTab] = useState(true);
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -47,13 +52,26 @@ export const AuthScreen: React.FC = () => {
 
   const { login, register } = useAuthStore();
 
+  const handleTabChange = (loginTab: boolean) => {
+    if (isLoginTab !== loginTab) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch (e) {}
+      setIsLoginTab(loginTab);
+    }
+  };
+
   const handleSubmit = async () => {
     const toast = useToastStore.getState();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (isLoginTab) {
-      const loginId = username.trim() || email.trim();
-      if (!loginId) {
-        toast.showToast('Vui lòng nhập Tên tài khoản hoặc Email', 'error');
+      if (!email.trim()) {
+        toast.showToast('Vui lòng nhập Email', 'error');
+        return;
+      }
+      if (!emailRegex.test(email.trim())) {
+        toast.showToast('Định dạng Email không đúng (VD: ten@gmail.com)', 'error');
         return;
       }
       if (!password.trim()) {
@@ -67,25 +85,15 @@ export const AuthScreen: React.FC = () => {
 
       setIsSubmitting(true);
       try {
-        await login(loginId, password.trim());
+        await login(email.trim(), password.trim());
       } finally {
         setIsSubmitting(false);
       }
     } else {
-      // Register validation
-      if (!username.trim()) {
-        toast.showToast('Vui lòng nhập Tên tài khoản', 'error');
-        return;
-      }
-      if (username.trim().length < 3) {
-        toast.showToast('Tên tài khoản phải có ít nhất 3 ký tự', 'error');
-        return;
-      }
       if (!email.trim()) {
         toast.showToast('Vui lòng nhập địa chỉ Email', 'error');
         return;
       }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
         toast.showToast('Định dạng Email không đúng (VD: ten@gmail.com)', 'error');
         return;
@@ -105,7 +113,7 @@ export const AuthScreen: React.FC = () => {
 
       setIsSubmitting(true);
       try {
-        await register(username.trim(), email.trim(), password.trim());
+        await register('', email.trim(), password.trim());
       } finally {
         setIsSubmitting(false);
       }
@@ -113,242 +121,430 @@ export const AuthScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      {/* Ambient gradient top glow */}
-      <LinearGradient
-        colors={['rgba(252,71,92,0.18)', 'rgba(252,101,90,0.08)', 'transparent']}
-        locations={[0, 0.45, 1]}
-        style={styles.ambientGlow}
-        pointerEvents="none"
-      />
+    <View style={styles.rootContainer}>
+      {/* 1. Full-Bleed Artwork Hero Background with Floating Diagonal Cards */}
+      <View style={styles.heroBackgroundContainer} pointerEvents="none">
+        {/* Floating Capsule 1 (Left Tilt) */}
+        <View style={[styles.floatingArtworkCard, styles.cardLeft]}>
+          <Image
+            source={{ uri: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80' }}
+            style={styles.artworkImg}
+            resizeMode="cover"
+          />
+        </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        {/* Floating Capsule 2 (Center High) */}
+        <View style={[styles.floatingArtworkCard, styles.cardCenter]}>
+          <Image
+            source={{ uri: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&q=80' }}
+            style={styles.artworkImg}
+            resizeMode="cover"
+          />
+        </View>
+
+        {/* Floating Capsule 3 (Right Tilt) */}
+        <View style={[styles.floatingArtworkCard, styles.cardRight]}>
+          <Image
+            source={{ uri: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80' }}
+            style={styles.artworkImg}
+            resizeMode="cover"
+          />
+        </View>
+
+        {/* Ambient Neon Glow Orbs */}
+        <View style={[styles.glowOrb, { top: insets.top + 20, left: -40, backgroundColor: 'rgba(252, 71, 92, 0.35)' }]} />
+        <View style={[styles.glowOrb, { top: insets.top + 60, right: -40, backgroundColor: 'rgba(124, 58, 237, 0.3)' }]} />
+        <View style={[styles.glowOrb, { top: insets.top + 180, left: SCREEN_WIDTH * 0.3, backgroundColor: 'rgba(6, 182, 212, 0.2)' }]} />
+
+        {/* Smooth Dark Gradient Vignette Overlay */}
+        <LinearGradient
+          colors={[
+            'rgba(10, 10, 14, 0.3)',
+            'rgba(10, 10, 14, 0.75)',
+            'rgba(10, 10, 14, 0.96)',
+            COLORS.bgPrimary,
+          ]}
+          locations={[0, 0.28, 0.55, 0.82]}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </View>
+
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          {/* Brand Header */}
-          <View style={styles.brandSection}>
-            <Image
-              source={require('../../assets/logo.png')}
-              style={styles.appLogo}
-              resizeMode="contain"
-            />
-            <Text style={styles.brandTitle}>Tempo Music</Text>
-            <Text style={styles.brandSubtitle}>
-              {isLoginTab
-                ? 'Đăng nhập để tiếp tục nghe nhạc và truy cập thư viện cá nhân'
-                : 'Tạo tài khoản mới để lưu trữ bài hát, playlist và trải nghiệm không giới hạn'}
-            </Text>
-          </View>
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* 2. Brand Hero Section */}
+            <View style={styles.brandHeroSection}>
+              <View style={styles.logoBadgeWrap}>
+                <LinearGradient
+                  colors={['#FC475C', '#7C3AED']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.logoRingGradient}
+                >
+                  <View style={styles.logoInnerBox}>
+                    <Image
+                      source={require('../../assets/logo.png')}
+                      style={styles.appLogo}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </LinearGradient>
+              </View>
 
-          {/* Mode Switch Tabs */}
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setIsLoginTab(true)}
-              style={[styles.tabBtn, isLoginTab && styles.tabBtnActive]}
-            >
-              <Text style={[styles.tabText, isLoginTab && styles.tabTextActive]}>
-                Đăng Nhập
-              </Text>
-            </TouchableOpacity>
+              <Text style={styles.brandTitle}>Tempo Music</Text>
+              <Text style={styles.brandTagline}>Âm Nhạc Không Giới Hạn</Text>
 
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setIsLoginTab(false)}
-              style={[styles.tabBtn, !isLoginTab && styles.tabBtnActive]}
-            >
-              <Text style={[styles.tabText, !isLoginTab && styles.tabTextActive]}>
-                Đăng Ký
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Input Form */}
-          <View style={styles.formCard}>
-            {/* Username Field */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>
-                {isLoginTab ? 'Tên đăng nhập hoặc Email' : 'Tên tài khoản'}
-              </Text>
-              <View style={styles.inputWrapper}>
-                <User size={18} color={COLORS.textSecondary} />
-                <TextInput
-                  value={username}
-                  onChangeText={setUsername}
-                  placeholder={isLoginTab ? 'Nhập username hoặc email...' : 'Ví dụ: tempo_listener'}
-                  placeholderTextColor={COLORS.textMuted}
-                  style={styles.inputField}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+              {/* Feature Pill Chips Row */}
+              <View style={styles.featureChipsRow}>
+                <View style={styles.featureChip}>
+                  <Zap size={12} color="#F59E0B" />
+                  <Text style={styles.featureChipText}>Lossless 320k</Text>
+                </View>
+                <View style={styles.featureChip}>
+                  <DownloadCloud size={12} color="#10B981" />
+                  <Text style={styles.featureChipText}>Offline 100%</Text>
+                </View>
+                <View style={styles.featureChip}>
+                  <Sparkles size={12} color="#C084FC" />
+                  <Text style={styles.featureChipText}>AI DJ Mix</Text>
+                </View>
               </View>
             </View>
 
-            {/* Email Field (Only on Register) */}
-            {!isLoginTab && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Địa chỉ Email</Text>
-                <View style={styles.inputWrapper}>
-                  <Mail size={18} color={COLORS.textSecondary} />
-                  <TextInput
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="name@example.com"
-                    placeholderTextColor={COLORS.textMuted}
-                    style={styles.inputField}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* Password Field */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Mật khẩu</Text>
-              <View style={styles.inputWrapper}>
-                <Lock size={18} color={COLORS.textSecondary} />
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Tối thiểu 6 ký tự..."
-                  placeholderTextColor={COLORS.textMuted}
-                  style={styles.inputField}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+            {/* 3. Glassmorphic Form Card */}
+            <View style={styles.formGlassCard}>
+              {/* Segmented Switcher */}
+              <View style={styles.tabContainer}>
                 <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  activeOpacity={0.85}
+                  onPress={() => handleTabChange(true)}
+                  style={[styles.tabBtn, isLoginTab && styles.tabBtnActive]}
                 >
-                  {showPassword ? (
-                    <EyeOff size={18} color={COLORS.textSecondary} />
-                  ) : (
-                    <Eye size={18} color={COLORS.textSecondary} />
+                  {isLoginTab && (
+                    <LinearGradient
+                      colors={[COLORS.accentPrimary, COLORS.accentSecondary]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
                   )}
+                  <Text style={[styles.tabText, isLoginTab && styles.tabTextActive]}>
+                    Đăng Nhập
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => handleTabChange(false)}
+                  style={[styles.tabBtn, !isLoginTab && styles.tabBtnActive]}
+                >
+                  {!isLoginTab && (
+                    <LinearGradient
+                      colors={[COLORS.accentPrimary, COLORS.accentSecondary]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  )}
+                  <Text style={[styles.tabText, !isLoginTab && styles.tabTextActive]}>
+                    Tạo Tài Khoản
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Form Input Fields */}
+              <View style={styles.inputsStack}>
+                {/* Email Field (always visible) */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>EMAIL</Text>
+                  <View style={styles.inputWrapper}>
+                    <View style={styles.inputIconBox}>
+                      <Mail size={18} color={COLORS.textSecondary} />
+                    </View>
+                    <TextInput
+                      value={email}
+                      onChangeText={setEmail}
+                      placeholder="tenban@gmail.com"
+                      placeholderTextColor={COLORS.textMuted}
+                      style={styles.inputField}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                </View>
+
+
+                {/* Password Field */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>MẬT KHẨU</Text>
+                  <View style={styles.inputWrapper}>
+                    <View style={styles.inputIconBox}>
+                      <Lock size={18} color={COLORS.textSecondary} />
+                    </View>
+                    <TextInput
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="Tối thiểu 6 ký tự..."
+                      placeholderTextColor={COLORS.textMuted}
+                      style={styles.inputField}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={styles.eyeBtn}
+                    >
+                      {showPassword ? (
+                        <EyeOff size={18} color={COLORS.textSecondary} />
+                      ) : (
+                        <Eye size={18} color={COLORS.textSecondary} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Confirm Password Field (Only for Register) */}
+                {!isLoginTab && (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>XÁC NHẬN MẬT KHẨU</Text>
+                    <View style={styles.inputWrapper}>
+                      <View style={styles.inputIconBox}>
+                        <ShieldCheck size={18} color={COLORS.textSecondary} />
+                      </View>
+                      <TextInput
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                        placeholder="Nhập lại mật khẩu..."
+                        placeholderTextColor={COLORS.textMuted}
+                        style={styles.inputField}
+                        secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Main Submit Action Button */}
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  onPress={handleSubmit}
+                  disabled={isSubmitting}
+                  style={styles.submitBtn}
+                >
+                  <LinearGradient
+                    colors={[COLORS.accentPrimary, '#FF6B6B', COLORS.accentSecondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.submitGradient}
+                  >
+                    {isSubmitting ? (
+                      <ActivityIndicator size="small" color={COLORS.white} />
+                    ) : (
+                      <View style={styles.submitContentRow}>
+                        <Text style={styles.submitBtnText}>
+                          {isLoginTab ? 'Đăng Nhập Ngay' : 'Bắt Đầu Trải Nghiệm'}
+                        </Text>
+                        <ArrowRight size={18} color={COLORS.white} strokeWidth={2.5} />
+                      </View>
+                    )}
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Confirm Password (Only on Register) */}
-            {!isLoginTab && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Xác nhận mật khẩu</Text>
-                <View style={styles.inputWrapper}>
-                  <ShieldCheck size={18} color={COLORS.textSecondary} />
-                  <TextInput
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    placeholder="Nhập lại mật khẩu..."
-                    placeholderTextColor={COLORS.textMuted}
-                    style={styles.inputField}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
+            {/* 4. Bottom Trust & Guarantee Badges */}
+            <View style={styles.trustSection}>
+              <View style={styles.trustItem}>
+                <View style={styles.trustDot} />
+                <Text style={styles.trustText}>Bảo mật mã hóa 100%</Text>
               </View>
-            )}
-
-            {/* Submit Action Button */}
-            <TouchableOpacity
-              activeOpacity={0.88}
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-              style={styles.submitBtn}
-            >
-              <LinearGradient
-                colors={[COLORS.accentPrimary, COLORS.accentSecondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.submitGradient}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color={COLORS.white} />
-                ) : (
-                  <Text style={styles.submitBtnText}>
-                    {isLoginTab ? 'Đăng Nhập Ngay' : 'Tạo Tài Khoản'}
-                  </Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <View style={styles.trustDivider} />
+              <View style={styles.trustItem}>
+                <View style={styles.trustDot} />
+                <Text style={styles.trustText}>Không quảng cáo chen ngang</Text>
+              </View>
+              <View style={styles.trustDivider} />
+              <View style={styles.trustItem}>
+                <View style={styles.trustDot} />
+                <Text style={styles.trustText}>Đồng bộ tức thì</Text>
+              </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  rootContainer: {
     flex: 1,
     backgroundColor: COLORS.bgPrimary,
+  },
+  heroBackgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  floatingArtworkCard: {
+    position: 'absolute',
+    borderRadius: LAYOUT.radiusLg,
+    overflow: 'hidden',
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 8,
+    opacity: 0.45,
+  },
+  cardLeft: {
+    width: 140,
+    height: 180,
+    top: 20,
+    left: -20,
+    transform: [{ rotate: '-14deg' }],
+  },
+  cardCenter: {
+    width: 160,
+    height: 200,
+    top: -10,
+    left: SCREEN_WIDTH * 0.35,
+    transform: [{ rotate: '6deg' }],
+  },
+  cardRight: {
+    width: 140,
+    height: 180,
+    top: 40,
+    right: -25,
+    transform: [{ rotate: '18deg' }],
+  },
+  artworkImg: {
+    width: '100%',
+    height: '100%',
+  },
+  glowOrb: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    filter: 'blur(40px)',
+  },
+  safeArea: {
+    flex: 1,
   },
   container: {
     flex: 1,
   },
   contentContainer: {
     paddingHorizontal: SPACING.screenPadding,
-    paddingTop: SPACING.xl,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.xxxl,
   },
-  ambientGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 320,
-    zIndex: 0,
-  },
-  brandSection: {
+  brandHeroSection: {
     alignItems: 'center',
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.xl,
+    paddingTop: SPACING.xs,
   },
-  appLogo: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+  logoBadgeWrap: {
     marginBottom: SPACING.md,
   },
-  brandTitle: {
-    fontSize: TYPOGRAPHY.sizeHero,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    letterSpacing: -0.5,
-    marginBottom: SPACING.xs,
+  logoRingGradient: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: COLORS.accentPrimary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  brandSubtitle: {
+  logoInnerBox: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: '#0F0F14',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appLogo: {
+    width: 44,
+    height: 44,
+  },
+  brandTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  brandTagline: {
     fontSize: TYPOGRAPHY.sizeBodySmall,
     color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: SPACING.lg,
+    fontWeight: '500',
+    marginBottom: SPACING.md,
+  },
+  featureChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  featureChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: LAYOUT.radiusFull,
+  },
+  featureChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  formGlassCard: {
+    backgroundColor: 'rgba(24, 24, 30, 0.88)',
+    borderRadius: 24,
+    padding: SPACING.lg,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
+    marginBottom: SPACING.lg,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: COLORS.bgSurfaceSecondary,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: LAYOUT.radiusFull,
-    padding: 4,
-    marginBottom: SPACING.xl,
+    padding: 3,
+    marginBottom: SPACING.lg,
+    overflow: 'hidden',
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: LAYOUT.radiusFull,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  tabBtnActive: {
-    backgroundColor: COLORS.bgSurface,
-  },
+  tabBtnActive: {},
   tabText: {
     fontSize: TYPOGRAPHY.sizeBodySmall,
     fontWeight: '600',
@@ -358,45 +554,61 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '800',
   },
-  formCard: {
-    backgroundColor: COLORS.bgSurface,
-    borderRadius: LAYOUT.radiusLg,
-    padding: SPACING.lg,
+  inputsStack: {
     gap: SPACING.md,
-    marginBottom: SPACING.xl,
   },
   inputGroup: {
-    gap: 6,
+    gap: 5,
   },
   inputLabel: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
     marginLeft: 4,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.bgSurfaceSecondary,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: LAYOUT.radiusMd,
-    paddingHorizontal: SPACING.md,
-    height: 50,
-    gap: SPACING.sm,
+    paddingHorizontal: SPACING.sm + 2,
+    height: 48,
+    gap: 10,
+  },
+  inputIconBox: {
+    width: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inputField: {
     flex: 1,
     color: COLORS.white,
     fontSize: TYPOGRAPHY.sizeBodySmall,
+    fontWeight: '600',
+  },
+  eyeBtn: {
+    padding: 4,
   },
   submitBtn: {
     borderRadius: LAYOUT.radiusFull,
     overflow: 'hidden',
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
+    shadowColor: COLORS.accentPrimary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
   submitGradient: {
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  submitContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   submitBtnText: {
     fontSize: TYPOGRAPHY.sizeBody,
@@ -404,53 +616,33 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     letterSpacing: 0.2,
   },
-  perksRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: SPACING.lg,
-  },
-  perkItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  perkText: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    color: COLORS.textMuted,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginVertical: SPACING.md,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.bgSurfaceSecondary,
-  },
-  dividerText: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    color: COLORS.textMuted,
-    fontWeight: '600',
-  },
-  googleBtn: {
+  trustSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.bgSurface,
-    borderRadius: LAYOUT.radiusFull,
-    paddingVertical: 14,
-    gap: SPACING.sm,
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: SPACING.sm,
   },
-  googleIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  trustItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
-  googleBtnText: {
-    fontSize: TYPOGRAPHY.sizeBodySmall,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
+  trustDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.textMuted,
+  },
+  trustText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: '500',
+  },
+  trustDivider: {
+    width: 1,
+    height: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
 });

@@ -18,6 +18,7 @@ export interface Album {
   title: string;
   thumbnail?: string;
   artistsNames?: string;
+  songs?: UnifiedSong[];
 }
 
 export interface UnifiedSong {

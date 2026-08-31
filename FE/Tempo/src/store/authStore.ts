@@ -186,21 +186,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  register: async (username, email, password) => {
-    const cleanUsername = username.trim();
+  register: async (_unusedUsername, email, password) => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
-
-    const { data: existingUser } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('username', cleanUsername)
-      .maybeSingle();
-
-    if (existingUser) {
-      useToastStore.getState().showToast('Tên tài khoản này đã được sử dụng', 'error');
-      return;
-    }
+    // Auto-generate username from email (part before @)
+    const cleanUsername = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
 
     const { data: authData, error } = await supabase.auth.signUp({
       email: cleanEmail,

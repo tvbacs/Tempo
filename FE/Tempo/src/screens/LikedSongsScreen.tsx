@@ -44,6 +44,7 @@ import { useLibraryStore } from "../store/libraryStore";
 import { useSleepTimerStore } from "../store/sleepTimerStore";
 import { useDownloadStore } from "../store/downloadStore";
 import { useToastStore } from "../store/toastStore";
+import { useActivePlayback } from "../store/connectStore";
 import { UnifiedSong } from "../types/music";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 import { formatDuration } from "../utils/format";
@@ -58,8 +59,8 @@ export const LikedSongsScreen: React.FC<{
   // Multi-Select Mode
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  const { playSong, isPlaying, isLoading, currentSong, togglePlayPause, isShuffle, toggleShuffle } = usePlayerStore();
+  const { playSong, isLoading, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
+  const { isPlaying, togglePlayPause } = useActivePlayback();
   const { likedSongs, fetchLikedSongs, toggleLike } = useLibraryStore();
   const { downloadSong } = useDownloadStore();
   const { showToast } = useToastStore();
@@ -68,8 +69,10 @@ export const LikedSongsScreen: React.FC<{
     fetchLikedSongs();
   }, [fetchLikedSongs]);
 
+  // Chỉ xem là đang phát danh sách này nếu đúng context 'liked'
   const isCurrentPlaylistPlaying =
-    isPlaying && likedSongs.some((s) => s.id === currentSong?.id);
+    isPlaying &&
+    playbackContext?.type === 'liked';
 
   const handlePlayAll = () => {
     if (likedSongs.length === 0) return;
@@ -86,7 +89,15 @@ export const LikedSongsScreen: React.FC<{
   };
 
   const handleToggleShuffle = () => {
-    toggleShuffle();
+    if (!isShuffle) {
+      toggleShuffle();
+    }
+    if (!isCurrentPlaylistPlaying && likedSongs.length > 0) {
+      const shuffled = [...likedSongs].sort(() => Math.random() - 0.5);
+      playSong(shuffled[0], likedSongs, { type: 'liked', title: 'Bài hát đã thích' });
+    } else {
+      toggleShuffle();
+    }
   };
 
   const toggleSelect = (id: string) => {

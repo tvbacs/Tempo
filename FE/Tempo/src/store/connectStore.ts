@@ -4,6 +4,7 @@
  * Kiến trúc phân tách rõ ràng: Local Audio State vs Remote Device State
  */
 import { create } from 'zustand';
+import { AppState, AppStateStatus } from 'react-native';
 import { supabase } from '../api/supabase';
 import { audioEngine } from '../services/audioPlayer';
 import { useToastStore } from './toastStore';
@@ -58,6 +59,8 @@ export const THIS_DEVICE: ConnectedDevice = {
 };
 
 let realtimeChannel: any = null;
+let lastResumeTime = Date.now();
+let isAppStateListenerAttached = false;
 
 const safeBroadcast = (event: string, payload: any) => {
   if (realtimeChannel && realtimeChannel.state === 'joined') {
@@ -149,6 +152,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
 
           // Lưu riêng biệt vào remotePlayback — TUYỆT ĐỐI KHÔNG GHI ĐÈ playerStore CỦA MOBILE
           set({
+            ...(typeof payload.volume === 'number' ? { volume: payload.volume } : {}),
             remotePlayback: {
               deviceId: payload.activeDeviceId,
               deviceName: payload.activeDeviceName || 'Web Player (PC)',
@@ -265,18 +269,36 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
                   } catch (_) {}
                 }, 2000);
 
-                // Tự động dọn dẹp thiết bị offline (> 12s)
+                // Lắng nghe AppState khi người dùng mở lại app từ Background
+                if (!isAppStateListenerAttached) {
+                  isAppStateListenerAttached = true;
+                  AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+                    if (nextAppState === 'active') {
+                      lastResumeTime = Date.now();
+                      // Re-query ngay lập tức từ PC Web Player
+                      safeBroadcast('device_presence', THIS_DEVICE);
+                      safeBroadcast('device_presence_query', {});
+                      safeBroadcast('playback_state_query', {});
+                    }
+                  });
+                }
+
+                // Tự động dọn dẹp thiết bị offline (> 18s, có grace period 8s khi vừa mở lại app)
                 setInterval(() => {
                   const now = Date.now();
+                  // Nếu app vừa thức dậy từ background chưa đầy 8 giây, bỏ qua để đợi phản hồi từ PC
+                  if (now - lastResumeTime < 8000) return;
+
                   const valid = get().availableDevices.filter((d) => {
                     if (d.deviceId === THIS_DEVICE.deviceId) return true;
-                    return d.lastSeen && now - d.lastSeen < 12000;
+                    return d.lastSeen && now - d.lastSeen < 18000;
                   });
                   if (valid.length !== get().availableDevices.length) {
                     set({ availableDevices: valid });
                     const curActive = get().activeDevice;
                     if (curActive.deviceId !== THIS_DEVICE.deviceId && !valid.some((d) => d.deviceId === curActive.deviceId)) {
                       set({ activeDevice: THIS_DEVICE, remotePlayback: null });
+                      useToastStore.getState().showToast('Mất kết nối với máy tính, chuyển về điện thoại', 'info');
                     }
                   }
                 }, 4000);

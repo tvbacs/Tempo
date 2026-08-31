@@ -64,7 +64,7 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const [albums, setAlbums] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showFullBio, setShowFullBio] = useState<boolean>(false);
-  const { playSong, isShuffle, toggleShuffle } = usePlayerStore();
+  const { playSong, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
   const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { toggleFollowArtist, isArtistFollowed } = useLibraryStore();
   const { showToast } = useToastStore();
@@ -150,7 +150,9 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   };
 
   const isCurrentArtistPlaying =
-    isPlaying && topSongs.some((s) => s.id === currentSong?.id);
+    isPlaying &&
+    ((playbackContext?.type === 'artist' && (playbackContext.id === alias || playbackContext.title === artistName)) ||
+     (playbackContext?.title === artistName));
 
   const handlePlayAll = (shuffle: boolean = false) => {
     if (topSongs.length === 0) return;
@@ -164,7 +166,7 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     const songsToPlay = shuffle
       ? [...topSongs].sort(() => Math.random() - 0.5)
       : topSongs;
-    playSong(songsToPlay[0], songsToPlay, { type: 'artist', title: artistName });
+    playSong(songsToPlay[0], topSongs, { type: 'artist', title: artistName, id: alias || artistName });
   };
 
   return (
@@ -256,7 +258,7 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
               onPress={() => handlePlayAll(true)}
               style={styles.shuffleBtn}
             >
-              <Shuffle size={20} color={isShuffle ? COLORS.accentPrimary : COLORS.textPrimary} />
+              <Shuffle size={20} color={isShuffle && isCurrentArtistPlaying ? COLORS.accentPrimary : COLORS.textPrimary} />
             </TouchableOpacity>
 
             <GradientPlayButton

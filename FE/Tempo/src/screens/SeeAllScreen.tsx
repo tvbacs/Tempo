@@ -19,7 +19,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Play, Pause, Shuffle, Music } from "lucide-react-native";
+import { ChevronLeft, Play, Pause, Shuffle, Music, Flame, Sparkles } from "lucide-react-native";
 import { SongItem } from "../components/SongItem";
 import { SongItemSkeleton } from "../components/SkeletonLoader";
 import { usePlayerStore } from "../store/playerStore";
@@ -45,13 +45,15 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const { playSong, isShuffle, toggleShuffle } = usePlayerStore();
+  const { playSong, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
   const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { history } = useLibraryStore();
   const { showToast } = useToastStore();
 
   const isCurrentCollectionPlaying =
-    isPlaying && songs.some((s) => s.id === currentSong?.id);
+    isPlaying &&
+    ((playbackContext?.id && playbackContext.id === type) ||
+     (playbackContext?.title && playbackContext.title === title));
 
   const bottomPadding = currentSong
     ? LAYOUT.miniPlayerHeight + insets.bottom + SPACING.md
@@ -111,7 +113,7 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
     const songsToPlay = isShuffle
       ? [...songs].sort(() => Math.random() - 0.5)
       : songs;
-    playSong(songsToPlay[0], songsToPlay, { type: type === 'chart' ? 'chart' : 'custom', title });
+    playSong(songsToPlay[0], songsToPlay, { type: type === 'chart' ? 'chart' : 'custom', title, id: type });
   };
 
   const handleToggleShuffle = () => {
@@ -120,7 +122,7 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
     }
     if (!isCurrentCollectionPlaying && songs.length > 0) {
       const shuffled = [...songs].sort(() => Math.random() - 0.5);
-      playSong(shuffled[0], songs, { type: type === 'chart' ? 'chart' : 'custom', title });
+      playSong(shuffled[0], songs, { type: type === 'chart' ? 'chart' : 'custom', title, id: type });
     } else {
       toggleShuffle();
     }
@@ -153,14 +155,14 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
         </View>
       </View>
 
-      {/* Hero Spotlight Banner (Dùng ảnh bài đầu tiên làm nền) */}
+      {/* Hero Header Card for Songs List */}
       {!isPlaylistMode && songs.length > 0 && !isLoading && (
         <View style={styles.heroBanner}>
           <Image
             source={{
               uri:
                 songs[0]?.thumbnail ||
-                "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600",
+                "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400",
             }}
             style={StyleSheet.absoluteFillObject}
             resizeMode="cover"
@@ -177,6 +179,11 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
           <View style={styles.heroBannerContent}>
             <View style={styles.heroBadgeRow}>
               <View style={styles.heroBadge}>
+                {type === "chart" ? (
+                  <Flame size={12} color={COLORS.accentPrimary} />
+                ) : (
+                  <Sparkles size={12} color={COLORS.accentPrimary} />
+                )}
                 <Text style={styles.heroBadgeText}>
                   {type === "chart" ? "TOP 1 THỊNH HÀNH" : "BÀI HÁT NỔI BẬT"}
                 </Text>
@@ -218,12 +225,12 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
                 onPress={handleToggleShuffle}
                 style={[
                   styles.heroShuffleBtn,
-                  isShuffle && styles.heroShuffleBtnActive,
+                  isShuffle && isCurrentCollectionPlaying && styles.heroShuffleBtnActive,
                 ]}
               >
                 <Shuffle
                   size={16}
-                  color={isShuffle ? COLORS.accentPrimary : COLORS.textMuted}
+                  color={isShuffle && isCurrentCollectionPlaying ? COLORS.accentPrimary : COLORS.textMuted}
                 />
               </TouchableOpacity>
 

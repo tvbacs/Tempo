@@ -45,6 +45,7 @@ import { usePlayerStore } from "../store/playerStore";
 import { useDownloadStore } from "../store/downloadStore";
 import { useSleepTimerStore } from "../store/sleepTimerStore";
 import { useToastStore } from "../store/toastStore";
+import { useActivePlayback } from "../store/connectStore";
 import { UnifiedSong } from "../types/music";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 import { formatDuration } from "../utils/format";
@@ -60,7 +61,8 @@ export const DownloadedSongsScreen: React.FC<{
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const { playSong, isPlaying, isLoading, currentSong, togglePlayPause, isShuffle, toggleShuffle } = usePlayerStore();
+  const { playSong, isLoading, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
+  const { isPlaying, togglePlayPause } = useActivePlayback();
   const { downloadedSongs, fetchDownloads, removeDownload } = useDownloadStore();
   const { showToast } = useToastStore();
 
@@ -78,7 +80,8 @@ export const DownloadedSongsScreen: React.FC<{
   });
 
   const isCurrentPlaylistPlaying =
-    isPlaying && downloadedSongs.some((s) => s.id === currentSong?.id);
+    isPlaying &&
+    playbackContext?.type === 'downloaded';
 
   const handlePlayAll = () => {
     if (downloadedSongs.length === 0) return;
@@ -91,11 +94,19 @@ export const DownloadedSongsScreen: React.FC<{
     const songsToPlay = isShuffle
       ? [...downloadedSongs].sort(() => Math.random() - 0.5)
       : downloadedSongs;
-    playSong(songsToPlay[0], songsToPlay, { type: 'downloaded', title: 'Bài hát đã tải về' });
+    playSong(songsToPlay[0], downloadedSongs, { type: 'downloaded', title: 'Bài hát đã tải về' });
   };
 
   const handleToggleShuffle = () => {
-    toggleShuffle();
+    if (!isShuffle) {
+      toggleShuffle();
+    }
+    if (!isCurrentPlaylistPlaying && downloadedSongs.length > 0) {
+      const shuffled = [...downloadedSongs].sort(() => Math.random() - 0.5);
+      playSong(shuffled[0], downloadedSongs, { type: 'downloaded', title: 'Bài hát đã tải về' });
+    } else {
+      toggleShuffle();
+    }
   };
 
   const toggleSelect = (id: string) => {

@@ -23,6 +23,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import Slider from "@react-native-community/slider";
 import { GradientPlayButton } from "../components/GradientButton";
 import {
   ChevronDown,
@@ -41,6 +42,9 @@ import {
   UserPlus,
   Check,
   ChevronRight,
+  Radio,
+  VolumeX,
+  Volume2,
 } from "lucide-react-native";
 import { usePlayerStore } from "../store/playerStore";
 import { useLibraryStore } from "../store/libraryStore";
@@ -89,6 +93,7 @@ export const PlayerModalScreen: React.FC = () => {
     playbackContext,
   } = usePlayerStore();
 
+  const { volume: remoteVolume, setVolume: setRemoteVolume } = useConnectStore();
   const { isLiked, toggleLike, toggleFollowArtist, isArtistFollowed } = useLibraryStore();
   const { showToast } = useToastStore();
 
@@ -644,6 +649,47 @@ export const PlayerModalScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
+            {/* Thanh Kéo Âm Lượng Khi Đang Cast Trên PC */}
+            {isRemote && (
+              <View style={styles.remoteVolumeCard}>
+                <View style={styles.remoteVolumeHeader}>
+                  <View style={styles.remoteVolumeTitleGroup}>
+                    <Radio size={13} color={COLORS.accentPrimary} />
+                    <Text style={styles.remoteVolumeTitle}>
+                      Âm lượng {activeDevice?.deviceName || 'Web Player (PC)'}
+                    </Text>
+                  </View>
+                  <Text style={styles.remoteVolumePct}>
+                    {Math.round((remoteVolume ?? 0.8) * 100)}%
+                  </Text>
+                </View>
+                <View style={styles.remoteVolumeRow}>
+                  <TouchableOpacity
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => setRemoteVolume(0)}
+                  >
+                    <VolumeX size={15} color={COLORS.textMuted} />
+                  </TouchableOpacity>
+                  <Slider
+                    style={styles.remoteVolumeSlider}
+                    minimumValue={0}
+                    maximumValue={1}
+                    value={remoteVolume ?? 0.8}
+                    onValueChange={(val: number) => setRemoteVolume(val)}
+                    minimumTrackTintColor={COLORS.accentPrimary}
+                    maximumTrackTintColor="rgba(255, 255, 255, 0.15)"
+                    thumbTintColor={COLORS.white}
+                  />
+                  <TouchableOpacity
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => setRemoteVolume(1)}
+                  >
+                    <Volume2 size={15} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* Khối Lời Bài Hát Đồng Bộ (Synced Lyrics) */}
             {showLyrics && (
               <View style={styles.lyricsBox}>
@@ -1051,6 +1097,44 @@ const styles = StyleSheet.create({
   },
   lyricsPillTextActive: {
     color: COLORS.white,
+  },
+  // Remote Volume Card (Điều khiển âm lượng PC)
+  remoteVolumeCard: {
+    backgroundColor: COLORS.bgCardDark,
+    borderRadius: LAYOUT.radiusLg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  remoteVolumeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
+  remoteVolumeTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  remoteVolumeTitle: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  remoteVolumePct: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    fontWeight: '800',
+    color: COLORS.accentPrimary,
+  },
+  remoteVolumeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs + 2,
+  },
+  remoteVolumeSlider: {
+    flex: 1,
+    height: 32,
   },
   lyricsBox: {
     backgroundColor: COLORS.bgCardDark,

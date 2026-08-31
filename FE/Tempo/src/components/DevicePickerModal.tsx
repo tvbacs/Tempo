@@ -1,8 +1,3 @@
-/**
- * DevicePickerModal Component (Spotify Connect Clone)
- * 100% NO EMOJIS, Compact Content-Hug Bottom Sheet
- * Tokenized Theme with COLORS.accentPrimary for Active Device
- */
 import React from 'react';
 import {
   View,
@@ -14,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Slider from '@react-native-community/slider';
 import {
   Laptop,
   Smartphone,
@@ -22,6 +18,8 @@ import {
   X,
   Play,
   Pause,
+  VolumeX,
+  Volume2,
 } from 'lucide-react-native';
 import { useConnectStore, useActivePlayback, ConnectedDevice } from '../store/connectStore';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -34,6 +32,8 @@ export const DevicePickerModal: React.FC = () => {
     availableDevices,
     activeDevice,
     selectDevice,
+    volume,
+    setVolume,
   } = useConnectStore();
 
   const { song: currentSong, isPlaying } = useActivePlayback();
@@ -94,6 +94,48 @@ export const DevicePickerModal: React.FC = () => {
                   )}
                 </View>
               </View>
+
+              {/* Thanh Điều Khiển Âm Lượng Từ Xa khi phát trên PC */}
+              {isWebActive && (
+                <View style={styles.volumeBox}>
+                  <View style={styles.volumeHeader}>
+                    <View style={styles.volumeTitleGroup}>
+                      <Volume2 size={14} color={COLORS.accentPrimary} />
+                      <Text style={styles.volumeTitle}>Âm lượng trên máy tính</Text>
+                    </View>
+                    <Text style={styles.volumePctText}>
+                      {Math.round((volume ?? 0.8) * 100)}%
+                    </Text>
+                  </View>
+
+                  <View style={styles.volumeSliderRow}>
+                    <TouchableOpacity
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => setVolume(0)}
+                    >
+                      <VolumeX size={16} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+
+                    <Slider
+                      style={styles.sliderTrack}
+                      minimumValue={0}
+                      maximumValue={1}
+                      value={volume ?? 0.8}
+                      onValueChange={(val: number) => setVolume(val)}
+                      minimumTrackTintColor={COLORS.accentPrimary}
+                      maximumTrackTintColor="rgba(255, 255, 255, 0.15)"
+                      thumbTintColor={COLORS.white}
+                    />
+
+                    <TouchableOpacity
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => setVolume(1)}
+                    >
+                      <Volume2 size={16} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
               {/* Discovered Devices List (Chữ trắng / neutral, không dùng màu hồng trong list) */}
               <Text style={styles.sectionHeading}>Phát trên các thiết bị của bạn</Text>
@@ -227,6 +269,44 @@ const styles = StyleSheet.create({
   trackInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  // Remote Volume Box (Điều khiển âm lượng máy tính từ xa)
+  volumeBox: {
+    backgroundColor: '#16161B',
+    borderRadius: LAYOUT.radiusMd,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
+    marginBottom: SPACING.md,
+  },
+  volumeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
+  volumeTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  volumeTitle: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  volumePctText: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    fontWeight: '800',
+    color: COLORS.accentPrimary,
+  },
+  volumeSliderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs + 2,
+  },
+  sliderTrack: {
+    flex: 1,
+    height: 32,
   },
   sectionHeading: {
     fontSize: TYPOGRAPHY.sizeCaption,

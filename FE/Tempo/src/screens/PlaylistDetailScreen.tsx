@@ -48,7 +48,7 @@ export const PlaylistDetailScreen: React.FC<{
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
-  const { playSong, isShuffle, toggleShuffle } = usePlayerStore();
+  const { playSong, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
   const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { playlists, savedAlbums, setLastPlayedContext, toggleSaveAlbum, isAlbumSaved } = useLibraryStore();
   const { showToast } = useToastStore();
@@ -219,6 +219,12 @@ export const PlaylistDetailScreen: React.FC<{
       ? 'album'
       : 'playlist';
 
+  const currentPlaylistId = playlist?.id || id || displayTitle;
+  const isCurrentPlaylistPlaying =
+    isPlaying &&
+    ((playbackContext?.id && playbackContext.id === currentPlaylistId) ||
+     (playbackContext?.title && playbackContext.title === displayTitle));
+
   const handlePlayAll = () => {
     if (songList.length === 0) return;
     if (isCurrentPlaylistPlaying) {
@@ -271,9 +277,6 @@ export const PlaylistDetailScreen: React.FC<{
       songs: songList,
     });
   };
-
-  const isCurrentPlaylistPlaying =
-    isPlaying && songList.some((s) => s.id === currentSong?.id);
 
   const getSubtitle = () => {
     if (isCustomPlaylist) {
@@ -360,7 +363,7 @@ export const PlaylistDetailScreen: React.FC<{
             >
               <Shuffle
                 size={22}
-                color={isShuffle ? COLORS.accentPrimary : COLORS.textSecondary}
+                color={isShuffle && isCurrentPlaylistPlaying ? COLORS.accentPrimary : COLORS.textSecondary}
               />
             </TouchableOpacity>
 

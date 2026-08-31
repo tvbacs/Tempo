@@ -110,6 +110,18 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           return;
         }
       })
+      .on('broadcast', { event: 'device_presence_query' }, () => {
+        get().broadcastPresence();
+        if (get().activeDeviceId === DEVICE_ID) {
+          get().broadcastState();
+        }
+      })
+      .on('broadcast', { event: 'playback_state_query' }, () => {
+        get().broadcastPresence();
+        if (get().activeDeviceId === DEVICE_ID) {
+          get().broadcastState();
+        }
+      })
       .on('broadcast', { event: 'playback_state' }, ({ payload }: { payload: any }) => {
         if (!payload) return;
 
@@ -141,6 +153,9 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         if (status === 'SUBSCRIBED') {
           set({ isOnline: true });
           get().broadcastPresence();
+          if (get().activeDeviceId === DEVICE_ID) {
+            get().broadcastState();
+          }
 
           // Gửi tín hiệu offline ngay khi người dùng đóng tab, reload hoặc tắt trình duyệt
           const notifyOffline = () => {

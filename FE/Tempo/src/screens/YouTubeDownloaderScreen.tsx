@@ -156,14 +156,14 @@ export const YouTubeDownloaderScreen: React.FC<{ navigation: any }> = ({ navigat
           style={styles.offlineHubCard}
         >
           <LinearGradient
-            colors={["#0F2027", "#203A43", "#2C5364"]}
+            colors={["#1A1726", "#261B36", "#351B42"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.offlineHubGradient}
           />
           <View style={styles.offlineHubContent}>
             <View style={styles.offlineHubIconBox}>
-              <HardDriveDownload size={24} color="#1DB954" />
+              <HardDriveDownload size={24} color="#C084FC" />
             </View>
             <View style={styles.offlineHubTextWrap}>
               <View style={styles.offlineBadge}>
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: LAYOUT.radiusMd,
-    backgroundColor: "rgba(29, 185, 84, 0.15)",
+    backgroundColor: "rgba(192, 132, 252, 0.15)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: SPACING.md,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   offlineBadgeText: {
     fontSize: TYPOGRAPHY.sizeMicro,
     fontWeight: "800",
-    color: "#1DB954",
+    color: "#C084FC",
     letterSpacing: TYPOGRAPHY.letterSpacingWide,
   },
   offlineHubTitle: {

@@ -302,7 +302,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   onPress={() => navigation.navigate("Downloads")}
                   style={styles.horizontalCard}
                 >
-                  <View style={[styles.horizontalCardImg, { backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' }]}>
+                  <View style={[styles.horizontalCardImg, { backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' }]}>
                     <Download size={22} color={COLORS.white} />
                   </View>
                   <View style={styles.horizontalCardInfo}>

@@ -1,16 +1,17 @@
 /**
  * DimScreenOverlay - Màn hình tối đen giả lập khóa màn hình khi đi ngủ
- * Phủ đen 100% màn hình, chạm bất kỳ đâu để bật lại màn hình
+ * Phủ đen 100% màn hình, chạm bất kỳ đâu để bật lại màn hình (0ms response)
  */
 import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Haptics from 'expo-haptics';
 import { useDimScreenStore } from '../store/dimScreenStore';
 
 export const DimScreenOverlay: React.FC = () => {
@@ -21,7 +22,7 @@ export const DimScreenOverlay: React.FC = () => {
     if (isVisible) {
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 250,
+        duration: 200,
         useNativeDriver: true,
       }).start();
     } else {
@@ -29,20 +30,26 @@ export const DimScreenOverlay: React.FC = () => {
     }
   }, [isVisible]);
 
+  const handleDismiss = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+    hide();
+  };
+
   if (!isVisible) return null;
 
   return (
     <Animated.View style={[styles.overlay, { opacity }]}>
       <StatusBar hidden style="light" />
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={hide}
-        style={styles.touchArea}
+      <Pressable
+        onPress={handleDismiss}
+        style={styles.pressableArea}
       >
-        <View style={styles.hintWrap}>
+        <View style={styles.hintWrap} pointerEvents="none">
           <Text style={styles.hintText}>Chạm vào màn hình để bật lại</Text>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 };
@@ -58,7 +65,7 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     elevation: 999999,
   },
-  touchArea: {
+  pressableArea: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-end',
@@ -77,3 +84,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
+

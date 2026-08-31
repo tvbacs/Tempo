@@ -36,11 +36,11 @@ export default function App() {
       <MiniPlayer />
       <PlayerModalScreen />
       <SleepTimerModal />
-      <DimScreenOverlay />
       <Toast />
       {!isSplashDone && (
         <SplashScreen onFinish={() => setIsSplashDone(true)} />
       )}
+      <DimScreenOverlay />
     </SafeAreaProvider>
   );
 }

@@ -764,9 +764,6 @@ export const PlayerModalScreen: React.FC = () => {
         {/* Global Synchronized Sleep Timer Modal */}
         <SleepTimerModal />
 
-        {/* Dim Screen Overlay */}
-        <DimScreenOverlay />
-
         {/* In-Modal Synchronized Toast */}
         <Toast />
       </View>

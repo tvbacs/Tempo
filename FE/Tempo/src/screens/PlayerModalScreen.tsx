@@ -105,6 +105,7 @@ export const PlayerModalScreen: React.FC = () => {
   const [artistInfo, setArtistInfo] = useState<{
     name: string;
     thumbnail: string;
+    cover?: string;
     biography: string;
     sortBiography: string;
     totalFollow: number;
@@ -129,26 +130,62 @@ export const PlayerModalScreen: React.FC = () => {
         .then(setLyrics)
         .catch(() => {});
 
-      // Tải danh sách bài hát gợi ý cùng thể loại / nghệ sĩ
+      // Tải danh sách bài hát gợi ý và thông tin nghệ sĩ chính thức
       const artistQuery = (currentSong.artistsNames || "").split(",")[0].trim();
       if (artistQuery) {
+        // 1. Tìm kiếm thông tin & bài hát gợi ý
         apiClient
           .search(artistQuery)
           .then((res) => {
             const filtered = (res.songs || []).filter((s) => s.id !== currentSong.id).slice(0, 5);
             setRecommendedSongs(filtered);
+
+            if (res.artists && res.artists.length > 0) {
+              const matched = res.artists[0];
+              if (matched) {
+                setArtistInfo((prev) => ({
+                  name: matched.name || artistQuery,
+                  thumbnail: matched.thumbnail || prev?.thumbnail || currentSong.thumbnail || '',
+                  cover: matched.thumbnail || prev?.cover || currentSong.thumbnail || '',
+                  biography: prev?.biography || `Nghệ sĩ ${matched.name || artistQuery}`,
+                  sortBiography: prev?.sortBiography || '',
+                  totalFollow: matched.totalFollow || prev?.totalFollow || 0,
+                  alias: (matched as any).alias || (matched as any).id || artistQuery.toLowerCase().replace(/\s+/g, "-"),
+                }));
+              }
+            }
           })
           .catch(() => {});
 
-        // Tải thông tin nghệ sĩ chính thức từ Zing MP3
+        // 2. Tải thông tin chi tiết nghệ sĩ
         const artistAlias =
           currentSong.artists?.[0]?.link?.replace("/", "") ||
           artistQuery.toLowerCase().replace(/\s+/g, "-");
+
         if (artistAlias) {
           apiClient
             .getArtistInfo(artistAlias)
-            .then(setArtistInfo)
-            .catch(() => {});
+            .then((info) => {
+              if (info) {
+                setArtistInfo((prev) => ({
+                  ...info,
+                  thumbnail: info.thumbnail || info.cover || prev?.thumbnail || currentSong.thumbnail || '',
+                  cover: info.cover || info.thumbnail || prev?.cover || currentSong.thumbnail || '',
+                }));
+              }
+            })
+            .catch(() => {
+              // Fallback nếu không có trên Zing
+              setArtistInfo((prev) => prev || {
+                name: artistQuery,
+                thumbnail: currentSong.thumbnail || '',
+                cover: currentSong.thumbnail || '',
+                biography: `Nghệ sĩ ${artistQuery}`,
+                sortBiography: '',
+                totalFollow: 0,
+                alias: artistAlias,
+              });
+            });
         }
       }
     }
@@ -300,7 +337,7 @@ export const PlayerModalScreen: React.FC = () => {
     const alias =
       artistInfo?.alias || currentSong.artists?.[0]?.link?.replace("/", "") || "";
     const name = artistInfo?.name || currentSong.artistsNames;
-    const thumbnail = artistInfo?.thumbnail || currentSong.thumbnail;
+    const thumbnail = artistInfo?.cover || artistInfo?.thumbnail || currentSong.thumbnail;
     setShowSongOptions(false);
     closeFullPlayer();
     setTimeout(() => {
@@ -703,8 +740,15 @@ export const PlayerModalScreen: React.FC = () => {
                   style={styles.artistCard}
                 >
                   <Image
-                    source={{ uri: artistInfo.thumbnail }}
+                    source={{
+                      uri:
+                        artistInfo.cover ||
+                        artistInfo.thumbnail ||
+                        currentSong?.thumbnail ||
+                        "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600",
+                    }}
                     style={styles.artistCoverImg}
+                    resizeMode="cover"
                   />
                   <LinearGradient
                     colors={["transparent", "rgba(11, 11, 14, 0.95)"]}

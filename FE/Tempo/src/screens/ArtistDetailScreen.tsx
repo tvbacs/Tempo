@@ -94,7 +94,7 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           } catch (_) {}
         }
 
-        // Fetch top songs by artist
+        // Fetch top songs and artist details
         const searchName = initialName || alias?.replace(/-/g, " ") || "";
         if (searchName) {
           const searchRes = await apiClient.search(searchName);
@@ -107,6 +107,22 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             });
             setTopSongs(cleanSongs);
             setAlbums(searchRes.playlists || []);
+
+            // Nếu artistData chưa có ảnh bìa hoặc thumbnail, lấy từ kết quả tìm kiếm
+            if (searchRes.artists && searchRes.artists.length > 0) {
+              const foundArtist = searchRes.artists[0];
+              if (foundArtist && foundArtist.thumbnail) {
+                setArtistData((prev) => ({
+                  name: prev?.name || foundArtist.name || searchName,
+                  thumbnail: prev?.thumbnail || foundArtist.thumbnail || '',
+                  cover: prev?.cover || foundArtist.thumbnail || '',
+                  biography: prev?.biography || `Nghệ sĩ ${foundArtist.name || searchName}`,
+                  sortBiography: prev?.sortBiography || '',
+                  totalFollow: prev?.totalFollow || foundArtist.totalFollow || 0,
+                  alias: prev?.alias || queryAlias,
+                }));
+              }
+            }
           }
         }
       } catch (e) {

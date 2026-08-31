@@ -218,7 +218,7 @@ const getArtistInfo = async (alias) => {
         name: d.name || alias.replace(/-/g, ' '),
         alias: d.alias || alias,
         thumbnail: d.thumbnailM || d.thumbnail || '',
-        cover: d.cover || '',
+        cover: d.cover || d.thumbnailM || d.thumbnail || '',
         biography: (d.biography || '').replace(/<br>/gi, '\n').replace(/<[^>]+>/g, '').trim(),
         sortBiography: (d.sortBiography || '').replace(/<[^>]+>/g, '').trim(),
         totalFollow: d.totalFollow || 0,
@@ -232,18 +232,30 @@ const getArtistInfo = async (alias) => {
     // Zing API can fail for non-Zing artists
   }
 
-  // Graceful fallback for non-Zing / Audius / custom artists
+  // Graceful fallback: Thử tìm kiếm nghệ sĩ trên Zing để lấy ảnh đại diện chính thức
   const cleanName = decodeURIComponent(alias).replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  let artistThumb = '';
+  let totalFollow = 0;
+
+  try {
+    const searchRes = await ZingMp3.search(cleanName);
+    if (searchRes && searchRes.data && searchRes.data.artists && searchRes.data.artists.length > 0) {
+      const found = searchRes.data.artists[0];
+      artistThumb = found.thumbnailM || found.thumbnail || '';
+      totalFollow = found.totalFollow || 0;
+    }
+  } catch (_) {}
+
   const fallbackPayload = {
     id: alias,
     name: cleanName,
     alias: alias,
-    thumbnail: '',
-    cover: '',
+    thumbnail: artistThumb,
+    cover: artistThumb,
     biography: `Nghệ sĩ ${cleanName}`,
     sortBiography: '',
-    totalFollow: 0,
-    national: 'Việt Nam',
+    totalFollow,
+    national: 'Quốc tế',
     realname: cleanName,
   };
   cache.set(cacheKey, fallbackPayload, 600);

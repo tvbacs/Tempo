@@ -238,7 +238,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <Heart size={20} color={COLORS.white} fill={COLORS.white} />
               </View>
               <View style={styles.quickShelfTextBottom}>
-                <Text numberOfLines={1} style={styles.quickShelfTitle}>
+                <Text numberOfLines={2} style={styles.quickShelfTitle}>
                   Bài hát đã thích
                 </Text>
                 <Text style={styles.quickShelfSub}>
@@ -292,7 +292,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   <Download size={20} color={COLORS.white} />
                 </View>
                 <View style={styles.quickShelfTextBottom}>
-                  <Text numberOfLines={1} style={styles.quickShelfTitle}>
+                  <Text numberOfLines={2} style={styles.quickShelfTitle}>
                     Đã tải xuống
                   </Text>
                   <Text style={styles.quickShelfSub}>
@@ -352,7 +352,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   <Clock size={20} color={COLORS.white} />
                 </View>
                 <View style={styles.quickShelfTextBottom}>
-                  <Text numberOfLines={1} style={styles.quickShelfTitle}>
+                  <Text numberOfLines={2} style={styles.quickShelfTitle}>
                     Nghe gần đây
                   </Text>
                   <Text style={styles.quickShelfSub}>
@@ -863,7 +863,7 @@ const styles = StyleSheet.create({
   },
   quickShelfCard: {
     flex: 1,
-    height: 104,
+    minHeight: 112,
     borderRadius: LAYOUT.radiusMd,
     overflow: "hidden",
     backgroundColor: COLORS.bgSurfaceSecondary,
@@ -880,6 +880,7 @@ const styles = StyleSheet.create({
   },
   quickShelfTextBottom: {
     zIndex: 2,
+    marginTop: SPACING.xs,
   },
   quickShelfBadge: {
     fontSize: TYPOGRAPHY.sizeMicro,
@@ -893,7 +894,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizeCaption,
     fontWeight: "800",
     color: COLORS.white,
-    lineHeight: 16,
+    lineHeight: 15,
   },
   quickShelfSub: {
     fontSize: TYPOGRAPHY.sizeMicro,

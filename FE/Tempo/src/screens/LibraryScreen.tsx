@@ -185,7 +185,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               <Heart size={20} color={COLORS.white} fill={COLORS.white} />
             </View>
             <View style={styles.gridCardBottom}>
-              <Text numberOfLines={1} style={styles.gridCardTitle}>Bài hát đã thích</Text>
+              <Text numberOfLines={2} style={styles.gridCardTitle}>Bài hát đã thích</Text>
               <Text style={styles.gridCardSub}>{likedSongs.length} bài hát</Text>
             </View>
           </TouchableOpacity>
@@ -206,7 +206,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               <Download size={20} color={COLORS.white} />
             </View>
             <View style={styles.gridCardBottom}>
-              <Text numberOfLines={1} style={styles.gridCardTitle}>Bài hát đã tải</Text>
+              <Text numberOfLines={2} style={styles.gridCardTitle}>Bài hát đã tải</Text>
               <Text style={styles.gridCardSub}>{downloadedSongs.length} bài hát</Text>
             </View>
           </TouchableOpacity>
@@ -227,7 +227,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               <Users size={20} color={COLORS.white} />
             </View>
             <View style={styles.gridCardBottom}>
-              <Text numberOfLines={1} style={styles.gridCardTitle}>Nghệ sĩ theo dõi</Text>
+              <Text numberOfLines={2} style={styles.gridCardTitle}>Nghệ sĩ theo dõi</Text>
               <Text style={styles.gridCardSub}>{followedArtists.length} nghệ sĩ</Text>
             </View>
           </TouchableOpacity>
@@ -248,7 +248,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               <Disc size={20} color={COLORS.white} />
             </View>
             <View style={styles.gridCardBottom}>
-              <Text numberOfLines={1} style={styles.gridCardTitle}>Album đã lưu</Text>
+              <Text numberOfLines={2} style={styles.gridCardTitle}>Album đã lưu</Text>
               <Text style={styles.gridCardSub}>{savedAlbums.length} album</Text>
             </View>
           </TouchableOpacity>

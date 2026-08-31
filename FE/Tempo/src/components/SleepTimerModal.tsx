@@ -155,7 +155,7 @@ export const SleepTimerModal: React.FC = () => {
                   activeOpacity={0.7}
                   onPress={() => {
                     closeModal();
-                    setTimeout(() => showDimScreen(), 300);
+                    showDimScreen();
                   }}
                   style={styles.dimScreenBtn}
                 >

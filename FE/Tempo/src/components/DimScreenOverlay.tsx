@@ -1,17 +1,16 @@
 /**
  * DimScreenOverlay - Màn hình tối đen giả lập khóa màn hình khi đi ngủ
- * Chạm nhẹ 1 lần để tắt overlay
+ * Phủ đen 100% màn hình, chạm bất kỳ đâu để bật lại màn hình
  */
 import React, { useEffect, useRef } from 'react';
 import {
-  Modal,
   View,
   Text,
-  TouchableWithoutFeedback,
+  TouchableOpacity,
   StyleSheet,
   Animated,
-  StatusBar,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useDimScreenStore } from '../store/dimScreenStore';
 
 export const DimScreenOverlay: React.FC = () => {
@@ -22,7 +21,7 @@ export const DimScreenOverlay: React.FC = () => {
     if (isVisible) {
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 800,
+        duration: 250,
         useNativeDriver: true,
       }).start();
     } else {
@@ -33,40 +32,48 @@ export const DimScreenOverlay: React.FC = () => {
   if (!isVisible) return null;
 
   return (
-    <Modal
-      visible={isVisible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={hide}
-    >
-      <StatusBar hidden />
-      <TouchableWithoutFeedback onPress={hide}>
-        <Animated.View style={[styles.overlay, { opacity }]}>
-          <View style={styles.hintWrap}>
-            <Text style={styles.hintText}>Chạm để tắt</Text>
-          </View>
-        </Animated.View>
-      </TouchableWithoutFeedback>
-    </Modal>
+    <Animated.View style={[styles.overlay, { opacity }]}>
+      <StatusBar hidden style="light" />
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={hide}
+        style={styles.touchArea}
+      >
+        <View style={styles.hintWrap}>
+          <Text style={styles.hintText}>Chạm vào màn hình để bật lại</Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: '#000000',
+    zIndex: 999999,
+    elevation: 999999,
+  },
+  touchArea: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-end',
+    paddingBottom: 60,
   },
   hintWrap: {
-    paddingBottom: 60,
-    opacity: 0.2,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   hintText: {
-    fontSize: 13,
-    color: '#ffffff',
+    fontSize: 12,
+    color: '#888888',
     fontWeight: '500',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 });

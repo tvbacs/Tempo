@@ -216,8 +216,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const mix1Songs = topArtist1
       ? [
           ...topArtist1.songs,
-          ...topChartSongs.filter((s) => s.artistsNames?.includes(topArtist1.name) && !topArtist1.songs.some((t) => t.id === s.id)),
-          ...topChartSongs.slice(0, 10),
+          ...topChartSongs.filter((s) => s.artistsNames?.toLowerCase().includes(topArtist1.name.toLowerCase()) && !topArtist1.songs.some((t) => t.id === s.id)),
+          ...topChartSongs.filter((s) => !topArtist1.songs.some((t) => t.id === s.id)),
         ].slice(0, 15)
       : topChartSongs.slice(0, 15);
 
@@ -226,7 +226,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       title: topArtist1 ? `Daily Mix 1 · ${topArtist1.name}` : "Daily Mix 1",
       tag: topArtist1 ? "NGHỆ SĨ YÊU THÍCH" : "V-POP & R&B",
       subtitle: topArtist1
-        ? `Tuyển tập hay nhất của ${topArtist1.name} & nghệ sĩ tương tự`
+        ? `Tuyển tập hay nhất của ${topArtist1.name} & gợi ý liên quan`
         : "Tuyển tập các bản hit V-Pop thịnh hành nhất",
       gradient: ["#EC4899", "#8B5CF6"] as [string, string],
       thumbnail:
@@ -236,35 +236,29 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       songs: mix1Songs,
     };
 
-    // Daily Mix 2: Top Nghệ sĩ #2 HOẶC Mix theo Mood khung giờ (Lofi Chiều/Đêm, Acoustic Sáng)
-    const isLateNightOrAfternoon = timeGreeting.timeSlot === "night" || timeGreeting.timeSlot === "afternoon";
+    // Daily Mix 2: Top Nghệ sĩ #2 (lấy các bài cùng phong cách / BXH, không trộn nhạc Lofi)
     const mix2Songs = topArtist2
       ? [
           ...topArtist2.songs,
-          ...focusSongs.filter((s) => !topArtist2.songs.some((t) => t.id === s.id)),
-          ...topChartSongs.slice(2, 10),
+          ...topChartSongs.filter((s) => s.artistsNames?.toLowerCase().includes(topArtist2.name.toLowerCase()) && !topArtist2.songs.some((t) => t.id === s.id)),
+          ...topChartSongs.slice(2, 16).filter((s) => !topArtist2.songs.some((t) => t.id === s.id)),
+          ...globalTrendingSongs.filter((s) => !topArtist2.songs.some((t) => t.id === s.id)),
         ].slice(0, 15)
-      : focusSongs.length > 0
-      ? focusSongs
-      : topChartSongs.slice(3, 15);
+      : topChartSongs.slice(4, 18);
 
     const mix2 = {
       id: "daily_mix_2",
       title: topArtist2
         ? `Daily Mix 2 · ${topArtist2.name}`
-        : isLateNightOrAfternoon
-        ? "Mix Đêm Khuya & Lofi"
-        : "Mix Năng Lượng Tươi Sáng",
-      tag: topArtist2 ? "DÀNH CHO BẠN" : isLateNightOrAfternoon ? "LOFI & CHILL" : "ACOUSTIC & POP",
+        : "Daily Mix 2 · Nhạc Trẻ Hot",
+      tag: topArtist2 ? "DÀNH CHO BẠN" : "THỊNH HÀNH",
       subtitle: topArtist2
-        ? `Giai điệu từ ${topArtist2.name} và các nghệ sĩ cùng gu âm nhạc`
-        : isLateNightOrAfternoon
-        ? "Giai điệu nhẹ nhàng êm dịu thư giãn tâm trí"
-        : "Khởi đầu ngày mới tràn đầy hứng khởi và năng lượng",
+        ? `Giai điệu từ ${topArtist2.name} và các ca khúc cùng phong cách`
+        : "Tuyển tập các bài hát nổi bật được yêu thích nhất",
       gradient: ["#06B6D4", "#3B82F6"] as [string, string],
       thumbnail:
         topArtist2?.thumbnail ||
-        focusSongs[0]?.thumbnail ||
+        topChartSongs[1]?.thumbnail ||
         "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=400&q=80",
       songs: mix2Songs,
     };

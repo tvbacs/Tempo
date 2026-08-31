@@ -22,6 +22,7 @@ export interface ConnectedDevice {
 interface ConnectState {
   availableDevices: ConnectedDevice[];
   activeDevice: ConnectedDevice;
+  newlyDiscoveredDevice: ConnectedDevice | null;
   isConnectModalVisible: boolean;
   volume: number;
   isInitialized: boolean;
@@ -30,6 +31,7 @@ interface ConnectState {
   initConnect: () => void;
   openConnectModal: () => void;
   closeConnectModal: () => void;
+  clearNewlyDiscoveredDevice: () => void;
   selectDevice: (device: ConnectedDevice) => Promise<void>;
   setVolume: (volume: number) => void;
   sendRemoteCommand: (command: string, data?: any) => void;
@@ -60,10 +62,13 @@ const safeBroadcast = (event: string, payload: any) => {
 export const useConnectStore = create<ConnectState>((set, get) => ({
   availableDevices: [THIS_DEVICE],
   activeDevice: THIS_DEVICE,
+  newlyDiscoveredDevice: null,
   isConnectModalVisible: false,
   volume: 0.8,
   isInitialized: false,
   isSubscribed: false,
+
+  clearNewlyDiscoveredDevice: () => set({ newlyDiscoveredDevice: null }),
 
   initConnect: () => {
     if (realtimeChannel) return;
@@ -79,12 +84,10 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           const isNewlyOnline = !get().availableDevices.some((d) => d.deviceId === payload.deviceId);
           const currentList = get().availableDevices.filter((d) => d.deviceId !== payload.deviceId);
           const updated = [...currentList, { ...payload, isOnline: true, lastSeen: Date.now() }];
-          set({ availableDevices: updated });
-
-          // Khi Web Player vừa vào online: Bắn thông báo ngay cho điện thoại
-          if (isNewlyOnline) {
-            useToastStore.getState().showToast(`Đã kết nối với ${payload.deviceName || 'Web Player (PC)'}`, 'info');
-          }
+          set({
+            availableDevices: updated,
+            ...(isNewlyOnline ? { newlyDiscoveredDevice: payload } : {}),
+          });
 
           // Yêu cầu lấy ngay bài hát và trạng thái từ Web Player
           safeBroadcast('playback_state_query', {});

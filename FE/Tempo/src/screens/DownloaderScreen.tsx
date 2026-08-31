@@ -125,7 +125,7 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   };
 
   const handlePlay = (song: UnifiedSong) => {
-    playSong(song, [song, ...recentExtracts], { type: 'extracted', title: 'Nhạc trích xuất' });
+    playSong(song, [song], { type: 'extracted', title: 'Nhạc trích xuất' });
   };
 
   const remaining = getRemainingExtracts();

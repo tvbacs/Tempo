@@ -159,9 +159,14 @@ export const PlayerModalScreen: React.FC = () => {
     );
   };
 
+  const isExtractedOrSingle =
+    playbackContext?.type === 'extracted' ||
+    playbackContext?.type === 'single' ||
+    queue.length <= 1;
+
   const handleToggleShuffle = () => {
     toggleShuffle();
-    if (queue.length <= 1) {
+    if (isExtractedOrSingle) {
       showToast(
         "Đang phát 1 bài. Thêm bài hát vào Thư viện hoặc Playlist để dùng tính năng Trộn bài!",
         "info"
@@ -171,10 +176,16 @@ export const PlayerModalScreen: React.FC = () => {
 
   const handleCycleRepeat = () => {
     cycleRepeat();
+    if (isExtractedOrSingle && repeatMode === 'off') {
+      showToast(
+        "Danh sách chỉ có 1 bài. Thêm vào Playlist để lặp toàn bộ danh sách!",
+        "info"
+      );
+    }
   };
 
   const handlePlayNext = () => {
-    if (queue.length <= 1) {
+    if (isExtractedOrSingle) {
       showToast(
         "Danh sách chỉ có 1 bài hát. Hãy thêm vào Thư viện hoặc Danh sách phát để chuyển bài!",
         "info"
@@ -185,7 +196,7 @@ export const PlayerModalScreen: React.FC = () => {
   };
 
   const handlePlayPrev = () => {
-    if (queue.length <= 1) {
+    if (isExtractedOrSingle) {
       showToast(
         "Danh sách chỉ có 1 bài hát. Hãy thêm vào Thư viện hoặc Danh sách phát để chuyển bài!",
         "info"
@@ -196,7 +207,7 @@ export const PlayerModalScreen: React.FC = () => {
   };
 
   const handleHeaderPress = () => {
-    if (playbackContext?.type === 'extracted' || playbackContext?.type === 'single' || queue.length <= 1) {
+    if (isExtractedOrSingle) {
       showToast(
         "Đang phát từ trích xuất (1 bài). Hãy thêm bài hát vào Thư viện hoặc Playlist để dùng đầy đủ tính năng!",
         "info"

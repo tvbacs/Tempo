@@ -28,21 +28,31 @@ export const MiniPlayer: React.FC = () => {
     openFullPlayer,
   } = usePlayerStore();
 
-  const { activeDevice, availableDevices, openConnectModal } = useConnectStore();
+  const {
+    activeDevice,
+    availableDevices,
+    newlyDiscoveredDevice,
+    clearNewlyDiscoveredDevice,
+    selectDevice,
+    openConnectModal,
+  } = useConnectStore();
   const [showTooltip, setShowTooltip] = useState(false);
 
   const isRemoteActive = activeDevice.deviceId !== 'mobile-app';
 
-  // Trigger Spotify-style speech bubble tooltip CHỈ KHI thiết bị từ xa đang thực sự phát nhạc
+  // Trigger Spotify-style speech bubble tooltip khi thiết bị từ xa đang phát HOỰC vừa phát hiện Web Player online
   useEffect(() => {
-    if (isRemoteActive && isPlaying) {
+    if ((isRemoteActive && isPlaying) || newlyDiscoveredDevice) {
       setShowTooltip(true);
-      const timer = setTimeout(() => setShowTooltip(false), 8000);
+      const timer = setTimeout(() => {
+        setShowTooltip(false);
+        clearNewlyDiscoveredDevice();
+      }, 9000);
       return () => clearTimeout(timer);
     } else {
       setShowTooltip(false);
     }
-  }, [isRemoteActive, isPlaying, activeDevice.deviceName]);
+  }, [isRemoteActive, isPlaying, activeDevice.deviceName, newlyDiscoveredDevice]);
 
   if (!currentSong) return null;
 
@@ -52,29 +62,48 @@ export const MiniPlayer: React.FC = () => {
     ? LAYOUT.tabBarHeight + bottomInset + SPACING.xs
     : bottomInset + SPACING.xs;
 
+  const tooltipHeading = isRemoteActive
+    ? 'Đang nghe trên'
+    : (newlyDiscoveredDevice?.deviceName || 'Web Player');
+  const tooltipDeviceName = isRemoteActive
+    ? activeDevice.deviceName
+    : 'Sẵn sàng để kết nối';
+  const tooltipAction = isRemoteActive
+    ? 'Thay đổi'
+    : 'Kết nối';
+
+  const handleTooltipPress = () => {
+    if (!isRemoteActive && newlyDiscoveredDevice) {
+      selectDevice(newlyDiscoveredDevice);
+      clearNewlyDiscoveredDevice();
+    } else {
+      openConnectModal();
+    }
+  };
+
   return (
     <>
       {/* 1. Spotify-style Floating Speech Bubble Tooltip above MiniPlayer */}
-      {showTooltip && isRemoteActive && isPlaying && (
+      {showTooltip && (
         <View style={[styles.tooltipContainer, { bottom: bottomPosition + LAYOUT.miniPlayerHeight + 10 }]}>
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={openConnectModal}
+            onPress={handleTooltipPress}
             style={styles.tooltipBubble}
           >
             <View style={styles.tooltipLeft}>
               <Radio size={16} color={COLORS.black} />
               <View style={styles.tooltipTextWrap}>
                 <Text style={styles.tooltipHeading} numberOfLines={1}>
-                  Đang nghe trên
+                  {tooltipHeading}
                 </Text>
                 <Text style={styles.tooltipDeviceName} numberOfLines={1}>
-                  {activeDevice.deviceName}
+                  {tooltipDeviceName}
                 </Text>
               </View>
             </View>
             <Text style={styles.tooltipActionBtn}>
-              Thay đổi
+              {tooltipAction}
             </Text>
           </TouchableOpacity>
           {/* Pointer arrow pointing directly to the Cast button */}

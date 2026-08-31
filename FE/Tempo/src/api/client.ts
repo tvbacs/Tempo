@@ -32,7 +32,7 @@ export const getActiveApiUrl = async (): Promise<string> => {
       .maybeSingle();
 
     const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-      setTimeout(() => reject(new Error('Supabase discovery timeout')), 2500)
+      setTimeout(() => reject(new Error('Supabase discovery timeout')), 4500)
     );
 
     const { data } = await Promise.race([supabasePromise, timeoutPromise]);
@@ -56,9 +56,9 @@ export const getActiveApiUrl = async (): Promise<string> => {
 export const API_BASE_URL = currentApiUrl;
 
 /**
- * Fetch với timeout tích hợp để phát hiện offline nhanh chóng (mặc định 3.5s)
+ * Fetch với timeout tối ưu (mặc định 5s) cho phép tải nội dung trước khi fallback offline
  */
-export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 3500): Promise<Response> => {
+export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 5000): Promise<Response> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

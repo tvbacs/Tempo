@@ -303,6 +303,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (queue.length === 0) return;
 
       if (queue.length === 1) {
+        try {
+          const { useToastStore } = require('./toastStore');
+          useToastStore.getState().showToast(
+            'Danh sách chỉ có 1 bài hát. Hãy thêm vào Thư viện hoặc Playlist để chuyển bài!',
+            'info'
+          );
+        } catch (e) {}
+
         if (repeatMode === 'off') {
           await seekTo(0);
           await audioEngine.pause();
@@ -380,6 +388,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       if (queue.length === 0) return;
 
+      if (queue.length === 1) {
+        try {
+          const { useToastStore } = require('./toastStore');
+          useToastStore.getState().showToast(
+            'Danh sách chỉ có 1 bài hát. Hãy thêm vào Thư viện hoặc Playlist để chuyển bài!',
+            'info'
+          );
+        } catch (e) {}
+        await seekTo(0);
+        return;
+      }
+
       // Nếu đang phát quá 3 giây -> tua lại đầu bài hiện tại
       if (positionMs > 3000) {
         await seekTo(0);
@@ -452,10 +472,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       try {
         const { useToastStore } = require('./toastStore');
-        useToastStore.getState().showToast(
-          newShuffle ? 'Đã bật phát ngẫu nhiên' : 'Đã tắt phát ngẫu nhiên',
-          'info'
-        );
+        if (get().queue.length <= 1) {
+          useToastStore.getState().showToast(
+            'Đang phát 1 bài. Thêm bài hát vào Thư viện hoặc Playlist để dùng tính năng Trộn bài!',
+            'info'
+          );
+        } else {
+          useToastStore.getState().showToast(
+            newShuffle ? 'Đã bật phát ngẫu nhiên' : 'Đã tắt phát ngẫu nhiên',
+            'info'
+          );
+        }
       } catch (e) {}
     },
 
@@ -475,14 +502,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       try {
         const { useToastStore } = require('./toastStore');
-        useToastStore.getState().showToast(
-          nextMode === 'one'
-            ? 'Lặp lại 1 bài'
-            : nextMode === 'all'
-            ? 'Lặp lại danh sách'
-            : 'Tắt lặp lại',
-          'info'
-        );
+        if (get().queue.length <= 1) {
+          if (nextMode === 'one') {
+            useToastStore.getState().showToast('Lặp lại 1 bài hát này', 'info');
+          } else if (nextMode === 'all') {
+            useToastStore.getState().showToast(
+              'Danh sách chỉ có 1 bài. Thêm vào Playlist để lặp lại nhiều bài!',
+              'info'
+            );
+          } else {
+            useToastStore.getState().showToast('Tắt lặp lại', 'info');
+          }
+        } else {
+          useToastStore.getState().showToast(
+            nextMode === 'one'
+              ? 'Lặp lại 1 bài'
+              : nextMode === 'all'
+              ? 'Lặp lại danh sách'
+              : 'Tắt lặp lại',
+            'info'
+          );
+        }
       } catch (e) {}
     },
 

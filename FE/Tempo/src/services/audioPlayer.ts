@@ -1,15 +1,29 @@
 /**
- * Audio Engine Service wrapping Expo-AV
- * Configures background playback, proxy fallback, and VIP notification
+ * Audio Engine Service wrapping expo-audio (Expo SDK 54+)
+ * Configures background playback, native lock screen controls, and VIP stream fallback
  */
-import { Audio, AVPlaybackStatus, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
+import {
+  createAudioPlayer,
+  setAudioModeAsync,
+  AudioPlayer,
+  AudioStatus,
+} from 'expo-audio';
 import { UnifiedSong } from '../types/music';
 import { apiClient, API_BASE_URL } from '../api/client';
 import { useToastStore } from '../store/toastStore';
 
+export interface PlaybackStatusCompat {
+  isLoaded: boolean;
+  isPlaying: boolean;
+  durationMillis: number;
+  positionMillis: number;
+  isBuffering: boolean;
+  didJustFinish: boolean;
+}
+
 class AudioEngine {
-  private sound: Audio.Sound | null = null;
-  private onStatusUpdateCallback: ((status: AVPlaybackStatus) => void) | null = null;
+  private player: AudioPlayer | null = null;
+  private onStatusUpdateCallback: ((status: PlaybackStatusCompat) => void) | null = null;
   private onTrackEndedCallback: (() => void) | null = null;
   private isInitialized = false;
   private currentSongId: string | null = null;
@@ -21,24 +35,22 @@ class AudioEngine {
   }
 
   async init() {
+    if (this.isInitialized) return;
     try {
-      await Audio.setIsEnabledAsync(true);
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: true,      // ← giữ audio session khi lock screen / background
-        playsInSilentModeIOS: true,         // ← phát cả khi điện thoại để chế độ im lặng
-        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'doNotMix',
+        allowsRecording: false,
+        shouldRouteThroughEarpiece: false,
       });
       this.isInitialized = true;
     } catch (e) {
-      console.error('Failed to configure audio mode:', e);
+      console.warn('Failed to configure expo-audio mode:', e);
     }
   }
 
-  setStatusCallback(cb: (status: AVPlaybackStatus) => void) {
+  setStatusCallback(cb: (status: PlaybackStatusCompat) => void) {
     this.onStatusUpdateCallback = cb;
   }
 
@@ -53,12 +65,13 @@ class AudioEngine {
     const myLoadId = ++this.currentLoadId;
 
     try {
-      // Dừng & unload bài cũ ngay lập tức trước khi load bài mới
-      if (this.sound) {
-        const oldSound = this.sound;
-        this.sound = null;
-        try { await oldSound.stopAsync(); } catch (e) {}
-        try { await oldSound.unloadAsync(); } catch (e) {}
+      // Dừng & giải phóng player cũ ngay lập tức trước khi load bài mới
+      if (this.player) {
+        const oldPlayer = this.player;
+        this.player = null;
+        try { oldPlayer.pause(); } catch (_) {}
+        try { oldPlayer.clearLockScreenControls(); } catch (_) {}
+        try { oldPlayer.remove(); } catch (_) {}
       }
 
       // Nếu trong lúc unload có request mới hơn đến thì dừng luôn
@@ -67,7 +80,7 @@ class AudioEngine {
         return false;
       }
 
-      // Resolve audio stream URL
+      // 1. Resolve audio stream URL
       // Ưu tiên 1: Kiểm tra bài đã tải xuống trên máy (local file)
       let streamUrl = song.localUri;
       if (!streamUrl || !streamUrl.startsWith('file://')) {
@@ -121,34 +134,66 @@ class AudioEngine {
         return false;
       }
 
-      // Tạo sound object — thử direct URL trước, fallback sang proxy
-      let newSound: Audio.Sound | null = null;
+      // 2. Tạo AudioPlayer instance với expo-audio
+      let newPlayer: AudioPlayer | null = null;
       try {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: streamUrl },
-          { shouldPlay: true, progressUpdateIntervalMillis: 300 },
-          this.handlePlaybackStatusUpdate
-        );
-        newSound = sound;
+        newPlayer = createAudioPlayer(streamUrl, {
+          updateInterval: 300,
+        });
       } catch (directError: any) {
+        console.warn('[AudioEngine] Direct player creation failed, trying stream-proxy:', directError?.message);
         const proxyUrl = `${API_BASE_URL}/music/stream-proxy?url=${encodeURIComponent(streamUrl)}`;
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: proxyUrl },
-          { shouldPlay: true, progressUpdateIntervalMillis: 300 },
-          this.handlePlaybackStatusUpdate
-        );
-        newSound = sound;
+        newPlayer = createAudioPlayer(proxyUrl, {
+          updateInterval: 300,
+        });
       }
 
-      // Nếu trong lúc createAsync có request mới hơn đến → unload sound vừa tạo và thoát
+      // Nếu trong lúc tạo player có request mới hơn đến → hủy player vừa tạo và thoát
       if (myLoadId !== this.currentLoadId) {
-        console.log(`[AudioEngine] Load #${myLoadId} superseded after createAsync, unloading ghost sound.`);
-        try { await newSound?.unloadAsync(); } catch (e) {}
+        console.log(`[AudioEngine] Load #${myLoadId} superseded after player create, removing ghost player.`);
+        try { newPlayer?.remove(); } catch (_) {}
         return false;
       }
 
-      // Gán sound mới
-      this.sound = newSound;
+      // 3. Cấu hình Lock Screen / Now Playing Metadata (Màn hình khóa & Trung tâm điều khiển)
+      try {
+        newPlayer.setActiveForLockScreen(true, {
+          title: song.title || 'Tempo Track',
+          artist: song.artistsNames || 'Nghệ sĩ',
+          albumTitle: song.album?.title || 'Tempo Music',
+          artworkUrl:
+            song.thumbnail ||
+            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500',
+        });
+      } catch (lockScreenErr) {
+        console.warn('[AudioEngine] Lock screen metadata error:', lockScreenErr);
+      }
+
+      // 4. Đăng ký lắng nghe sự kiện phát nhạc và kết thúc bài
+      newPlayer.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+        if (this.onStatusUpdateCallback) {
+          this.onStatusUpdateCallback({
+            isLoaded: status.isLoaded,
+            isPlaying: status.playing,
+            durationMillis: Math.round((status.duration || 0) * 1000),
+            positionMillis: Math.round((status.currentTime || 0) * 1000),
+            isBuffering: status.isBuffering,
+            didJustFinish: status.didJustFinish,
+          });
+        }
+
+        if (status.didJustFinish) {
+          if (this.onTrackEndedCallback) {
+            this.onTrackEndedCallback();
+          }
+        }
+      });
+
+      // 5. Bắt đầu phát
+      newPlayer.play();
+
+      // Gán player mới
+      this.player = newPlayer;
       this.currentSongId = song.id || (song as any).encodeId || null;
       return true;
 
@@ -161,49 +206,41 @@ class AudioEngine {
     }
   }
 
-  private handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (this.onStatusUpdateCallback) {
-      this.onStatusUpdateCallback(status);
-    }
-
-    if (status.isLoaded && status.didJustFinish) {
-      if (this.onTrackEndedCallback) {
-        this.onTrackEndedCallback();
-      }
-    }
-  };
-
   async play() {
-    if (this.sound) {
-      await this.sound.playAsync();
+    if (this.player) {
+      this.player.play();
     }
   }
 
   async pause() {
-    if (this.sound) {
-      await this.sound.pauseAsync();
+    if (this.player) {
+      this.player.pause();
     }
   }
 
   async seekTo(positionMs: number) {
-    if (this.sound) {
-      await this.sound.setPositionAsync(positionMs);
+    if (this.player) {
+      // expo-audio seekTo nhận tham số là giây (seconds)
+      const targetSeconds = Math.max(0, positionMs / 1000);
+      await this.player.seekTo(targetSeconds);
     }
   }
 
   async stop() {
-    if (this.sound) {
-      await this.sound.stopAsync();
+    if (this.player) {
+      this.player.pause();
+      await this.player.seekTo(0);
     }
   }
 
   async stopAndUnload() {
-    if (this.sound) {
-      const old = this.sound;
-      this.sound = null;
+    if (this.player) {
+      const old = this.player;
+      this.player = null;
       this.currentSongId = null;
-      try { await old.stopAsync(); } catch (_) {}
-      try { await old.unloadAsync(); } catch (_) {}
+      try { old.pause(); } catch (_) {}
+      try { old.clearLockScreenControls(); } catch (_) {}
+      try { old.remove(); } catch (_) {}
     }
   }
 }

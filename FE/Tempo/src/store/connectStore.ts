@@ -131,13 +131,29 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
                     }
                   } catch (_) {}
                 }, 2000);
+
+                // Tự động kiểm tra và loại bỏ thiết bị đã offline (không nhận tín hiệu > 25s)
+                setInterval(() => {
+                  const now = Date.now();
+                  const valid = get().availableDevices.filter(d => {
+                    if (d.deviceId === 'mobile-app') return true;
+                    return d.lastSeen && (now - d.lastSeen < 25000);
+                  });
+                  if (valid.length !== get().availableDevices.length) {
+                    set({ availableDevices: valid });
+                    const curActive = get().activeDevice;
+                    if (curActive.deviceId !== 'mobile-app' && !valid.some(d => d.deviceId === curActive.deviceId)) {
+                      set({ activeDevice: THIS_DEVICE });
+                    }
+                  }
+                }, 10000);
               } catch (e) {
                 console.warn('[ConnectStore] subscribe error:', e);
               }
             }, 500);
           }
-
         });
+
     } catch (e) {
       console.warn('[ConnectStore] Failed to init connect channel:', e);
     }

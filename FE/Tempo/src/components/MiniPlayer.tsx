@@ -50,7 +50,7 @@ export const MiniPlayer: React.FC = () => {
             style={styles.connectPillBanner}
           >
             <View style={styles.connectPillLeft}>
-              <Radio size={14} color="#1DB954" />
+              <Radio size={14} color={COLORS.accentPrimary} />
               <Text style={styles.connectPillText} numberOfLines={1}>
                 Đang nghe trên <Text style={{ fontWeight: '800' }}>{activeDevice.deviceName}</Text>
               </Text>
@@ -78,7 +78,7 @@ export const MiniPlayer: React.FC = () => {
               {currentSong.title}
             </Text>
             <Text numberOfLines={1} ellipsizeMode="tail" style={styles.artist}>
-              {isWebActive ? `🔊 ${activeDevice.deviceName}` : currentSong.artistsNames}
+              {isWebActive ? activeDevice.deviceName : currentSong.artistsNames}
             </Text>
           </View>
 

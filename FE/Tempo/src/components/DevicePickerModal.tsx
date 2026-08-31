@@ -23,6 +23,8 @@ import {
   Radio,
   Bluetooth,
   X,
+  Play,
+  Pause,
 } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
 import { useConnectStore, ConnectedDevice } from '../store/connectStore';
@@ -93,12 +95,20 @@ export const DevicePickerModal: React.FC = () => {
                   <View style={styles.activeCardInfo}>
                     <Text style={styles.activeDeviceName}>{activeDevice.deviceName}</Text>
                     {currentSong && (
-                      <Text numberOfLines={1} style={[styles.activeTrackName, { color: activeColor }]}>
-                        {isPlaying ? '▶ ' : '⏸ '}{currentSong.title} – {currentSong.artistsNames}
-                      </Text>
+                      <View style={styles.trackInfoRow}>
+                        {isPlaying ? (
+                          <Play size={12} color={activeColor} fill={activeColor} style={{ marginRight: 4 }} />
+                        ) : (
+                          <Pause size={12} color={activeColor} fill={activeColor} style={{ marginRight: 4 }} />
+                        )}
+                        <Text numberOfLines={1} style={[styles.activeTrackName, { color: activeColor }]}>
+                          {currentSong.title} – {currentSong.artistsNames}
+                        </Text>
+                      </View>
                     )}
                   </View>
                 </View>
+
 
                 {/* Volume Slider for Active Device */}
                 <View style={styles.volumeRow}>
@@ -137,25 +147,9 @@ export const DevicePickerModal: React.FC = () => {
                   {!isWebActive && <Check size={20} color={activeColor} />}
                 </TouchableOpacity>
 
-                {/* 2. Web Player / PC */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => selectDevice({ deviceId: 'web-player-pc', deviceName: 'Web Player (PC / Chrome)', type: 'web', isOnline: true })}
-                  style={styles.deviceItem}
-                >
-                  <Laptop size={22} color={isWebActive ? activeColor : COLORS.textPrimary} />
-                  <View style={styles.deviceItemText}>
-                    <Text style={[styles.deviceItemName, isWebActive && { color: activeColor, fontWeight: '700' }]}>
-                      Web Player (PC / Chrome)
-                    </Text>
-                    <Text style={styles.deviceItemSub}>Loa máy tính · localhost:5050</Text>
-                  </View>
-                  {isWebActive && <Check size={20} color={activeColor} />}
-                </TouchableOpacity>
-
-                {/* Các thiết bị khác tìm thấy */}
+                {/* 2. Danh sách thiết bị thực tế đang trực tuyến */}
                 {availableDevices
-                  .filter((d) => d.deviceId !== 'mobile-app' && d.deviceId !== 'web-player-pc')
+                  .filter((d) => d.deviceId !== 'mobile-app' && d.isOnline)
                   .map((device) => {
                     const isSelected = activeDevice.deviceId === device.deviceId;
                     return (
@@ -165,28 +159,32 @@ export const DevicePickerModal: React.FC = () => {
                         onPress={() => selectDevice(device)}
                         style={styles.deviceItem}
                       >
-                        <Radio size={22} color={isSelected ? activeColor : COLORS.textPrimary} />
+                        {device.type === 'web' ? (
+                          <Laptop size={22} color={isSelected ? activeColor : COLORS.textPrimary} />
+                        ) : (
+                          <Radio size={22} color={isSelected ? activeColor : COLORS.textPrimary} />
+                        )}
                         <View style={styles.deviceItemText}>
                           <Text style={[styles.deviceItemName, isSelected && { color: activeColor, fontWeight: '700' }]}>
                             {device.deviceName}
                           </Text>
-                          <Text style={styles.deviceItemSub}>Thiết bị Tempo Connect</Text>
+                          <Text style={styles.deviceItemSub}>
+                            {device.type === 'web' ? 'Loa máy tính · Trực tuyến' : 'Thiết bị Tempo Connect'}
+                          </Text>
                         </View>
                         {isSelected && <Check size={20} color={activeColor} />}
                       </TouchableOpacity>
                     );
                   })}
-              </ScrollView>
 
-              {/* Bottom Bluetooth & Airplay Button */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={closeConnectModal}
-                style={styles.airplayBtn}
-              >
-                <Bluetooth size={18} color={COLORS.white} />
-                <Text style={styles.airplayBtnText}>Bluetooth & Airplay</Text>
-              </TouchableOpacity>
+                {availableDevices.filter((d) => d.deviceId !== 'mobile-app' && d.isOnline).length === 0 && (
+                  <View style={styles.noDeviceHint}>
+                    <Text style={styles.noDeviceText}>
+                      Đang tìm kiếm... Hãy mở Tempo Web Player trên máy tính để kết nối tự động.
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -194,6 +192,7 @@ export const DevicePickerModal: React.FC = () => {
     </Modal>
   );
 };
+
 
 const styles = StyleSheet.create({
   overlay: {
@@ -258,6 +257,11 @@ const styles = StyleSheet.create({
   activeTrackName: {
     fontSize: TYPOGRAPHY.sizeCaption,
     fontWeight: '600',
+    flex: 1,
+  },
+  trackInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   volumeRow: {
     flexDirection: 'row',
@@ -297,18 +301,16 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 2,
   },
-  airplayBtn: {
-    flexDirection: 'row',
+  noDeviceHint: {
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#32323E',
-    paddingVertical: SPACING.md,
-    borderRadius: LAYOUT.radiusFull,
-    gap: SPACING.sm,
   },
-  airplayBtnText: {
-    fontSize: TYPOGRAPHY.sizeBodySmall,
-    fontWeight: '700',
-    color: COLORS.white,
+  noDeviceText: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    lineHeight: TYPOGRAPHY.lineHeightCaption,
   },
 });

@@ -258,9 +258,13 @@ export const PlayerModalScreen: React.FC = () => {
       artistInfo?.alias || currentSong.artists?.[0]?.link?.replace("/", "") || "";
     const name = artistInfo?.name || currentSong.artistsNames;
     const thumbnail = artistInfo?.thumbnail || currentSong.thumbnail;
+    setShowSongOptions(false);
     closeFullPlayer();
-    navigate("ArtistDetail", { alias, name, thumbnail });
+    setTimeout(() => {
+      navigate("ArtistDetail", { alias, name, thumbnail });
+    }, 150);
   };
+
 
   if (!currentSong) return null;
 
@@ -803,7 +807,7 @@ const styles = StyleSheet.create({
   headerSub: {
     fontSize: TYPOGRAPHY.sizeMicro,
     fontWeight: "700",
-    color: COLORS.textMuted,
+    color: COLORS.accentPrimary,
     letterSpacing: TYPOGRAPHY.letterSpacingWide,
     marginBottom: 2,
   },

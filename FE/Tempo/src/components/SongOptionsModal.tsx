@@ -65,13 +65,16 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
 
   const handleViewArtist = () => {
     onClose();
-    if (onOpenArtist) {
-      onOpenArtist();
-    } else {
-      const alias = song.artists?.[0]?.link?.replace('/', '') || song.artistsNames.toLowerCase().replace(/\s+/g, '-');
-      navigate('ArtistDetail', { alias, name: song.artistsNames, thumbnail: song.thumbnail });
-    }
+    setTimeout(() => {
+      if (onOpenArtist) {
+        onOpenArtist();
+      } else {
+        const alias = song.artists?.[0]?.link?.replace('/', '') || song.artistsNames.toLowerCase().replace(/\s+/g, '-');
+        navigate('ArtistDetail', { alias, name: song.artistsNames, thumbnail: song.thumbnail });
+      }
+    }, 120);
   };
+
 
   const handleDeleteDownload = () => {
     removeDownload(song.id);

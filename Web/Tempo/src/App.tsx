@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Play, Volume2 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { RightQueueSidebar } from './components/RightQueueSidebar';
@@ -26,7 +27,7 @@ export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const { initAudio, isLyricsOpen } = usePlayerStore();
+  const { initAudio, isLyricsOpen, isAutoplayBlocked } = usePlayerStore();
   const { user, isLoading: isAuthLoading, initSession } = useAuthStore();
   const { fetchLikedSongs, fetchPlaylists, fetchFollowedArtists, fetchSavedAlbums, fetchHistory } = useLibraryStore();
   const { initConnect } = useConnectStore();
@@ -35,6 +36,42 @@ export const App: React.FC = () => {
     initAudio();
     initSession();
     initConnect();
+
+    // Tự động mở khóa Autoplay Policy vĩnh viễn cho tab khi người dùng click/gõ phím bất kỳ
+    const unlockAudio = () => {
+      // 1. Phát buffer im lặng siêu ngắn để trình duyệt cấp quyền Audio vĩnh viễn cho tab
+      try {
+        const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+        silentAudio.volume = 0.01;
+        silentAudio.play().catch(() => {});
+      } catch (_) {}
+
+      // 2. Nếu đang có bài hát chờ phát từ điện thoại thì kích hoạt phát ngay
+      const ps = usePlayerStore.getState();
+      const audio = ps.audioElement;
+      if (audio && ps.currentSong) {
+        audio.play().then(() => {
+          usePlayerStore.setState({ isPlaying: true, isAutoplayBlocked: false });
+          useConnectStore.getState().broadcastState();
+        }).catch(() => {});
+      } else {
+        usePlayerStore.setState({ isAutoplayBlocked: false });
+      }
+
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('click', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
   }, []);
 
   useEffect(() => {
@@ -122,6 +159,26 @@ export const App: React.FC = () => {
 
       {/* 4. Global Auth Modal */}
       <AuthModal />
+
+      {/* 5. Autoplay Unlock Floating Notification (Spotify Style) */}
+      {isAutoplayBlocked && (
+        <div
+          onClick={() => {
+            const ps = usePlayerStore.getState();
+            const audio = ps.audioElement;
+            if (audio) {
+              audio.play().then(() => {
+                usePlayerStore.setState({ isPlaying: true, isAutoplayBlocked: false });
+                useConnectStore.getState().broadcastState();
+              }).catch(() => {});
+            }
+          }}
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] bg-[#FC475C] text-white px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-3 cursor-pointer animate-pulse hover:opacity-95 transition-all"
+        >
+          <Play className="w-5 h-5 fill-white" />
+          <span className="text-sm">Trình duyệt đã tạm dừng · Nhấn vào đây để bật âm thanh</span>
+        </div>
+      )}
     </div>
   );
 };

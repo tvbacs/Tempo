@@ -32,6 +32,7 @@ import {
 } from "lucide-react-native";
 import { GradientPlayButton } from "../components/GradientButton";
 import { usePlayerStore } from "../store/playerStore";
+import { useActivePlayback } from "../store/connectStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { useSleepTimerStore } from "../store/sleepTimerStore";
 import { useToastStore } from "../store/toastStore";
@@ -63,7 +64,8 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const [albums, setAlbums] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showFullBio, setShowFullBio] = useState<boolean>(false);
-  const { currentSong, isPlaying, playSong, togglePlayPause } = usePlayerStore();
+  const { playSong, isShuffle, toggleShuffle } = usePlayerStore();
+  const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { toggleFollowArtist, isArtistFollowed } = useLibraryStore();
   const { showToast } = useToastStore();
 
@@ -97,7 +99,13 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
         if (searchName) {
           const searchRes = await apiClient.search(searchName);
           if (isMounted) {
-            setTopSongs(searchRes.songs || []);
+            const cleanSongs = (searchRes.songs || []).filter((s) => {
+              if (s.id.startsWith('audius_')) {
+                return (s.artistsNames || '').toLowerCase().includes(searchName.toLowerCase());
+              }
+              return true;
+            });
+            setTopSongs(cleanSongs);
             setAlbums(searchRes.playlists || []);
           }
         }
@@ -125,8 +133,18 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     });
   };
 
+  const isCurrentArtistPlaying =
+    isPlaying && topSongs.some((s) => s.id === currentSong?.id);
+
   const handlePlayAll = (shuffle: boolean = false) => {
     if (topSongs.length === 0) return;
+    if (isCurrentArtistPlaying && !shuffle) {
+      togglePlayPause();
+      return;
+    }
+    if (shuffle && !isShuffle) {
+      toggleShuffle();
+    }
     const songsToPlay = shuffle
       ? [...topSongs].sort(() => Math.random() - 0.5)
       : topSongs;
@@ -222,14 +240,18 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
               onPress={() => handlePlayAll(true)}
               style={styles.shuffleBtn}
             >
-              <Shuffle size={20} color={COLORS.textPrimary} />
+              <Shuffle size={20} color={isShuffle ? COLORS.accentPrimary : COLORS.textPrimary} />
             </TouchableOpacity>
 
             <GradientPlayButton
               onPress={() => handlePlayAll(false)}
               size={54}
             >
-              <Play size={24} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 2 }} />
+              {isCurrentArtistPlaying ? (
+                <Pause size={24} color={COLORS.white} fill={COLORS.white} />
+              ) : (
+                <Play size={24} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 2 }} />
+              )}
             </GradientPlayButton>
           </View>
         </View>

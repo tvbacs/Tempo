@@ -11,26 +11,26 @@ import { Play, Pause, Cast, Radio } from 'lucide-react-native';
 import { GradientPlayButton } from './GradientButton';
 import { usePlayerStore } from '../store/playerStore';
 import { useNavStore } from '../store/navStore';
-import { useConnectStore } from '../store/connectStore';
+import { useConnectStore, useActivePlayback } from '../store/connectStore';
 import { DevicePickerModal } from './DevicePickerModal';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 export const MiniPlayer: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { hasTabBar } = useNavStore();
+  const { openFullPlayer } = usePlayerStore();
   const {
-    currentSong,
+    isRemote,
+    song,
     isPlaying,
-    isLoading,
     positionMs,
     durationMs,
+    isLoading,
+    device,
     togglePlayPause,
-    openFullPlayer,
-  } = usePlayerStore();
+  } = useActivePlayback();
 
   const {
-    activeDevice,
-    availableDevices,
     newlyDiscoveredDevice,
     clearNewlyDiscoveredDevice,
     selectDevice,
@@ -38,11 +38,9 @@ export const MiniPlayer: React.FC = () => {
   } = useConnectStore();
   const [showTooltip, setShowTooltip] = useState(false);
 
-  const isRemoteActive = activeDevice.deviceId !== 'mobile-app';
-
-  // Trigger Spotify-style speech bubble tooltip khi thiết bị từ xa đang phát HOỰC vừa phát hiện Web Player online
+  // Trigger Spotify-style speech bubble tooltip khi thiết bị từ xa đang active HOẶC vừa phát hiện Web Player online
   useEffect(() => {
-    if ((isRemoteActive && isPlaying) || newlyDiscoveredDevice) {
+    if (isRemote || newlyDiscoveredDevice) {
       setShowTooltip(true);
       const timer = setTimeout(() => {
         setShowTooltip(false);
@@ -52,9 +50,9 @@ export const MiniPlayer: React.FC = () => {
     } else {
       setShowTooltip(false);
     }
-  }, [isRemoteActive, isPlaying, activeDevice.deviceName, newlyDiscoveredDevice]);
+  }, [isRemote, device.deviceName, newlyDiscoveredDevice]);
 
-  if (!currentSong) return null;
+  if (!song) return null;
 
   const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
   const bottomInset = insets.bottom > 0 ? insets.bottom : SPACING.sm;
@@ -62,18 +60,18 @@ export const MiniPlayer: React.FC = () => {
     ? LAYOUT.tabBarHeight + bottomInset + SPACING.xs
     : bottomInset + SPACING.xs;
 
-  const tooltipHeading = isRemoteActive
+  const tooltipHeading = isRemote
     ? 'Đang nghe trên'
     : (newlyDiscoveredDevice?.deviceName || 'Web Player');
-  const tooltipDeviceName = isRemoteActive
-    ? activeDevice.deviceName
+  const tooltipDeviceName = isRemote
+    ? device.deviceName
     : 'Sẵn sàng để kết nối';
-  const tooltipAction = isRemoteActive
+  const tooltipAction = isRemote
     ? 'Thay đổi'
     : 'Kết nối';
 
   const handleTooltipPress = () => {
-    if (!isRemoteActive && newlyDiscoveredDevice) {
+    if (!isRemote && newlyDiscoveredDevice) {
       selectDevice(newlyDiscoveredDevice);
       clearNewlyDiscoveredDevice();
     } else {
@@ -114,10 +112,10 @@ export const MiniPlayer: React.FC = () => {
       {/* 2. Main MiniPlayer Card with Dynamic Blurred Artwork Background */}
       <View style={[styles.wrapper, { bottom: bottomPosition }]}>
         {/* Dynamic Blurred Artwork Background */}
-        {currentSong?.thumbnail ? (
+        {song?.thumbnail ? (
           <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
             <Image
-              source={{ uri: currentSong.thumbnail }}
+              source={{ uri: song.thumbnail }}
               style={[StyleSheet.absoluteFillObject, { opacity: 0.55 }]}
               blurRadius={Platform.OS === 'ios' ? 25 : 12}
               resizeMode="cover"
@@ -139,7 +137,7 @@ export const MiniPlayer: React.FC = () => {
           <Image
             source={{
               uri:
-                currentSong.thumbnail ||
+                song.thumbnail ||
                 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120',
             }}
             style={styles.thumbnail}
@@ -147,19 +145,19 @@ export const MiniPlayer: React.FC = () => {
 
           <View style={styles.info}>
             <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
-              {currentSong.title}
+              {song.title}
             </Text>
 
-            {isRemoteActive && isPlaying ? (
+            {isRemote ? (
               <View style={styles.remoteSubRow}>
                 <Radio size={11} color={COLORS.accentPrimary} />
                 <Text numberOfLines={1} ellipsizeMode="tail" style={styles.remoteSubText}>
-                  {activeDevice.deviceName}
+                  {device.deviceName}
                 </Text>
               </View>
             ) : (
               <Text numberOfLines={1} ellipsizeMode="tail" style={styles.artist}>
-                {currentSong.artistsNames}
+                {song.artistsNames}
               </Text>
             )}
           </View>
@@ -175,12 +173,12 @@ export const MiniPlayer: React.FC = () => {
               <Cast
                 size={19}
                 color={
-                  isRemoteActive && isPlaying
+                  isRemote
                     ? COLORS.accentPrimary
                     : COLORS.textSecondary
                 }
               />
-              {isRemoteActive && isPlaying && (
+              {isRemote && (
                 <View
                   style={[
                     styles.castDot,
@@ -206,7 +204,7 @@ export const MiniPlayer: React.FC = () => {
         <View style={styles.bottomProgressTrack}>
           <LinearGradient
             colors={
-              isRemoteActive
+              isRemote
                 ? [COLORS.accentPrimary, '#FC655A']
                 : [COLORS.gradientTop, COLORS.gradientBottom]
             }

@@ -19,10 +19,11 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Play, Shuffle, Music } from "lucide-react-native";
+import { ChevronLeft, Play, Pause, Shuffle, Music } from "lucide-react-native";
 import { SongItem } from "../components/SongItem";
 import { SongItemSkeleton } from "../components/SkeletonLoader";
 import { usePlayerStore } from "../store/playerStore";
+import { useActivePlayback } from "../store/connectStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { useToastStore } from "../store/toastStore";
 import { apiClient } from "../api/client";
@@ -44,9 +45,13 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const { playSong, currentSong, isShuffle, toggleShuffle } = usePlayerStore();
+  const { playSong, isShuffle, toggleShuffle } = usePlayerStore();
+  const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { history } = useLibraryStore();
   const { showToast } = useToastStore();
+
+  const isCurrentCollectionPlaying =
+    isPlaying && songs.some((s) => s.id === currentSong?.id);
 
   const bottomPadding = currentSong
     ? LAYOUT.miniPlayerHeight + insets.bottom + SPACING.md
@@ -99,6 +104,10 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
 
   const handlePlayAll = () => {
     if (songs.length === 0) return;
+    if (isCurrentCollectionPlaying) {
+      togglePlayPause();
+      return;
+    }
     const songsToPlay = isShuffle
       ? [...songs].sort(() => Math.random() - 0.5)
       : songs;
@@ -106,7 +115,15 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
   };
 
   const handleToggleShuffle = () => {
-    toggleShuffle();
+    if (!isShuffle) {
+      toggleShuffle();
+    }
+    if (!isCurrentCollectionPlaying && songs.length > 0) {
+      const shuffled = [...songs].sort(() => Math.random() - 0.5);
+      playSong(shuffled[0], songs, { type: type === 'chart' ? 'chart' : 'custom', title });
+    } else {
+      toggleShuffle();
+    }
   };
 
   const isPlaylistMode = type === "playlists";
@@ -185,8 +202,14 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
                   end={{ x: 1, y: 1 }}
                   style={styles.heroPlayGradient}
                 >
-                  <Play size={15} color={COLORS.white} fill={COLORS.white} />
-                  <Text style={styles.heroPlayText}>Phát tất cả</Text>
+                  {isCurrentCollectionPlaying ? (
+                    <Pause size={15} color={COLORS.white} fill={COLORS.white} />
+                  ) : (
+                    <Play size={15} color={COLORS.white} fill={COLORS.white} />
+                  )}
+                  <Text style={styles.heroPlayText}>
+                    {isCurrentCollectionPlaying ? "Tạm dừng" : "Phát tất cả"}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
 

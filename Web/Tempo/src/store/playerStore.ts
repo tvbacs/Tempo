@@ -8,6 +8,7 @@ interface PlayerState {
   currentSong: UnifiedSong | null;
   isPlaying: boolean;
   isLoading: boolean;
+  isAutoplayBlocked: boolean;
   queue: UnifiedSong[];
   currentIndex: number;
   positionSec: number;
@@ -39,6 +40,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentSong: null,
   isPlaying: false,
   isLoading: false,
+  isAutoplayBlocked: false,
   queue: [],
   currentIndex: -1,
   positionSec: 0,
@@ -126,11 +128,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       audio.src = streamUrl;
       audio.currentTime = startPosSec;
       audio.play().then(() => {
-        set({ isPlaying: true, isLoading: false });
+        set({ isPlaying: true, isLoading: false, isAutoplayBlocked: false });
         useConnectStore.getState().broadcastState();
       }).catch((err) => {
-        console.warn('[Web Player] Autoplay prevented or failed:', err.message);
-        set({ isPlaying: false, isLoading: false });
+        console.warn('[Web Player] Autoplay prevented:', err.message);
+        // Trình duyệt chặn do chưa có tương tác chuột trên trang web
+        set({ isPlaying: false, isLoading: false, isAutoplayBlocked: true });
         useConnectStore.getState().broadcastState();
       });
     } else {

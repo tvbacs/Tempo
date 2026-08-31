@@ -181,20 +181,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     setPlaybackContext: (context) => set({ playbackContext: context }),
 
     playSong: async (song, newQueue, context) => {
-      // Đặt lại quyền phát trên Điện thoại này nếu trước đó đang xem/kết nối PC
       const { useConnectStore } = require('./connectStore');
       const connect = useConnectStore.getState();
-      if (connect.activeDevice.deviceId !== 'mobile-app') {
-        useConnectStore.setState({
-          activeDevice: {
-            deviceId: 'mobile-app',
-            deviceName: 'Điện thoại này',
-            type: 'mobile',
-            isOnline: true,
-          },
-        });
-        connect.sendRemoteCommand('pause');
-      }
+      const isRemote = connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app';
 
       let queue = get().queue;
       let currentIndex = get().currentIndex;
@@ -213,7 +202,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         currentIndex = queue.findIndex((s) => s.id === song.id);
       }
 
-      // Xử lý context: nếu có truyền context mới thì lưu, nếu không giữ context cũ hoặc fallback single
+      // Xử lý context
       let currentContext = context !== undefined ? context : get().playbackContext;
       if (!currentContext) {
         currentContext = {
@@ -222,11 +211,48 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         };
       }
 
-      // Cập nhật shuffleHistory: thêm bài hiện tại vào danh sách đã nghe
-      const prevHistory = get().shuffleHistory;
-      const updatedHistory = prevHistory.includes(song.id)
-        ? prevHistory
-        : [...prevHistory, song.id];
+      // Cập nhật shuffleHistory: nếu bắt đầu phiên phát từ context mới, reset về [song.id]
+      let updatedHistory: string[];
+      if (context !== undefined) {
+        updatedHistory = [song.id];
+      } else {
+        const prevHistory = get().shuffleHistory;
+        updatedHistory = prevHistory.includes(song.id)
+          ? prevHistory
+          : [...prevHistory, song.id];
+      }
+
+      // 1. Nếu đang chọn nghe trên Máy Tính (Web Player): Gửi lệnh phát bài sang Web PC (nếu PC còn sống)
+      if (isRemote) {
+        const isStillRemote = await connect.ensureActiveDeviceOrFallback();
+        if (isStillRemote) {
+          connect.sendRemoteCommand('play_track', {
+            song,
+            queue,
+            positionMs: 0,
+          });
+
+          set({
+            currentSong: song,
+            queue,
+            currentIndex,
+            playbackContext: currentContext,
+            shuffleHistory: updatedHistory,
+            isLoading: false,
+            isPlaying: true,
+            positionMs: 0,
+            durationMs: song.duration ? song.duration * 1000 : 0,
+          });
+
+          saveLastSession(song, queue, currentIndex, currentContext);
+          useLibraryStore.getState().recordHistory(song);
+          return;
+        }
+        // Nếu PC đã offline và tự động fallback về điện thoại -> Chạy tiếp luồng nạp audio điện thoại bên dưới
+      }
+
+      // 2. Nếu đang phát tại Điện Thoại Này: Dừng máy tính và phát tại điện thoại
+      connect.sendRemoteCommand('pause');
 
       set({
         currentSong: song,
@@ -240,10 +266,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         durationMs: song.duration ? song.duration * 1000 : 0,
       });
 
-      // Lưu phiên phát nhạc gần nhất vào AsyncStorage
       saveLastSession(song, queue, currentIndex, currentContext);
-
-      // Ghi nhận lịch sử nghe nhạc tự động từ mọi nơi (Home, Search, Artist, Playlist, SeeAll)
       useLibraryStore.getState().recordHistory(song);
 
       const success = await audioEngine.loadAndPlay(song);

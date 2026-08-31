@@ -23,8 +23,7 @@ import {
   Play,
   Pause,
 } from 'lucide-react-native';
-import { useConnectStore, ConnectedDevice } from '../store/connectStore';
-import { usePlayerStore } from '../store/playerStore';
+import { useConnectStore, useActivePlayback, ConnectedDevice } from '../store/connectStore';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 export const DevicePickerModal: React.FC = () => {
@@ -37,7 +36,7 @@ export const DevicePickerModal: React.FC = () => {
     selectDevice,
   } = useConnectStore();
 
-  const { currentSong, isPlaying } = usePlayerStore();
+  const { song: currentSong, isPlaying } = useActivePlayback();
 
   if (!isConnectModalVisible) return null;
 

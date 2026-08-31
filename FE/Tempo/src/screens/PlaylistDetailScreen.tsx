@@ -23,6 +23,7 @@ import { SongItem } from "../components/SongItem";
 import { SongItemSkeleton } from "../components/SkeletonLoader";
 import { AddSongsModal } from "../components/AddSongsModal";
 import { usePlayerStore } from "../store/playerStore";
+import { useActivePlayback } from "../store/connectStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { useSleepTimerStore } from "../store/sleepTimerStore";
 import { useToastStore } from "../store/toastStore";
@@ -47,7 +48,8 @@ export const PlaylistDetailScreen: React.FC<{
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
-  const { currentSong, isPlaying, playSong, togglePlayPause, isShuffle, toggleShuffle } = usePlayerStore();
+  const { playSong, isShuffle, toggleShuffle } = usePlayerStore();
+  const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { playlists, savedAlbums, setLastPlayedContext, toggleSaveAlbum, isAlbumSaved } = useLibraryStore();
   const { showToast } = useToastStore();
 
@@ -218,20 +220,23 @@ export const PlaylistDetailScreen: React.FC<{
       : 'playlist';
 
   const handlePlayAll = () => {
-    if (songList.length > 0) {
-      setLastPlayedContext({
-        id: playlist?.id || id || displayTitle,
-        title: displayTitle,
-        thumbnail: displayThumb,
-        type: contextType,
-        artistsNames: playlist?.artistsNames,
-      });
-
-      const songsToPlay = isShuffle
-        ? [...songList].sort(() => Math.random() - 0.5)
-        : songList;
-      playSong(songsToPlay[0], songsToPlay, { type: 'playlist', title: displayTitle, id: playlist?.id || id });
+    if (songList.length === 0) return;
+    if (isCurrentPlaylistPlaying) {
+      togglePlayPause();
+      return;
     }
+    setLastPlayedContext({
+      id: playlist?.id || id || displayTitle,
+      title: displayTitle,
+      thumbnail: displayThumb,
+      type: contextType,
+      artistsNames: playlist?.artistsNames,
+    });
+
+    const songsToPlay = isShuffle
+      ? [...songList].sort(() => Math.random() - 0.5)
+      : songList;
+    playSong(songsToPlay[0], songsToPlay, { type: 'playlist', title: displayTitle, id: playlist?.id || id });
   };
 
   const handlePlaySingle = (song: UnifiedSong) => {
@@ -246,7 +251,15 @@ export const PlaylistDetailScreen: React.FC<{
   };
 
   const handleToggleShuffle = () => {
-    toggleShuffle();
+    if (!isShuffle) {
+      toggleShuffle();
+    }
+    if (!isCurrentPlaylistPlaying && songList.length > 0) {
+      const shuffled = [...songList].sort(() => Math.random() - 0.5);
+      playSong(shuffled[0], songList, { type: 'playlist', title: displayTitle, id: playlist?.id || id });
+    } else {
+      toggleShuffle();
+    }
   };
 
   const handleToggleLike = () => {
@@ -261,6 +274,17 @@ export const PlaylistDetailScreen: React.FC<{
 
   const isCurrentPlaylistPlaying =
     isPlaying && songList.some((s) => s.id === currentSong?.id);
+
+  const getSubtitle = () => {
+    if (isCustomPlaylist) {
+      return `Danh sách phát · ${songList.length} bài hát`;
+    }
+    const artists = playlist?.artistsNames || initArtists;
+    if (artists && !artists.toLowerCase().includes('bài hát')) {
+      return `${artists} · ${songList.length > 0 ? `${songList.length} bài hát` : 'Đang cập nhật'}`;
+    }
+    return songList.length > 0 ? `${songList.length} bài hát` : 'Đang cập nhật';
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -295,8 +319,7 @@ export const PlaylistDetailScreen: React.FC<{
           <Image source={{ uri: displayThumb }} style={styles.heroImage} />
           <Text numberOfLines={2} style={styles.playlistTitle}>{displayTitle}</Text>
           <Text style={styles.playlistSubtitle}>
-            {playlist?.artistsNames || "Tuyển chọn đặc sắc"} ·{" "}
-            {songList.length > 0 ? `${songList.length} bài hát` : "Đang cập nhật"}
+            {getSubtitle()}
           </Text>
         </View>
 

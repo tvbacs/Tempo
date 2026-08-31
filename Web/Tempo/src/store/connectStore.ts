@@ -18,6 +18,12 @@ const DEVICE_ID = 'web-player-pc';
 const DEVICE_NAME = 'Web Player (PC)';
 let realtimeChannel: any = null;
 
+const isTargetedToThisDevice = (payload: any) => {
+  const targetDeviceId = payload?.targetDeviceId ?? payload?.data?.targetDeviceId;
+  if (!targetDeviceId) return true;
+  return targetDeviceId === DEVICE_ID;
+};
+
 export const useConnectStore = create<ConnectState>((set, get) => ({
   isOnline: false,
   activeDeviceId: DEVICE_ID,
@@ -35,10 +41,13 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         get().broadcastPresence();
       })
       .on('broadcast', { event: 'command' }, ({ payload }: { payload: any }) => {
-        const { command, data } = payload;
+        if (!payload) return;
+        if (!isTargetedToThisDevice(payload)) return;
+
+        const { command, data = {} } = payload;
         const ps = usePlayerStore.getState();
 
-        if (command === 'transfer_playback' && (data?.targetDeviceId === DEVICE_ID || !data?.targetDeviceId)) {
+        if (command === 'transfer_playback') {
           set({ activeDeviceId: DEVICE_ID, activeDeviceName: DEVICE_NAME });
           if (data?.song) {
             ps.playSong(data.song, data.queue, (data.positionMs || 0) / 1000);
@@ -71,6 +80,8 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
 
         if (command === 'pause') {
           ps.audioElement?.pause();
+          usePlayerStore.setState({ isPlaying: false });
+          set({ activeDeviceId: 'mobile-app', activeDeviceName: 'Điện thoại' });
           return;
         }
 
@@ -130,10 +141,26 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         if (status === 'SUBSCRIBED') {
           set({ isOnline: true });
           get().broadcastPresence();
+
+          // Gửi tín hiệu offline ngay khi người dùng đóng tab, reload hoặc tắt trình duyệt
+          const notifyOffline = () => {
+            if (realtimeChannel && realtimeChannel.state === 'joined') {
+              try {
+                realtimeChannel.send({
+                  type: 'broadcast',
+                  event: 'device_offline',
+                  payload: { deviceId: DEVICE_ID },
+                });
+              } catch (_) {}
+            }
+          };
+
+          window.addEventListener('beforeunload', notifyOffline);
+          window.addEventListener('pagehide', notifyOffline);
         }
       });
 
-    setInterval(() => get().broadcastPresence(), 10000);
+    setInterval(() => get().broadcastPresence(), 8000);
 
     // Heartbeat phát nhạc sang điện thoại mỗi 2s khi đang phát trên PC
     setInterval(() => {
@@ -200,6 +227,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
   },
 
   requestTransferPlayback: () => {
+    if (get().activeDeviceId === DEVICE_ID) return; // Đã đang active trên Web -> Không làm gì cả
     if (!realtimeChannel) return;
     const ps = usePlayerStore.getState();
     set({ activeDeviceId: DEVICE_ID, activeDeviceName: DEVICE_NAME });
@@ -213,20 +241,21 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         realtimeChannel.send({
           type: 'broadcast',
           event: 'command',
-          payload: { command: 'pause' },
+          payload: { command: 'pause', targetDeviceId: 'mobile-app' },
         });
       } catch (_) {}
     }
   },
 
   transferPlaybackToMobile: () => {
+    if (get().activeDeviceId !== DEVICE_ID) return; // Đã đang active trên Mobile -> Không làm gì cả
     if (!realtimeChannel) return;
     const ps = usePlayerStore.getState();
     if (ps.audioElement) {
       ps.audioElement.pause();
     }
     set({ activeDeviceId: 'mobile-app', activeDeviceName: 'Điện thoại' });
-    usePlayerStore.setState({ isPlaying: true });
+    usePlayerStore.setState({ isPlaying: false });
 
     if (realtimeChannel.state === 'joined') {
       try {
@@ -234,7 +263,8 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           type: 'broadcast',
           event: 'command',
           payload: {
-            command: 'transfer_to_mobile',
+            command: 'transfer_playback',
+            targetDeviceId: 'mobile-app',
             data: {
               song: ps.currentSong,
               queue: ps.queue,

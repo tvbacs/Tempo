@@ -52,6 +52,7 @@ import { LyricData, UnifiedSong } from "../types/music";
 import { SleepTimerModal } from "../components/SleepTimerModal";
 import { SongOptionsModal } from "../components/SongOptionsModal";
 import { Toast } from "../components/Toast";
+import { useConnectStore, useActivePlayback } from "../store/connectStore";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 import { formatDurationMs } from "../utils/format";
 
@@ -63,22 +64,27 @@ export const PlayerModalScreen: React.FC = () => {
   const scrollRef = useRef<ScrollView>(null);
 
   const {
-    currentSong,
+    isRemote,
+    song: currentSong,
     isPlaying,
     isLoading,
     positionMs,
     durationMs,
-    isShuffle,
-    repeatMode,
-    isFullPlayerVisible,
+    queue,
+    device: activeDevice,
     togglePlayPause,
     playNext,
     playPrev,
     seekTo,
+  } = useActivePlayback();
+
+  const {
+    isShuffle,
+    repeatMode,
+    isFullPlayerVisible,
     toggleShuffle,
     cycleRepeat,
     closeFullPlayer,
-    queue,
     playSong,
     playbackContext,
   } = usePlayerStore();
@@ -218,7 +224,7 @@ export const PlayerModalScreen: React.FC = () => {
   };
 
   const handleCast = () => {
-    showToast("Đang tìm thiết bị phát (AirPlay / Google Cast / Bluetooth)...", "info");
+    useConnectStore.getState().openConnectModal();
   };
 
   const handleToggleLyrics = async () => {
@@ -577,9 +583,9 @@ export const PlayerModalScreen: React.FC = () => {
               <TouchableOpacity
                 activeOpacity={0.75}
                 onPress={handleCast}
-                style={styles.actionCircleBtn}
+                style={[styles.actionCircleBtn, isRemote && { backgroundColor: 'rgba(252, 71, 92, 0.15)' }]}
               >
-                <Cast size={18} color={COLORS.textPrimary} />
+                <Cast size={18} color={isRemote ? COLORS.accentPrimary : COLORS.textPrimary} />
               </TouchableOpacity>
 
               <TouchableOpacity

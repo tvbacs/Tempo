@@ -127,7 +127,15 @@ const search = async (req, res) => {
     const zing = zingResults.status === 'fulfilled' ? zingResults.value : { songs: [], artists: [], playlists: [] };
     const audiusSongs = audiusResults.status === 'fulfilled' ? audiusResults.value : [];
 
-    const mergedSongs = [...zing.songs, ...audiusSongs];
+    // Chỉ gộp Audius nếu bài hát thực sự khớp từ khóa tìm kiếm (tránh ghép bài ngẫu nhiên như Frank Sinatra khi tìm ca sĩ Việt)
+    const queryLower = q.toLowerCase().trim();
+    const filteredAudius = audiusSongs.filter((song) => {
+      const titleLower = (song.title || '').toLowerCase();
+      const artistLower = (song.artistsNames || '').toLowerCase();
+      return titleLower.includes(queryLower) || artistLower.includes(queryLower);
+    });
+
+    const mergedSongs = [...zing.songs, ...filteredAudius];
 
     return successResponse(res, {
       songs: mergedSongs,

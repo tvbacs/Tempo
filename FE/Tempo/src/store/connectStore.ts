@@ -1,7 +1,7 @@
 /**
  * Connect Store - Quản lý Spotify-style cross-device playback
  * Kết nối Realtime qua Supabase Broadcast Channel 'tempo_connect_channel'
- * Đảm bảo chỉ gửi qua WebSocket khi channel đã joined, loại bỏ triệt để warning REST fallback
+ * Kiến trúc phân tách rõ ràng: Local Audio State vs Remote Device State
  */
 import { create } from 'zustand';
 import { supabase } from '../api/supabase';
@@ -19,6 +19,16 @@ export interface ConnectedDevice {
   lastSeen?: number;
 }
 
+export interface RemotePlaybackState {
+  deviceId: string;
+  deviceName: string;
+  currentSong: any | null;
+  queue: any[];
+  isPlaying: boolean;
+  positionMs: number;
+  durationMs: number;
+}
+
 interface ConnectState {
   availableDevices: ConnectedDevice[];
   activeDevice: ConnectedDevice;
@@ -27,6 +37,7 @@ interface ConnectState {
   volume: number;
   isInitialized: boolean;
   isSubscribed: boolean;
+  remotePlayback: RemotePlaybackState | null;
 
   initConnect: () => void;
   openConnectModal: () => void;
@@ -36,9 +47,10 @@ interface ConnectState {
   setVolume: (volume: number) => void;
   sendRemoteCommand: (command: string, data?: any) => void;
   broadcastLocalState: (song: any, isPlaying: boolean, positionMs: number, durationMs: number) => void;
+  ensureActiveDeviceOrFallback: () => Promise<boolean>;
 }
 
-const THIS_DEVICE: ConnectedDevice = {
+export const THIS_DEVICE: ConnectedDevice = {
   deviceId: 'mobile-app',
   deviceName: 'Điện thoại này',
   type: 'mobile',
@@ -59,6 +71,13 @@ const safeBroadcast = (event: string, payload: any) => {
   }
 };
 
+const isTargetedToThisDevice = (payload: any) => {
+  const targetDeviceId = payload?.targetDeviceId ?? payload?.data?.targetDeviceId;
+  // Không có target = broadcast chung (chấp nhận)
+  if (!targetDeviceId) return true;
+  return targetDeviceId === THIS_DEVICE.deviceId;
+};
+
 export const useConnectStore = create<ConnectState>((set, get) => ({
   availableDevices: [THIS_DEVICE],
   activeDevice: THIS_DEVICE,
@@ -67,6 +86,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
   volume: 0.8,
   isInitialized: false,
   isSubscribed: false,
+  remotePlayback: null,
 
   clearNewlyDiscoveredDevice: () => set({ newlyDiscoveredDevice: null }),
 
@@ -80,7 +100,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
 
       realtimeChannel
         .on('broadcast', { event: 'device_presence' }, ({ payload }: { payload: ConnectedDevice }) => {
-          if (!payload?.deviceId || payload.deviceId === 'mobile-app') return;
+          if (!payload?.deviceId || payload.deviceId === THIS_DEVICE.deviceId) return;
           const isNewlyOnline = !get().availableDevices.some((d) => d.deviceId === payload.deviceId);
           const currentList = get().availableDevices.filter((d) => d.deviceId !== payload.deviceId);
           const updated = [...currentList, { ...payload, isOnline: true, lastSeen: Date.now() }];
@@ -92,70 +112,139 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           // Yêu cầu lấy ngay bài hát và trạng thái từ Web Player
           safeBroadcast('playback_state_query', {});
         })
+        .on('broadcast', { event: 'device_offline' }, ({ payload }: { payload: { deviceId: string } }) => {
+          if (!payload?.deviceId) return;
+          const remaining = get().availableDevices.filter((d) => d.deviceId !== payload.deviceId);
+          const wasActive = get().activeDevice.deviceId === payload.deviceId;
+          set({
+            availableDevices: remaining,
+            ...(wasActive ? { activeDevice: THIS_DEVICE, remotePlayback: null } : {}),
+          });
+        })
         .on('broadcast', { event: 'device_presence_query' }, () => {
           safeBroadcast('device_presence', THIS_DEVICE);
         })
         .on('broadcast', { event: 'playback_state_query' }, () => {
           const { usePlayerStore } = require('./playerStore');
           const ps = usePlayerStore.getState();
-          if (get().activeDevice.deviceId === 'mobile-app' && ps.currentSong) {
+          if (get().activeDevice.deviceId === THIS_DEVICE.deviceId && ps.currentSong) {
             get().broadcastLocalState(ps.currentSong, ps.isPlaying, ps.positionMs, ps.durationMs);
           }
         })
         .on('broadcast', { event: 'playback_state' }, ({ payload }: { payload: any }) => {
-          if (!payload) return;
+          if (!payload?.activeDeviceId) return;
 
-          // Nếu thiết bị đang phát là máy tính / thiết bị khác
-          if (payload.activeDeviceId && payload.activeDeviceId !== 'mobile-app') {
-            const dev: ConnectedDevice = {
+          // Bỏ qua broadcast của chính mình
+          if (payload.activeDeviceId === THIS_DEVICE.deviceId) return;
+
+          const remoteDevice: ConnectedDevice = {
+            deviceId: payload.activeDeviceId,
+            deviceName: payload.activeDeviceName || 'Web Player (PC)',
+            type: 'web',
+            isOnline: true,
+            isPlaying: Boolean(payload.isPlaying),
+            currentSong: payload.currentSong,
+            lastSeen: Date.now(),
+          };
+
+          // Lưu riêng biệt vào remotePlayback — TUYỆT ĐỐI KHÔNG GHI ĐÈ playerStore CỦA MOBILE
+          set({
+            remotePlayback: {
               deviceId: payload.activeDeviceId,
               deviceName: payload.activeDeviceName || 'Web Player (PC)',
-              type: 'web',
-              isOnline: true,
-              lastSeen: Date.now(),
-            };
-            set({ activeDevice: dev });
+              currentSong: payload.currentSong || null,
+              queue: payload.queue || [],
+              isPlaying: Boolean(payload.isPlaying),
+              positionMs: payload.positionMs || 0,
+              durationMs: payload.durationMs || (payload.currentSong?.duration ? payload.currentSong.duration * 1000 : 0),
+            },
+          });
 
-            // Cập nhật trạng thái phát nhạc từ máy tính về điện thoại ngay lập tức
-            const { usePlayerStore } = require('./playerStore');
-            if (payload.currentSong) {
-              usePlayerStore.setState({
-                isPlaying: Boolean(payload.isPlaying),
-                positionMs: payload.positionMs || 0,
-                durationMs: payload.durationMs || (payload.currentSong.duration ? payload.currentSong.duration * 1000 : 0),
-                currentSong: payload.currentSong,
-                queue: payload.queue || [payload.currentSong],
-              });
-            }
-          }
+          const devices = get().availableDevices;
+          const exists = devices.some((d) => d.deviceId === remoteDevice.deviceId);
+          set({
+            availableDevices: exists
+              ? devices.map((d) => (d.deviceId === remoteDevice.deviceId ? remoteDevice : d))
+              : [...devices, remoteDevice],
+          });
         })
-        .on('broadcast', { event: 'command' }, ({ payload }: { payload: any }) => {
-          const { command, data } = payload;
+        .on('broadcast', { event: 'command' }, async ({ payload }: { payload: any }) => {
+          if (!payload) return;
+
+          // Bỏ qua nếu lệnh không dành cho thiết bị này
+          if (!isTargetedToThisDevice(payload)) return;
+
+          const { command, data = {} } = payload;
           const { usePlayerStore } = require('./playerStore');
-          if (command === 'next') usePlayerStore.getState().playNext();
-          if (command === 'prev') usePlayerStore.getState().playPrev();
-          if (command === 'toggle_play_pause') usePlayerStore.getState().togglePlayPause();
-          if (command === 'pause') audioEngine.stopAndUnload();
+          const ps = usePlayerStore.getState();
+
+          switch (command) {
+            case 'next':
+              await ps.playNext();
+              break;
+
+            case 'prev':
+              await ps.playPrev();
+              break;
+
+            case 'toggle_play_pause':
+              await ps.togglePlayPause();
+              break;
+
+            case 'pause':
+              await audioEngine.stopAndUnload();
+              usePlayerStore.setState({ isPlaying: false });
+              break;
+
+            case 'transfer_playback':
+              if (!data?.song) return;
+              await audioEngine.stopAndUnload();
+              usePlayerStore.setState({
+                currentSong: data.song,
+                queue: data.queue || [data.song],
+                isPlaying: true,
+                positionMs: data.positionMs || 0,
+                durationMs: data.song.duration ? data.song.duration * 1000 : 0,
+              });
+              await audioEngine.loadAndPlay(data.song);
+              if (data.positionMs > 0) {
+                await audioEngine.seekTo(data.positionMs);
+              }
+              break;
+
+            case 'play_track':
+              if (!data?.song) return;
+              await audioEngine.stopAndUnload();
+              usePlayerStore.setState({
+                currentSong: data.song,
+                queue: data.queue || [data.song],
+                isPlaying: true,
+                positionMs: data.positionMs || 0,
+                durationMs: data.song.duration ? data.song.duration * 1000 : 0,
+              });
+              await audioEngine.loadAndPlay(data.song);
+              if (data.positionMs > 0) {
+                await audioEngine.seekTo(data.positionMs);
+              }
+              break;
+          }
         })
         .subscribe((status: string) => {
           if (status === 'SUBSCRIBED') {
             set({ isInitialized: true, isSubscribed: true });
-            // Gửi sự hiện diện và hỏi thăm các thiết bị đang online qua WebSocket
             safeBroadcast('device_presence', THIS_DEVICE);
             safeBroadcast('device_presence_query', {});
             safeBroadcast('playback_state_query', {});
 
-            // Tự động broadcast state mỗi khi playerStore thay đổi (dùng subscribe)
             setTimeout(() => {
               try {
                 const { usePlayerStore } = require('./playerStore');
 
-                // Subscribe playerStore để detect thay đổi bài hát / trạng thái
                 usePlayerStore.subscribe(
                   (state: any, prevState: any) => {
                     const { currentSong, isPlaying, positionMs, durationMs } = state;
                     const connectState = get();
-                    if (connectState.activeDevice.deviceId !== 'mobile-app') return;
+                    if (connectState.activeDevice.deviceId !== THIS_DEVICE.deviceId) return;
                     if (!currentSong) return;
                     if (prevState.currentSong?.id !== currentSong.id || prevState.isPlaying !== isPlaying) {
                       connectState.broadcastLocalState(currentSong, isPlaying, positionMs, durationMs);
@@ -163,34 +252,34 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
                   }
                 );
 
-                // Heartbeat position mỗi 2 giây khi đang phát
+                // Heartbeat position mỗi 2 giây khi đang phát trên Điện thoại
                 setInterval(() => {
                   try {
                     const { usePlayerStore: ps } = require('./playerStore');
                     const { currentSong, isPlaying, positionMs, durationMs } = ps.getState();
                     const connectState = get();
-                    if (connectState.activeDevice.deviceId !== 'mobile-app') return;
+                    if (connectState.activeDevice.deviceId !== THIS_DEVICE.deviceId) return;
                     if (currentSong && isPlaying) {
                       connectState.broadcastLocalState(currentSong, isPlaying, positionMs, durationMs);
                     }
                   } catch (_) {}
                 }, 2000);
 
-                // Tự động kiểm tra và loại bỏ thiết bị đã offline (không nhận tín hiệu > 25s)
+                // Tự động dọn dẹp thiết bị offline (> 12s)
                 setInterval(() => {
                   const now = Date.now();
-                  const valid = get().availableDevices.filter(d => {
-                    if (d.deviceId === 'mobile-app') return true;
-                    return d.lastSeen && (now - d.lastSeen < 25000);
+                  const valid = get().availableDevices.filter((d) => {
+                    if (d.deviceId === THIS_DEVICE.deviceId) return true;
+                    return d.lastSeen && now - d.lastSeen < 12000;
                   });
                   if (valid.length !== get().availableDevices.length) {
                     set({ availableDevices: valid });
                     const curActive = get().activeDevice;
-                    if (curActive.deviceId !== 'mobile-app' && !valid.some(d => d.deviceId === curActive.deviceId)) {
-                      set({ activeDevice: THIS_DEVICE });
+                    if (curActive.deviceId !== THIS_DEVICE.deviceId && !valid.some((d) => d.deviceId === curActive.deviceId)) {
+                      set({ activeDevice: THIS_DEVICE, remotePlayback: null });
                     }
                   }
-                }, 10000);
+                }, 4000);
               } catch (e) {
                 console.warn('[ConnectStore] subscribe error:', e);
               }
@@ -214,41 +303,83 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
   closeConnectModal: () => set({ isConnectModalVisible: false }),
 
   selectDevice: async (device: ConnectedDevice) => {
-    const prevDevice = get().activeDevice;
-    if (prevDevice.deviceId === device.deviceId) return;
+    const previousDevice = get().activeDevice;
 
-    set({ activeDevice: device, isConnectModalVisible: false });
+    // Nếu thiết bị được chọn đã và đang là activeDevice -> Chỉ đóng modal và KHÔNG làm gì cả
+    if (previousDevice.deviceId === device.deviceId) {
+      set({ isConnectModalVisible: false });
+      return;
+    }
+
     const { usePlayerStore } = require('./playerStore');
     const playerState = usePlayerStore.getState();
-    const song = playerState.currentSong;
-    const pos = playerState.positionMs;
 
-    if (device.type === 'web') {
-      // 1. Chuyển quyền phát sang Loa Máy Tính - Giải phóng hoàn toàn audio local trên mobile
+    // Lấy bài hát và thời gian đang phát hiện tại (ưu tiên remotePlayback nếu chuyển từ PC về Mobile)
+    const currentActiveSong = get().remotePlayback?.currentSong || playerState.currentSong;
+    const currentActivePos = get().remotePlayback?.positionMs ?? playerState.positionMs;
+    const currentActiveQueue = get().remotePlayback?.queue?.length ? get().remotePlayback!.queue : playerState.queue;
+
+    set({
+      activeDevice: device,
+      isConnectModalVisible: false,
+    });
+
+    // ==========================================
+    // 1. CHUYỂN MOBILE → PC (Web Player)
+    // ==========================================
+    if (device.type === 'web' || device.deviceId !== THIS_DEVICE.deviceId) {
+      // Mobile dừng audio thật
       await audioEngine.stopAndUnload();
-      usePlayerStore.setState({ isPlaying: true });
-      useToastStore.getState().showToast(`Đang nghe trên ${device.deviceName}`, 'info');
 
-      if (song) {
+      // Mobile KHÔNG được tự nhận đang phát
+      usePlayerStore.setState({ isPlaying: false });
+
+      if (currentActiveSong) {
         safeBroadcast('command', {
           command: 'transfer_playback',
+          targetDeviceId: device.deviceId,
           data: {
-            targetDeviceId: 'web-player-pc',
-            song,
-            queue: playerState.queue,
-            positionMs: pos,
+            song: currentActiveSong,
+            queue: currentActiveQueue,
+            positionMs: currentActivePos,
           },
         });
       }
-    } else {
-      // 2. Chuyển ngược lại về Loa Điện Thoại
-      useToastStore.getState().showToast('Đang phát qua Điện thoại này', 'info');
-      safeBroadcast('command', { command: 'pause' });
-      if (song) {
-        await audioEngine.loadAndPlay(song);
-        await audioEngine.seekTo(pos);
+
+      useToastStore.getState().showToast(`Đang nghe trên ${device.deviceName}`, 'info');
+      return;
+    }
+
+    // ==========================================
+    // 2. CHUYỂN PC → MOBILE
+    // ==========================================
+    set({
+      activeDevice: THIS_DEVICE,
+      remotePlayback: null,
+    });
+
+    // Gửi lệnh dừng nhắm đúng target là PC trước đó
+    if (previousDevice.deviceId !== THIS_DEVICE.deviceId) {
+      safeBroadcast('command', {
+        command: 'pause',
+        targetDeviceId: previousDevice.deviceId,
+      });
+    }
+
+    if (currentActiveSong) {
+      usePlayerStore.setState({
+        currentSong: currentActiveSong,
+        queue: currentActiveQueue,
+        positionMs: currentActivePos,
+        isPlaying: true,
+      });
+      await audioEngine.loadAndPlay(currentActiveSong);
+      if (currentActivePos > 0) {
+        await audioEngine.seekTo(currentActivePos);
       }
     }
+
+    useToastStore.getState().showToast('Đang phát qua Điện thoại này', 'info');
   },
 
   setVolume: (volume: number) => {
@@ -257,19 +388,139 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
   },
 
   sendRemoteCommand: (command: string, data?: any) => {
-    safeBroadcast('command', { command, data });
+    const activeDevice = get().activeDevice;
+    if (!activeDevice || activeDevice.deviceId === THIS_DEVICE.deviceId) return;
+    safeBroadcast('command', {
+      command,
+      targetDeviceId: activeDevice.deviceId,
+      data,
+    });
   },
 
   broadcastLocalState: (song, isPlaying, positionMs, durationMs) => {
-    if (get().activeDevice.deviceId === 'mobile-app') {
-      safeBroadcast('playback_state', {
-        activeDeviceId: 'mobile-app',
-        activeDeviceName: 'Điện thoại',
-        isPlaying,
-        positionMs,
-        durationMs,
-        currentSong: song,
+    if (get().activeDevice.deviceId !== THIS_DEVICE.deviceId) return;
+    const { usePlayerStore } = require('./playerStore');
+    const ps = usePlayerStore.getState();
+
+    safeBroadcast('playback_state', {
+      activeDeviceId: THIS_DEVICE.deviceId,
+      activeDeviceName: THIS_DEVICE.deviceName,
+      isPlaying,
+      positionMs,
+      durationMs,
+      currentSong: song,
+      queue: ps.queue,
+    });
+  },
+
+  ensureActiveDeviceOrFallback: async () => {
+    const active = get().activeDevice;
+    if (!active || active.deviceId === THIS_DEVICE.deviceId) return true;
+
+    // Kiểm tra xem thiết bị có còn trong danh sách và phản hồi trong 12s không
+    const found = get().availableDevices.find((d) => d.deviceId === active.deviceId);
+    const isAlive = found && found.isOnline && (!found.lastSeen || Date.now() - found.lastSeen < 12000);
+
+    if (!isAlive) {
+      // Thiết bị đã chết / offline không phản hồi -> Tự động chuyển quyền về Điện thoại
+      const remaining = get().availableDevices.filter((d) => d.deviceId !== active.deviceId);
+      set({
+        activeDevice: THIS_DEVICE,
+        remotePlayback: null,
+        availableDevices: remaining,
       });
+      useToastStore.getState().showToast('Máy tính không phản hồi · Đã chuyển phát về Điện thoại', 'info');
+      return false;
     }
+
+    // Thiết bị còn sống -> Gửi ping duy trì kết nối
+    safeBroadcast('device_presence_query', {});
+    return true;
   },
 }));
+
+/**
+ * useActivePlayback - Hook duy nhất để UI (MiniPlayer, FullPlayer, v.v.)
+ * tiêu thụ thông tin phát nhạc độc quyền mà không cần quan tâm là Local hay Remote.
+ */
+export const useActivePlayback = () => {
+  const activeDevice = useConnectStore((s) => s.activeDevice);
+  const remotePlayback = useConnectStore((s) => s.remotePlayback);
+  const isRemote = activeDevice.deviceId !== THIS_DEVICE.deviceId;
+
+  const { usePlayerStore } = require('./playerStore');
+  const localCurrentSong = usePlayerStore((s: any) => s.currentSong);
+  const localIsPlaying = usePlayerStore((s: any) => s.isPlaying);
+  const localPositionMs = usePlayerStore((s: any) => s.positionMs);
+  const localDurationMs = usePlayerStore((s: any) => s.durationMs);
+  const localQueue = usePlayerStore((s: any) => s.queue);
+  const localIsLoading = usePlayerStore((s: any) => s.isLoading);
+
+  const song = isRemote ? (remotePlayback?.currentSong || localCurrentSong) : localCurrentSong;
+  const isPlaying = isRemote ? Boolean(remotePlayback?.isPlaying) : localIsPlaying;
+  const positionMs = isRemote ? (remotePlayback?.positionMs || 0) : localPositionMs;
+  const durationMs = isRemote
+    ? (remotePlayback?.durationMs || (song?.duration ? song.duration * 1000 : 0))
+    : localDurationMs;
+  const queue = isRemote ? (remotePlayback?.queue?.length ? remotePlayback.queue : localQueue) : localQueue;
+  const isLoading = isRemote ? false : localIsLoading;
+
+  const togglePlayPause = async () => {
+    if (isRemote) {
+      const isStillRemote = await useConnectStore.getState().ensureActiveDeviceOrFallback();
+      if (isStillRemote) {
+        useConnectStore.getState().sendRemoteCommand('toggle_play_pause');
+        return;
+      }
+    }
+    await usePlayerStore.getState().togglePlayPause();
+  };
+
+  const playNext = async () => {
+    if (isRemote) {
+      const isStillRemote = await useConnectStore.getState().ensureActiveDeviceOrFallback();
+      if (isStillRemote) {
+        useConnectStore.getState().sendRemoteCommand('next');
+        return;
+      }
+    }
+    await usePlayerStore.getState().playNext();
+  };
+
+  const playPrev = async () => {
+    if (isRemote) {
+      const isStillRemote = await useConnectStore.getState().ensureActiveDeviceOrFallback();
+      if (isStillRemote) {
+        useConnectStore.getState().sendRemoteCommand('prev');
+        return;
+      }
+    }
+    await usePlayerStore.getState().playPrev();
+  };
+
+  const seekTo = async (posMs: number) => {
+    if (isRemote) {
+      const isStillRemote = await useConnectStore.getState().ensureActiveDeviceOrFallback();
+      if (isStillRemote) {
+        useConnectStore.getState().sendRemoteCommand('seek', { positionMs: posMs });
+        return;
+      }
+    }
+    await usePlayerStore.getState().seekTo(posMs);
+  };
+
+  return {
+    isRemote,
+    song,
+    isPlaying,
+    positionMs,
+    durationMs,
+    queue,
+    isLoading,
+    device: isRemote ? activeDevice : THIS_DEVICE,
+    togglePlayPause,
+    playNext,
+    playPrev,
+    seekTo,
+  };
+};

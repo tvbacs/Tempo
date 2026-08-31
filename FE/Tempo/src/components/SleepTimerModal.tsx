@@ -43,7 +43,7 @@ export const SleepTimerModal: React.FC = () => {
   } = useSleepTimerStore();
 
   const { show: showDimScreen } = useDimScreenStore();
-  const { currentSong } = usePlayerStore();
+  const { currentSong, closeFullPlayer } = usePlayerStore();
 
   if (!isModalVisible) return null;
 
@@ -155,6 +155,7 @@ export const SleepTimerModal: React.FC = () => {
                   activeOpacity={0.7}
                   onPress={() => {
                     closeModal();
+                    closeFullPlayer();
                     showDimScreen();
                   }}
                   style={styles.dimScreenBtn}

@@ -1,0 +1,67 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'FE/Tempo/**'
+      - '.github/workflows/build-ios.yml'
+
+jobs:
+  build-ios:
+    name: Build Unsigned iOS IPA
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - name: 1. Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 3. Install Node dependencies
+        working-directory: FE/Tempo
+        run: npm install
+
+      - name: 4. Expo Prebuild (Generate Native iOS Project)
+        working-directory: FE/Tempo
+        run: npx expo prebuild --platform ios --clean
+
+      - name: 5. Install CocoaPods Dependencies
+        working-directory: FE/Tempo/ios
+        run: pod install
+
+      - name: 6. Build Native iOS App Binary
+        working-directory: FE/Tempo/ios
+        run: |
+          xcodebuild \
+            -workspace Tempo.xcworkspace \
+            -scheme Tempo \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
+
+      - name: 7. Package App into IPA
+        working-directory: FE/Tempo/ios
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/Tempo.app Payload/
+          zip -r Tempo.ipa Payload
+          mkdir -p ../dist
+          mv Tempo.ipa ../dist/Tempo.ipa
+
+      - name: 8. Upload IPA to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tempo-iOS-IPA
+          path: FE/Tempo/dist/Tempo.ipa
+          retention-days: 14

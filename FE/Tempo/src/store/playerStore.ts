@@ -272,7 +272,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       // 2. Nếu phát tại điện thoại: kiểm tra xem bài trong native audio player có khớp với currentSong không
       const currentLoadedId = audioEngine.getCurrentSongId();
-      const targetSongId = currentSong.id || currentSong.encodeId;
+      const targetSongId = currentSong.id || (currentSong as any).encodeId;
 
       if (!currentLoadedId || currentLoadedId !== targetSongId) {
         // Bài hiện tại chưa được nạp vào audio engine -> Nạp và phát bài mới ngay lập tức

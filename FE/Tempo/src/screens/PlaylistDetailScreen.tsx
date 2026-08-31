@@ -35,7 +35,7 @@ export const PlaylistDetailScreen: React.FC<{
   navigation: any;
 }> = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
-  const { id, title: initTitle, thumbnail: initThumb } = route.params || {};
+  const { id, title: initTitle, thumbnail: initThumb, songs: initialSongs, artistsNames: initArtists } = route.params || {};
 
   const [playlist, setPlaylist] = useState<{
     id: string;
@@ -59,6 +59,24 @@ export const PlaylistDetailScreen: React.FC<{
 
     const loadPlaylist = async () => {
       try {
+        // 0. Nếu được truyền trực tiếp danh sách bài hát (Daily Mix / Theme Activity)
+        if (initialSongs && Array.isArray(initialSongs) && initialSongs.length > 0) {
+          if (isMounted) {
+            setPlaylist({
+              id: id || "custom_mix",
+              title: initTitle || "Tuyển tập âm nhạc",
+              thumbnail:
+                initThumb ||
+                initialSongs[0]?.thumbnail ||
+                "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300",
+              artistsNames: initArtists || `${initialSongs.length} bài hát`,
+              songs: initialSongs,
+            });
+            setIsLoading(false);
+          }
+          return;
+        }
+
         if (!id) {
           if (isMounted) setIsLoading(false);
           return;

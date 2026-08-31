@@ -149,7 +149,7 @@ class AudioEngine {
 
       // Gán sound mới
       this.sound = newSound;
-      this.currentSongId = song.id || song.encodeId || null;
+      this.currentSongId = song.id || (song as any).encodeId || null;
       return true;
 
     } catch (error: any) {

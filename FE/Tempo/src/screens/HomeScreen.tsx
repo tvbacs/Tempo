@@ -20,7 +20,23 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Bell, Play, Music, RefreshCw, Heart, Download, WifiOff, Clock } from "lucide-react-native";
+import {
+  Bell,
+  Play,
+  Music,
+  RefreshCw,
+  Heart,
+  Download,
+  WifiOff,
+  Clock,
+  Sparkles,
+  Flame,
+  Coffee,
+  Laptop,
+  Car,
+  CloudRain,
+  Compass,
+} from "lucide-react-native";
 import { apiClient } from "../api/client";
 import { HomeFeedData, ChartData, UnifiedSong } from "../types/music";
 import { SongItem } from "../components/SongItem";
@@ -29,6 +45,7 @@ import { usePlayerStore } from "../store/playerStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { useDownloadStore } from "../store/downloadStore";
 import { AppAvatarBadge } from "../components/AppAvatarBadge";
+import { formatDuration } from "../utils/format";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -37,6 +54,11 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [feed, setFeed] = useState<HomeFeedData | null>(null);
   const [chart, setChart] = useState<ChartData | null>(null);
+  const [tiktokSongs, setTiktokSongs] = useState<UnifiedSong[]>([]);
+  const [coffeeSongs, setCoffeeSongs] = useState<UnifiedSong[]>([]);
+  const [focusSongs, setFocusSongs] = useState<UnifiedSong[]>([]);
+  const [driveSongs, setDriveSongs] = useState<UnifiedSong[]>([]);
+  const [rainSongs, setRainSongs] = useState<UnifiedSong[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -61,12 +83,22 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     // Luôn load local data trước (lịch sử, yêu thích, tải xuống)
     await Promise.all([fetchHistory(), fetchLikedSongs(), fetchLastPlayedContext(), fetchDownloads()]);
     try {
-      const [feedData, chartData] = await Promise.all([
+      const [feedData, chartData, tiktokRes, coffeeRes, focusRes, driveRes, rainRes] = await Promise.all([
         apiClient.getHome(),
         apiClient.getChart(),
+        apiClient.search("Nhạc Hot TikTok").catch(() => ({ songs: [] })),
+        apiClient.search("Cà Phê Sáng").catch(() => ({ songs: [] })),
+        apiClient.search("Lofi Chill").catch(() => ({ songs: [] })),
+        apiClient.search("Lái Xe Thư Giãn").catch(() => ({ songs: [] })),
+        apiClient.search("Nhạc Mưa").catch(() => ({ songs: [] })),
       ]);
       setFeed(feedData);
       setChart(chartData);
+      if (tiktokRes?.songs?.length) setTiktokSongs(tiktokRes.songs);
+      if (coffeeRes?.songs?.length) setCoffeeSongs(coffeeRes.songs);
+      if (focusRes?.songs?.length) setFocusSongs(focusRes.songs);
+      if (driveRes?.songs?.length) setDriveSongs(driveRes.songs);
+      if (rainRes?.songs?.length) setRainSongs(rainRes.songs);
       setIsOffline(false);
     } catch (e: any) {
       console.error("Failed to load home data:", e);
@@ -121,6 +153,83 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }, [])
     .slice(0, 8);
   const displayArtists = apiArtists.length > 0 ? apiArtists : chartArtists;
+
+  // 1. Tuyển tập Daily Mix cá nhân hóa (Made For You)
+  const dailyMixes = [
+    {
+      id: "daily_mix_1",
+      title: "Daily Mix 1",
+      tag: "V-POP & R&B",
+      subtitle: "Tuyển tập các bản hit V-Pop thịnh hành nhất",
+      gradient: ["#EC4899", "#8B5CF6"] as [string, string],
+      thumbnail:
+        topChartSongs[0]?.thumbnail ||
+        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80",
+      songs: topChartSongs.slice(0, 15),
+    },
+    {
+      id: "daily_mix_2",
+      title: "Mix Đêm Khuya",
+      tag: "LOFI & CHILL",
+      subtitle: "Giai điệu nhẹ nhàng thư giãn đêm muộn",
+      gradient: ["#06B6D4", "#3B82F6"] as [string, string],
+      thumbnail:
+        focusSongs[0]?.thumbnail ||
+        "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=400&q=80",
+      songs: focusSongs.length > 0 ? focusSongs : topChartSongs.slice(3, 15),
+    },
+    {
+      id: "daily_mix_3",
+      title: "Mix Năng Lượng",
+      tag: "EDM & DANCE",
+      subtitle: "Âm nhạc sôi động bùng nổ năng lượng",
+      gradient: ["#F59E0B", "#EF4444"] as [string, string],
+      thumbnail:
+        globalTrendingSongs[0]?.thumbnail ||
+        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
+      songs: globalTrendingSongs.slice(0, 15),
+    },
+  ];
+
+  // 2. Khám phá theo Chủ đề & Không gian (Ambient & Activities)
+  const activityThemes = [
+    {
+      id: "theme_coffee",
+      title: "Cà phê sáng",
+      subtitle: "Acoustic, Indie & Jazz nhẹ nhàng khởi đầu ngày mới",
+      badge: "ACOUSTIC",
+      image: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500&q=80",
+      accent: "#F59E0B",
+      songs: coffeeSongs.length > 0 ? coffeeSongs : topChartSongs.slice(0, 12),
+    },
+    {
+      id: "theme_focus",
+      title: "Góc làm việc tập trung",
+      subtitle: "Deep Focus, Lofi Beats & Ambient nâng cao hiệu suất",
+      badge: "DEEP FOCUS",
+      image: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=500&q=80",
+      accent: "#8B5CF6",
+      songs: focusSongs.length > 0 ? focusSongs : topChartSongs.slice(2, 14),
+    },
+    {
+      id: "theme_drive",
+      title: "Lái xe thư giãn",
+      subtitle: "City Pop, Indie Rock & Night Drive phiêu theo giai điệu",
+      badge: "ROAD TRIP",
+      image: "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=500&q=80",
+      accent: "#EC4899",
+      songs: driveSongs.length > 0 ? driveSongs : globalTrendingSongs.slice(0, 12),
+    },
+    {
+      id: "theme_rain",
+      title: "Nhạc mưa chill",
+      subtitle: "Rainy Lofi, Piano & Sleep R&B sâu lắng và êm dịu",
+      badge: "RAINY CHILL",
+      image: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=500&q=80",
+      accent: "#06B6D4",
+      songs: rainSongs.length > 0 ? rainSongs : topChartSongs.slice(4, 16),
+    },
+  ];
 
   return (
     <View style={styles.safeArea}>
@@ -569,6 +678,72 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </View>
             )}
 
+            {/* Section: Tuyển tập Daily Mix dành riêng cho bạn */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Dành riêng cho bạn</Text>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding }}
+              >
+                {dailyMixes.map((mix) => (
+                  <TouchableOpacity
+                    key={mix.id}
+                    activeOpacity={0.88}
+                    onPress={() => {
+                      navigation.navigate("PlaylistDetail", {
+                        id: mix.id,
+                        title: mix.title,
+                        thumbnail: mix.thumbnail,
+                        songs: mix.songs,
+                        artistsNames: mix.subtitle,
+                      });
+                    }}
+                    style={styles.dailyMixCard}
+                  >
+                    <View style={styles.dailyMixCoverWrap}>
+                      <LinearGradient
+                        colors={mix.gradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.dailyMixGradient}
+                      />
+                      <Image
+                        source={{ uri: mix.thumbnail }}
+                        style={styles.dailyMixCoverImg}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.dailyMixBadge}>
+                        <Text style={styles.dailyMixBadgeText}>{mix.tag}</Text>
+                      </View>
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          if (mix.songs.length > 0) {
+                            handlePlaySong(mix.songs[0], mix.songs, { type: "playlist", title: mix.title });
+                          }
+                        }}
+                        style={styles.dailyMixPlayBtn}
+                      >
+                        <Play size={15} color={COLORS.black} fill={COLORS.black} style={{ marginLeft: 2 }} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text numberOfLines={1} style={styles.dailyMixTitle}>
+                      {mix.title}
+                    </Text>
+                    <Text numberOfLines={2} style={styles.dailyMixSubtitle}>
+                      {mix.subtitle}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
             {/* Section 2: Nghệ Sĩ Thịnh Hành */}
             {displayArtists.length > 0 && (
               <View style={styles.section}>
@@ -612,6 +787,125 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 </ScrollView>
               </View>
             )}
+
+            {/* Section: Âm thanh Viral TikTok & Mạng xã hội */}
+            {(tiktokSongs.length > 0 || globalTrendingSongs.length > 0) && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <Flame size={16} color="#EC4899" />
+                    <Text style={styles.sectionTitle}>Xu hướng TikTok & MXH</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() =>
+                      navigation.navigate("SeeAll", {
+                        type: "global_trending",
+                        title: "Xu hướng TikTok & MXH",
+                      })
+                    }
+                  >
+                    <Text style={styles.seeAllText}>Xem tất cả</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding }}
+                >
+                  {(tiktokSongs.length > 0 ? tiktokSongs : globalTrendingSongs).slice(0, 10).map((song) => (
+                    <TouchableOpacity
+                      key={song.id}
+                      activeOpacity={0.88}
+                      onPress={() => {
+                        handlePlaySong(song, tiktokSongs.length > 0 ? tiktokSongs : globalTrendingSongs, {
+                          type: "custom",
+                          title: "Xu hướng TikTok",
+                        });
+                      }}
+                      style={styles.tiktokCard}
+                    >
+                      <View style={styles.tiktokCoverWrap}>
+                        <Image
+                          source={{
+                            uri:
+                              song.thumbnail ||
+                              "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300",
+                          }}
+                          style={styles.tiktokCoverImg}
+                        />
+                        <View style={styles.tiktokPlayOverlay}>
+                          <Play size={13} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 1 }} />
+                        </View>
+                        <View style={styles.tiktokBadge}>
+                          <Text style={styles.tiktokBadgeText}>TIKTOK</Text>
+                        </View>
+                        {song.duration > 0 && (
+                          <View style={styles.tiktokDurationBadge}>
+                            <Text style={styles.tiktokDurationText}>{formatDuration(song.duration)}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text numberOfLines={1} style={styles.tiktokTitle}>
+                        {song.title}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.tiktokArtist}>
+                        {song.artistsNames}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Section: Khám phá theo Chủ đề & Không gian (Ambient & Activities) */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Chủ đề & Không gian</Text>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding }}
+              >
+                {activityThemes.map((theme) => (
+                  <TouchableOpacity
+                    key={theme.id}
+                    activeOpacity={0.88}
+                    onPress={() => {
+                      navigation.navigate("PlaylistDetail", {
+                        id: theme.id,
+                        title: theme.title,
+                        thumbnail: theme.image,
+                        songs: theme.songs,
+                        artistsNames: theme.subtitle,
+                      });
+                    }}
+                    style={styles.themeCard}
+                  >
+                    <Image source={{ uri: theme.image }} style={styles.themeCardImg} />
+                    <LinearGradient
+                      colors={["rgba(10, 10, 15, 0.2)", "rgba(10, 10, 15, 0.88)"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                    <View style={styles.themeCardContent}>
+                      <View style={[styles.themeBadge, { backgroundColor: theme.accent }]}>
+                        <Text style={styles.themeBadgeText}>{theme.badge}</Text>
+                      </View>
+                      <Text numberOfLines={1} style={styles.themeTitle}>
+                        {theme.title}
+                      </Text>
+                      <Text numberOfLines={2} style={styles.themeSub}>
+                        {theme.subtitle}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
             {/* Section 3: Album & Tuyển Tập Nổi Bật */}
             {featuredPlaylists.length > 0 && (
@@ -1228,5 +1522,220 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizeCaption - 1,
     fontWeight: "700",
     color: COLORS.white,
+  },
+
+  // Section Title Row
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  // 1. Filter Pills
+  filterPillsWrapper: {
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  filterPillsScroll: {
+    paddingHorizontal: SPACING.screenPadding,
+    gap: SPACING.xs + 2,
+  },
+  filterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: LAYOUT.radiusFull,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
+  filterPillActive: {
+    backgroundColor: COLORS.accentPrimary,
+  },
+  filterPillText: {
+    fontSize: TYPOGRAPHY.sizeBodySmall,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+  },
+  filterPillTextActive: {
+    color: COLORS.white,
+    fontWeight: "800",
+  },
+
+  // 2. Daily Mixes
+  dailyMixCard: {
+    width: 155,
+    marginRight: SPACING.md,
+  },
+  dailyMixCoverWrap: {
+    width: 155,
+    height: 155,
+    borderRadius: LAYOUT.radiusMd,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: COLORS.bgSurfaceSecondary,
+    marginBottom: SPACING.xs + 2,
+  },
+  dailyMixGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  dailyMixCoverImg: {
+    position: "absolute",
+    right: -10,
+    bottom: -10,
+    width: 110,
+    height: 110,
+    borderRadius: LAYOUT.radiusSm,
+    transform: [{ rotate: "10deg" }],
+    opacity: 0.9,
+  },
+  dailyMixBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: LAYOUT.radiusXs,
+  },
+  dailyMixBadgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: COLORS.white,
+    letterSpacing: 0.5,
+  },
+  dailyMixPlayBtn: {
+    position: "absolute",
+    left: 10,
+    bottom: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.white,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+  },
+  dailyMixTitle: {
+    fontSize: TYPOGRAPHY.sizeBodySmall,
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+    marginBottom: 2,
+  },
+  dailyMixSubtitle: {
+    fontSize: TYPOGRAPHY.sizeCaption - 1,
+    color: COLORS.textSecondary,
+    lineHeight: 15,
+  },
+
+  // 3. TikTok Viral Sounds
+  tiktokCard: {
+    width: 130,
+    marginRight: SPACING.md,
+  },
+  tiktokCoverWrap: {
+    width: 130,
+    height: 130,
+    borderRadius: LAYOUT.radiusMd,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: COLORS.bgSurfaceSecondary,
+    marginBottom: SPACING.xs + 2,
+  },
+  tiktokCoverImg: {
+    width: "100%",
+    height: "100%",
+  },
+  tiktokPlayOverlay: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tiktokBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "#EC4899",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  tiktokBadgeText: {
+    fontSize: 9,
+    fontWeight: "900",
+    color: COLORS.white,
+    letterSpacing: 0.5,
+  },
+  tiktokDurationBadge: {
+    position: "absolute",
+    left: 8,
+    bottom: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  tiktokDurationText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: COLORS.white,
+  },
+  tiktokTitle: {
+    fontSize: TYPOGRAPHY.sizeBodySmall,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginBottom: 2,
+  },
+  tiktokArtist: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    color: COLORS.textSecondary,
+  },
+
+  // 4. Themes & Activities
+  themeCard: {
+    width: 200,
+    height: 120,
+    borderRadius: LAYOUT.radiusMd,
+    overflow: "hidden",
+    position: "relative",
+    marginRight: SPACING.md,
+    backgroundColor: COLORS.bgSurfaceSecondary,
+  },
+  themeCardImg: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+  },
+  themeCardContent: {
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: SPACING.md,
+  },
+  themeBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 6,
+  },
+  themeBadgeText: {
+    fontSize: 9,
+    fontWeight: "900",
+    color: COLORS.white,
+    letterSpacing: 0.5,
+  },
+  themeTitle: {
+    fontSize: TYPOGRAPHY.sizeBody,
+    fontWeight: "800",
+    color: COLORS.white,
+    marginBottom: 2,
+  },
+  themeSub: {
+    fontSize: TYPOGRAPHY.sizeCaption - 1,
+    color: "rgba(255, 255, 255, 0.75)",
+    lineHeight: 14,
   },
 });

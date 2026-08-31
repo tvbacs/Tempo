@@ -13,6 +13,7 @@ WebBrowser.maybeCompleteAuthSession();
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { PlayerModalScreen } from './src/screens/PlayerModalScreen';
 import { SleepTimerModal } from './src/components/SleepTimerModal';
+import { DimScreenOverlay } from './src/components/DimScreenOverlay';
 import { Toast } from './src/components/Toast';
 import { SplashScreen } from './src/components/SplashScreen';
 import { audioEngine } from './src/services/audioPlayer';
@@ -35,6 +36,7 @@ export default function App() {
       <MiniPlayer />
       <PlayerModalScreen />
       <SleepTimerModal />
+      <DimScreenOverlay />
       <Toast />
       {!isSplashDone && (
         <SplashScreen onFinish={() => setIsSplashDone(true)} />

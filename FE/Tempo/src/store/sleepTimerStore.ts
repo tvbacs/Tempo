@@ -100,7 +100,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
                 isTimerActive: false,
               });
               audioEngine.pause();
-              useToastStore.getState().showToast('Đã tắt nhạc theo hẹn giờ ngủ', 'info');
+        useToastStore.getState().showToast('Chúc ngủ ngon', 'info');
             } else {
               set({ remainingSeconds: current - 1 });
             }
@@ -121,7 +121,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
     if (!option) {
       await AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY);
       set({ activeOption: null, targetTimestamp: null, remainingSeconds: null, isTimerActive: false });
-      useToastStore.getState().showToast('Đã tắt hẹn giờ', 'info');
+        useToastStore.getState().showToast('Đã tắt hẹn giờ đi ngủ', 'info');
       return;
     }
 
@@ -158,7 +158,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
       isTimerActive: true,
     });
 
-    useToastStore.getState().showToast(`Đã hẹn giờ tắt nhạc sau ${option} phút`, 'info');
+      useToastStore.getState().showToast(`Hẹn giờ đi ngủ sau ${option} phút`, 'info');
 
     timerInterval = setInterval(() => {
       const current = get().remainingSeconds;
@@ -173,9 +173,8 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
           isTimerActive: false,
         });
 
-        // Tạm dừng phát nhạc
         audioEngine.pause();
-        useToastStore.getState().showToast('Đã tắt nhạc theo hẹn giờ ngủ', 'info');
+        useToastStore.getState().showToast('Chúc ngủ ngon', 'info');
       } else {
         set({ remainingSeconds: current - 1 });
       }
@@ -194,7 +193,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
       remainingSeconds: null,
       isTimerActive: false,
     });
-    useToastStore.getState().showToast('Đã hủy hẹn giờ tắt nhạc', 'info');
+    useToastStore.getState().showToast('Đã hủy hẹn giờ đi ngủ', 'info');
   },
 
   openModal: () => {
@@ -209,7 +208,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
     if (get().activeOption === 'end_of_track') {
       get().cancelTimer();
       audioEngine.pause();
-      useToastStore.getState().showToast('Đã dừng phát theo hẹn giờ khi hết bài', 'info');
+      useToastStore.getState().showToast('Chúc ngủ ngon', 'info');
     }
   },
 }));

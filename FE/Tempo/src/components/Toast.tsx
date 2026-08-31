@@ -7,7 +7,7 @@ import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 export const Toast: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { visible, message, type, hideToast, downloadToast } = useToastStore();
+  const { visible, message, type, hideToast, downloadToast, hideDownloadToast } = useToastStore();
 
   const topPos = insets.top > 0 ? insets.top + SPACING.sm : SPACING.lg;
 
@@ -48,9 +48,13 @@ export const Toast: React.FC = () => {
         </TouchableOpacity>
       ) : null}
 
-      {/* Download progress toast — luôn hiện khi đang tải */}
+      {/* Download progress toast — tự ẩn sau khi 100% hoặc chạm để đóng */}
       {showDownload && downloadToast ? (
-        <View style={[styles.downloadContainer, { top: downloadTopOffset }]}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => hideDownloadToast()}
+          style={[styles.downloadContainer, { top: downloadTopOffset }]}
+        >
           <View style={styles.downloadHeader}>
             <Download size={14} color={COLORS.accentPrimary} />
             <Text style={styles.downloadTitle} numberOfLines={1}>
@@ -69,7 +73,7 @@ export const Toast: React.FC = () => {
               ]}
             />
           </View>
-        </View>
+        </TouchableOpacity>
       ) : null}
     </>
   );

@@ -168,6 +168,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
         });
 
         await AsyncStorage.setItem(getUserKey(DOWNLOAD_STORAGE_KEY), JSON.stringify(updated));
+        useToastStore.getState().showDownloadToast(song.id, song.title, 1);
         useToastStore.getState().showToast(`Đã lưu "${song.title}" thành công!`, 'success');
       } else {
         throw new Error(`Download failed with HTTP ${downloadResult?.status ?? 'unknown'}`);
@@ -183,6 +184,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
         downloadingIds: get().downloadingIds.filter((id) => id !== song.id),
         downloadProgress: clearProgress(),
       });
+      useToastStore.getState().hideDownloadToast(song.id);
       useToastStore.getState().showToast('Tải xuống thất bại: ' + (err.message || 'Lỗi mạng'), 'error');
     }
   },

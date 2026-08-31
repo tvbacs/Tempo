@@ -24,10 +24,11 @@ interface ToastState {
   hideToast: () => void;
 
   showDownloadToast: (songId: string, title: string, progress: number) => void;
-  hideDownloadToast: (songId: string) => void;
+  hideDownloadToast: (songId?: string) => void;
 }
 
 let timeoutId: any = null;
+let downloadTimeoutId: any = null;
 
 export const useToastStore = create<ToastState>((set, get) => ({
   message: null,
@@ -50,12 +51,25 @@ export const useToastStore = create<ToastState>((set, get) => ({
 
   showDownloadToast: (songId: string, title: string, progress: number) => {
     const shortTitle = title.length > 22 ? title.substring(0, 22) + '…' : title;
-    set({ downloadToast: { songId, title: shortTitle, progress } });
+    const clampedProgress = Math.min(Math.max(progress, 0), 1);
+    set({ downloadToast: { songId, title: shortTitle, progress: clampedProgress } });
+
+    // Khi đạt 100%, tự động ẩn thanh download sau 1 giây
+    if (clampedProgress >= 1) {
+      if (downloadTimeoutId) clearTimeout(downloadTimeoutId);
+      downloadTimeoutId = setTimeout(() => {
+        const curr = get().downloadToast;
+        if (curr?.songId === songId) {
+          set({ downloadToast: null });
+        }
+      }, 1200);
+    }
   },
 
-  hideDownloadToast: (songId: string) => {
+  hideDownloadToast: (songId?: string) => {
+    if (downloadTimeoutId) clearTimeout(downloadTimeoutId);
     const current = get().downloadToast;
-    if (current?.songId === songId) {
+    if (!songId || current?.songId === songId) {
       set({ downloadToast: null });
     }
   },

@@ -23,13 +23,19 @@ export const getActiveApiUrl = async (): Promise<string> => {
     return `http://${host}:5050/api`;
   }
 
-  // 2. Lấy URL Cloudflare Tunnel mới nhất được cập nhật tự động lên Supabase
+  // 2. Lấy URL Cloudflare Tunnel mới nhất được cập nhật tự động lên Supabase (với timeout 2.5s)
   try {
-    const { data } = await supabase
+    const supabasePromise = supabase
       .from('playlists')
       .select('description')
       .eq('name', '__TEMPO_ACTIVE_SERVER__')
       .maybeSingle();
+
+    const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
+      setTimeout(() => reject(new Error('Supabase discovery timeout')), 2500)
+    );
+
+    const { data } = await Promise.race([supabasePromise, timeoutPromise]);
 
     if (data?.description && data.description.startsWith('http')) {
       const liveUrl = data.description.trim().replace(/\/+$/, '');
@@ -49,10 +55,27 @@ export const getActiveApiUrl = async (): Promise<string> => {
 
 export const API_BASE_URL = currentApiUrl;
 
+/**
+ * Fetch với timeout tích hợp để phát hiện offline nhanh chóng (mặc định 3.5s)
+ */
+export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 3500): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 export const apiClient = {
   async getHome(): Promise<HomeFeedData> {
     const baseUrl = await getActiveApiUrl();
-    const res = await fetch(`${baseUrl}/music/home`);
+    const res = await fetchWithTimeout(`${baseUrl}/music/home`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Failed to fetch home feed');
     return json.data;
@@ -60,7 +83,7 @@ export const apiClient = {
 
   async getChart(): Promise<ChartData> {
     const baseUrl = await getActiveApiUrl();
-    const res = await fetch(`${baseUrl}/music/chart`);
+    const res = await fetchWithTimeout(`${baseUrl}/music/chart`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Failed to fetch chart data');
     return json.data;
@@ -72,7 +95,7 @@ export const apiClient = {
     if (title) params.append('title', title);
     if (artist) params.append('artist', artist);
     const query = params.toString() ? `?${params.toString()}` : '';
-    const res = await fetch(`${baseUrl}/music/song/${id}${query}`);
+    const res = await fetchWithTimeout(`${baseUrl}/music/song/${id}${query}`, {}, 5000);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Audio stream not found');
     return json.data;
@@ -80,7 +103,7 @@ export const apiClient = {
 
   async getLyrics(id: string): Promise<LyricData> {
     const baseUrl = await getActiveApiUrl();
-    const res = await fetch(`${baseUrl}/music/lyrics/${id}`);
+    const res = await fetchWithTimeout(`${baseUrl}/music/lyrics/${id}`, {}, 3000);
     const json = await res.json();
     if (!json.success) return { lrcUrl: null, sentences: [] };
     return json.data;
@@ -88,7 +111,7 @@ export const apiClient = {
 
   async search(query: string): Promise<SearchResults> {
     const baseUrl = await getActiveApiUrl();
-    const res = await fetch(`${baseUrl}/music/search?q=${encodeURIComponent(query)}`);
+    const res = await fetchWithTimeout(`${baseUrl}/music/search?q=${encodeURIComponent(query)}`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Search failed');
     return json.data;
@@ -96,11 +119,11 @@ export const apiClient = {
 
   async askAIDJ(prompt: string, currentSong?: UnifiedSong, recentHistory?: UnifiedSong[]): Promise<AIDJResponse> {
     const baseUrl = await getActiveApiUrl();
-    const res = await fetch(`${baseUrl}/music/ai-dj`, {
+    const res = await fetchWithTimeout(`${baseUrl}/music/ai-dj`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, currentSong, recentHistory }),
-    });
+    }, 15000);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'AI DJ failed');
     return json.data;
@@ -108,11 +131,11 @@ export const apiClient = {
 
   async getSongStory(title: string, artist: string): Promise<string> {
     const baseUrl = await getActiveApiUrl();
-    const res = await fetch(`${baseUrl}/music/story`, {
+    const res = await fetchWithTimeout(`${baseUrl}/music/story`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, artist }),
-    });
+    }, 8000);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Failed to get song story');
     return json.data.story;
@@ -131,7 +154,7 @@ export const apiClient = {
     realname: string;
   }> {
     const baseUrl = await getActiveApiUrl();
-    const res = await fetch(`${baseUrl}/music/artist/${encodeURIComponent(alias)}`);
+    const res = await fetchWithTimeout(`${baseUrl}/music/artist/${encodeURIComponent(alias)}`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Artist not found');
     return json.data;
@@ -148,7 +171,7 @@ export const apiClient = {
   }> {
     const baseUrl = await getActiveApiUrl();
     const rawId = id.replace(/^zing_/, '');
-    const res = await fetch(`${baseUrl}/music/playlist/${encodeURIComponent(rawId)}`);
+    const res = await fetchWithTimeout(`${baseUrl}/music/playlist/${encodeURIComponent(rawId)}`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Playlist not found');
     return json.data;
@@ -156,11 +179,11 @@ export const apiClient = {
 
   async extractYouTube(url: string): Promise<UnifiedSong & { audioUrl: string; quality?: string; fileSize?: string }> {
     const baseUrl = await getActiveApiUrl();
-    const res = await fetch(`${baseUrl}/music/extract-youtube`, {
+    const res = await fetchWithTimeout(`${baseUrl}/music/extract-youtube`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
-    });
+    }, 20000);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Không thể trích xuất nhạc từ YouTube');
     return json.data;

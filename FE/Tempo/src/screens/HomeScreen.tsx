@@ -83,26 +83,36 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     // Luôn load local data trước (lịch sử, yêu thích, tải xuống)
     await Promise.all([fetchHistory(), fetchLikedSongs(), fetchLastPlayedContext(), fetchDownloads()]);
     try {
-      const [feedData, chartData, tiktokRes, coffeeRes, focusRes, driveRes, rainRes] = await Promise.all([
+      // 1. Tải feed chính & chart trước - phát hiện offline ngay lập tức
+      const [feedData, chartData] = await Promise.all([
         apiClient.getHome(),
         apiClient.getChart(),
+      ]);
+      setFeed(feedData);
+      setChart(chartData);
+      setIsOffline(false);
+
+      // 2. Tải các mục phụ (TikTok, Ambient Themes) ngầm trong background (không block UI)
+      Promise.all([
         apiClient.search("Nhạc Hot TikTok").catch(() => ({ songs: [] })),
         apiClient.search("Cà Phê Sáng").catch(() => ({ songs: [] })),
         apiClient.search("Lofi Chill").catch(() => ({ songs: [] })),
         apiClient.search("Lái Xe Thư Giãn").catch(() => ({ songs: [] })),
         apiClient.search("Nhạc Mưa").catch(() => ({ songs: [] })),
-      ]);
-      setFeed(feedData);
-      setChart(chartData);
-      if (tiktokRes?.songs?.length) setTiktokSongs(tiktokRes.songs);
-      if (coffeeRes?.songs?.length) setCoffeeSongs(coffeeRes.songs);
-      if (focusRes?.songs?.length) setFocusSongs(focusRes.songs);
-      if (driveRes?.songs?.length) setDriveSongs(driveRes.songs);
-      if (rainRes?.songs?.length) setRainSongs(rainRes.songs);
-      setIsOffline(false);
+      ]).then(([tiktokRes, coffeeRes, focusRes, driveRes, rainRes]) => {
+        if (tiktokRes?.songs?.length) setTiktokSongs(tiktokRes.songs);
+        if (coffeeRes?.songs?.length) setCoffeeSongs(coffeeRes.songs);
+        if (focusRes?.songs?.length) setFocusSongs(focusRes.songs);
+        if (driveRes?.songs?.length) setDriveSongs(driveRes.songs);
+        if (rainRes?.songs?.length) setRainSongs(rainRes.songs);
+      }).catch(() => {});
     } catch (e: any) {
-      console.error("Failed to load home data:", e);
-      // Không có mạng → hiện nội dung offline, không hiện lỗi trắng
+      if (e?.name === 'AbortError' || e?.message?.includes('Aborted') || e?.message?.includes('Network request failed')) {
+        console.log("ℹ️ [Tempo] Không có kết nối mạng · Đang chạy chế độ Ngoại tuyến (Offline)");
+      } else {
+        console.log("ℹ️ [Tempo] Offline mode:", e?.message || e);
+      }
+      // Không có mạng → lập tức chuyển sang chế độ Offline mượt mà
       setIsOffline(true);
       setHasError(false);
     } finally {
@@ -411,11 +421,11 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   onPress={() => navigation.navigate("Downloads")}
                   style={styles.horizontalCard}
                 >
-                  <View style={[styles.horizontalCardImg, { backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' }]}>
-                    <Download size={22} color={COLORS.white} />
+                  <View style={[styles.horizontalCardImg, { backgroundColor: COLORS.bgSurfaceSecondary, alignItems: 'center', justifyContent: 'center' }]}>
+                    <Download size={20} color={COLORS.textPrimary} />
                   </View>
                   <View style={styles.horizontalCardInfo}>
-                    <Text style={styles.horizontalCardBadge}>Ngoại tuyến</Text>
+                    <Text style={[styles.horizontalCardBadge, { color: COLORS.textMuted }]}>Ngoại tuyến</Text>
                     <Text numberOfLines={1} style={styles.horizontalCardTitle}>
                       Đã tải xuống
                     </Text>
@@ -467,11 +477,11 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   }
                   style={styles.horizontalCard}
                 >
-                  <View style={[styles.horizontalCardImg, { backgroundColor: '#4F46E5', alignItems: 'center', justifyContent: 'center' }]}>
-                    <Clock size={22} color={COLORS.white} />
+                  <View style={[styles.horizontalCardImg, { backgroundColor: COLORS.bgSurfaceSecondary, alignItems: 'center', justifyContent: 'center' }]}>
+                    <Clock size={20} color={COLORS.textPrimary} />
                   </View>
                   <View style={styles.horizontalCardInfo}>
-                    <Text style={styles.horizontalCardBadge}>Lịch sử</Text>
+                    <Text style={[styles.horizontalCardBadge, { color: COLORS.textMuted }]}>Lịch sử</Text>
                     <Text numberOfLines={1} style={styles.horizontalCardTitle}>
                       Nghe gần đây
                     </Text>
@@ -512,47 +522,54 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Section Nghe tiếp (từ lịch sử local) */}
-            {history.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Nghe tiếp</Text>
+            {/* Section Nghe tiếp - chỉ bài có trong đã tải xuống */}
+            {(() => {
+              const downloadedIds = new Set(downloadedSongs.map((s) => s.id));
+              const offlineContinue = history
+                .filter((item) => downloadedIds.has(item.song.id))
+                .slice(0, 8);
+              if (offlineContinue.length === 0) return null;
+              return (
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Nghe tiếp</Text>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding }}
+                  >
+                    {offlineContinue.map((item) => {
+                      const song = item.song;
+                      const isCurrent = currentSong?.id === song.id;
+                      const songDur = isCurrent && durationMs > 0 ? durationMs : item.durationMs;
+                      const songPos = isCurrent ? positionMs : item.lastPositionMs;
+                      const progressRatio = songDur > 0 ? Math.min(songPos / songDur, 1) : 0;
+                      return (
+                        <TouchableOpacity
+                          key={song.id}
+                          activeOpacity={0.85}
+                          onPress={() => handlePlaySong(song, offlineContinue.map((h) => h.song), { type: 'single', title: 'Nghe tiếp' })}
+                          style={styles.continueCard}
+                        >
+                          <View style={styles.continueCoverWrapper}>
+                            <Image source={{ uri: song.thumbnail || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300" }} style={styles.continueCover} />
+                            <View style={styles.continuePlayBtn}>
+                              <Play size={14} color={COLORS.black} fill={COLORS.black} style={{ marginLeft: 2 }} />
+                            </View>
+                            <View style={styles.continueProgressTrack}>
+                              <View style={[styles.continueProgressBar, { width: `${Math.max(progressRatio * 100, 8)}%` }]} />
+                            </View>
+                          </View>
+                          <Text numberOfLines={1} style={styles.continueTitle}>{song.title}</Text>
+                          <Text numberOfLines={1} style={styles.continueArtist}>{song.artistsNames}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
                 </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding }}
-                >
-                  {history.slice(0, 8).map((item) => {
-                    const song = item.song;
-                    const isCurrent = currentSong?.id === song.id;
-                    const songDur = isCurrent && durationMs > 0 ? durationMs : item.durationMs;
-                    const songPos = isCurrent ? positionMs : item.lastPositionMs;
-                    const progressRatio = songDur > 0 ? Math.min(songPos / songDur, 1) : 0;
-                    return (
-                      <TouchableOpacity
-                        key={song.id}
-                        activeOpacity={0.85}
-                        onPress={() => handlePlaySong(song, history.map((h) => h.song), { type: 'single', title: 'Nghe tiếp' })}
-                        style={styles.continueCard}
-                      >
-                        <View style={styles.continueCoverWrapper}>
-                          <Image source={{ uri: song.thumbnail || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300" }} style={styles.continueCover} />
-                          <View style={styles.continuePlayBtn}>
-                            <Play size={14} color={COLORS.black} fill={COLORS.black} style={{ marginLeft: 2 }} />
-                          </View>
-                          <View style={styles.continueProgressTrack}>
-                            <View style={[styles.continueProgressBar, { width: `${Math.max(progressRatio * 100, 8)}%` }]} />
-                          </View>
-                        </View>
-                        <Text numberOfLines={1} style={styles.continueTitle}>{song.title}</Text>
-                        <Text numberOfLines={1} style={styles.continueArtist}>{song.artistsNames}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
+              );
+            })()}
 
             {/* Section Đã tải xuống */}
             {downloadedSongs.length > 0 && (

@@ -323,14 +323,14 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
           style={styles.offlineHubCard}
         >
           <LinearGradient
-            colors={["#1A1726", "#261B36", "#351B42"]}
+            colors={["#141414", "#1E1E1E", "#252525"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.offlineHubGradient}
           />
           <View style={styles.offlineHubContent}>
             <View style={styles.offlineHubIconBox}>
-              <HardDriveDownload size={24} color="#C084FC" />
+              <HardDriveDownload size={24} color={COLORS.white} />
             </View>
             <View style={styles.offlineHubTextWrap}>
               <View style={styles.offlineBadge}>
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: LAYOUT.radiusMd,
-    backgroundColor: "rgba(192, 132, 252, 0.15)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: SPACING.md,
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   },
   offlineBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(192, 132, 252, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: LAYOUT.radiusXs,
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
   offlineBadgeText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#C084FC",
+    color: "rgba(255, 255, 255, 0.7)",
     letterSpacing: 0.5,
   },
   offlineHubTitle: {

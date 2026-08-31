@@ -136,7 +136,7 @@ export const DownloadedSongsScreen: React.FC<{
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {/* Background Gradient Top Ambient */}
       <LinearGradient
-        colors={["#0F2027", "#203A43", COLORS.bgPrimary]}
+        colors={["#111111", "#1a1a1a", COLORS.bgPrimary]}
         locations={[0, 0.4, 0.8]}
         style={styles.ambientGradient}
       />

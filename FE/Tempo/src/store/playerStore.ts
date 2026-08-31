@@ -176,6 +176,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     setPlaybackContext: (context) => set({ playbackContext: context }),
 
     playSong: async (song, newQueue, context) => {
+      // Đặt lại quyền phát trên Điện thoại này nếu trước đó đang xem/kết nối PC
+      const { useConnectStore } = require('./connectStore');
+      const connect = useConnectStore.getState();
+      if (connect.activeDevice.deviceId !== 'mobile-app') {
+        useConnectStore.setState({
+          activeDevice: {
+            deviceId: 'mobile-app',
+            deviceName: 'Điện thoại này',
+            type: 'mobile',
+            isOnline: true,
+          },
+        });
+        connect.sendRemoteCommand('pause');
+      }
+
       let queue = get().queue;
       let currentIndex = get().currentIndex;
 
@@ -232,10 +247,31 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
     togglePlayPause: async () => {
       const { isPlaying, currentSong, playSong, queue } = get();
+      const { useConnectStore } = require('./connectStore');
+      const connect = useConnectStore.getState();
+      const isRemote = connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app';
+
+      // 1. Nếu đang kết nối điều khiển thiết bị khác (như Web PC) -> Gửi lệnh Remote
+      if (isRemote) {
+        connect.sendRemoteCommand('toggle_play_pause');
+        set({ isPlaying: !isPlaying });
+        return;
+      }
+
       if (!currentSong) {
         if (queue.length > 0) {
           await playSong(queue[0]);
         }
+        return;
+      }
+
+      // 2. Nếu phát tại điện thoại: kiểm tra xem bài trong native audio player có khớp với currentSong không
+      const currentLoadedId = audioEngine.getCurrentSongId();
+      const targetSongId = currentSong.id || currentSong.encodeId;
+
+      if (!currentLoadedId || currentLoadedId !== targetSongId) {
+        // Bài hiện tại chưa được nạp vào audio engine -> Nạp và phát bài mới ngay lập tức
+        await playSong(currentSong, queue);
         return;
       }
 
@@ -250,6 +286,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
     playNext: async () => {
       const { queue, currentIndex, isShuffle, repeatMode, shuffleHistory, playSong, seekTo } = get();
+      const { useConnectStore } = require('./connectStore');
+      const connect = useConnectStore.getState();
+      const isRemote = connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app';
+
+      if (isRemote) {
+        connect.sendRemoteCommand('next');
+        return;
+      }
+
       if (queue.length === 0) return;
 
       if (queue.length === 1) {
@@ -319,6 +364,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
     playPrev: async () => {
       const { queue, currentIndex, isShuffle, shuffleHistory, positionMs, playSong, seekTo } = get();
+      const { useConnectStore } = require('./connectStore');
+      const connect = useConnectStore.getState();
+      const isRemote = connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app';
+
+      if (isRemote) {
+        connect.sendRemoteCommand('prev');
+        return;
+      }
+
       if (queue.length === 0) return;
 
       // Nếu đang phát quá 3 giây -> tua lại đầu bài hiện tại
@@ -377,13 +431,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         }
       } catch (e) {}
 
-      // Người dùng VIP (như bactrv.52@gmail.com): Mở khóa bật/tắt tự do
+      // Người dùng VIP: Mở khóa bật/tắt tự do
       const newShuffle = !get().isShuffle;
       set({
         isShuffle: newShuffle,
         shuffleHistory: get().currentSong ? [get().currentSong!.id] : [],
       });
       saveSettings(newShuffle, get().repeatMode);
+
+      const { useConnectStore } = require('./connectStore');
+      const connect = useConnectStore.getState();
+      if (connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app') {
+        connect.sendRemoteCommand('set_shuffle', { isShuffle: newShuffle });
+      }
 
       try {
         const { useToastStore } = require('./toastStore');
@@ -401,6 +461,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       set({ repeatMode: nextMode });
       saveSettings(get().isShuffle, nextMode);
+
+      const { useConnectStore } = require('./connectStore');
+      const connect = useConnectStore.getState();
+      if (connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app') {
+        connect.sendRemoteCommand('set_repeat', { repeatMode: nextMode });
+      }
 
       try {
         const { useToastStore } = require('./toastStore');

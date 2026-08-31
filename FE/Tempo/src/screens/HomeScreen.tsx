@@ -219,148 +219,160 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Quick Shelf: 3 Card Full Background ngay trong Hero Section (Luôn hiện đủ 3 card kể cả khi offline) */}
-          <View style={styles.quickShelfSection}>
-            {/* Card 1: Bài hát đã thích */}
+          {/* Quick Shelf Section: Hero Card Yêu thích Full-Width + 2 Card dài bên dưới (ảnh 1 bên, info 1 bên) */}
+          <View style={styles.quickShelfContainer}>
+            {/* 1. Card Yêu thích FULL WIDTH theo phong cách Spotify Hiện Đại */}
             <TouchableOpacity
-              activeOpacity={0.85}
+              activeOpacity={0.88}
               onPress={() => navigation.navigate("LikedSongs")}
-              style={styles.quickShelfCard}
+              style={styles.heroLikedCard}
             >
-              <LinearGradient
-                colors={[COLORS.gradientTop, COLORS.gradientBottom]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <View style={styles.quickShelfOverlay} />
-              <View style={styles.quickShelfIconTop}>
-                <Heart size={20} color={COLORS.white} fill={COLORS.white} />
+              {/* Full-Height Left Tile: Flush with card edge with vibrant gradient & large heart */}
+              <View style={styles.heroLikedTile}>
+                <LinearGradient
+                  colors={['#7C3AED', '#EC4899', '#FC475C']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <Heart size={28} color={COLORS.white} fill={COLORS.white} />
               </View>
-              <View style={styles.quickShelfTextBottom}>
-                <Text numberOfLines={2} style={styles.quickShelfTitle}>
-                  Bài hát đã thích
-                </Text>
-                <Text style={styles.quickShelfSub}>
-                  {likedSongs.length > 0 ? `${likedSongs.length} bài` : "Bộ sưu tập"}
+
+              {/* Text Info */}
+              <View style={styles.heroLikedTextGroup}>
+                <Text numberOfLines={1} style={styles.heroLikedTitle}>Bài hát đã thích</Text>
+                <Text numberOfLines={1} style={styles.heroLikedSub}>
+                  {likedSongs.length > 0 ? `${likedSongs.length} bài hát đã lưu` : "Bộ sưu tập yêu thích"}
                 </Text>
               </View>
+
+              {/* Quick Play Button */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (likedSongs.length > 0) {
+                    handlePlaySong(likedSongs[0], likedSongs, { type: 'playlist', title: 'Bài hát đã thích' });
+                  } else {
+                    navigation.navigate("LikedSongs");
+                  }
+                }}
+                style={styles.heroLikedPlayBtn}
+              >
+                <Play size={16} color={COLORS.accentPrimary} fill={COLORS.accentPrimary} style={{ marginLeft: 2 }} />
+              </TouchableOpacity>
             </TouchableOpacity>
 
-            {/* Card 2: Album gần đây / gợi ý HOẶC Đã tải xuống khi offline */}
-            {currentAlbum ? (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() =>
-                  navigation.navigate("PlaylistDetail", {
-                    id: currentAlbum.id,
-                    title: currentAlbum.title,
-                    thumbnail: currentAlbum.thumbnail,
-                  })
-                }
-                style={styles.quickShelfCard}
-              >
-                <Image
-                  source={{ uri: currentAlbum.thumbnail }}
-                  style={StyleSheet.absoluteFillObject}
-                  resizeMode="cover"
-                />
-                <View style={styles.quickShelfOverlay} />
-                <View style={styles.quickShelfTextBottom}>
-                  <Text style={styles.quickShelfBadge}>
-                    {lastPlayedAlbum ? "Album · Gần đây" : "Album gợi ý"}
-                  </Text>
-                  <Text numberOfLines={2} style={styles.quickShelfTitle}>
-                    {currentAlbum.title}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate("Downloads")}
-                style={styles.quickShelfCard}
-              >
-                <LinearGradient
-                  colors={["#059669", "#10B981"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFillObject}
-                />
-                <View style={styles.quickShelfOverlay} />
-                <View style={styles.quickShelfIconTop}>
-                  <Download size={20} color={COLORS.white} />
-                </View>
-                <View style={styles.quickShelfTextBottom}>
-                  <Text numberOfLines={2} style={styles.quickShelfTitle}>
-                    Đã tải xuống
-                  </Text>
-                  <Text style={styles.quickShelfSub}>
-                    {downloadedSongs.length > 0 ? `${downloadedSongs.length} bài` : "Ngoại tuyến"}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
+            {/* 2. Hàng 2 card còn lại (dài nhưng không full width, ảnh 1 bên, thông tin 1 bên) */}
+            <View style={styles.shelfDualRow}>
+              {/* Card 2: Album gần đây / gợi ý HOẶC Đã tải xuống khi offline */}
+              {currentAlbum ? (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    navigation.navigate("PlaylistDetail", {
+                      id: currentAlbum.id,
+                      title: currentAlbum.title,
+                      thumbnail: currentAlbum.thumbnail,
+                    })
+                  }
+                  style={styles.horizontalCard}
+                >
+                  <Image
+                    source={{ uri: currentAlbum.thumbnail }}
+                    style={styles.horizontalCardImg}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.horizontalCardInfo}>
+                    <Text style={styles.horizontalCardBadge}>
+                      {lastPlayedAlbum ? "Album gần đây" : "Album gợi ý"}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.horizontalCardTitle}>
+                      {currentAlbum.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.horizontalCardSub}>
+                      {currentAlbum.artistsNames || "Album"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate("Downloads")}
+                  style={styles.horizontalCard}
+                >
+                  <View style={[styles.horizontalCardImg, { backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Download size={22} color={COLORS.white} />
+                  </View>
+                  <View style={styles.horizontalCardInfo}>
+                    <Text style={styles.horizontalCardBadge}>Ngoại tuyến</Text>
+                    <Text numberOfLines={1} style={styles.horizontalCardTitle}>
+                      Đã tải xuống
+                    </Text>
+                    <Text numberOfLines={1} style={styles.horizontalCardSub}>
+                      {downloadedSongs.length > 0 ? `${downloadedSongs.length} bài hát` : "Sẵn sàng nghe"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
-            {/* Card 3: Playlist gần đây / gợi ý HOẶC Nghe gần đây khi offline */}
-            {currentPlaylist ? (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() =>
-                  navigation.navigate("PlaylistDetail", {
-                    id: currentPlaylist.id,
-                    title: currentPlaylist.title,
-                    thumbnail: currentPlaylist.thumbnail,
-                  })
-                }
-                style={styles.quickShelfCard}
-              >
-                <Image
-                  source={{ uri: currentPlaylist.thumbnail }}
-                  style={StyleSheet.absoluteFillObject}
-                  resizeMode="cover"
-                />
-                <View style={styles.quickShelfOverlay} />
-                <View style={styles.quickShelfTextBottom}>
-                  <Text style={styles.quickShelfBadge}>
-                    {lastPlayedPlaylist ? "Playlist · Gần đây" : "Playlist gợi ý"}
-                  </Text>
-                  <Text numberOfLines={2} style={styles.quickShelfTitle}>
-                    {currentPlaylist.title}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() =>
-                  navigation.navigate("SeeAll", {
-                    type: "history",
-                    title: "Nghe gần đây",
-                  })
-                }
-                style={styles.quickShelfCard}
-              >
-                <LinearGradient
-                  colors={["#4F46E5", "#6366F1"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFillObject}
-                />
-                <View style={styles.quickShelfOverlay} />
-                <View style={styles.quickShelfIconTop}>
-                  <Clock size={20} color={COLORS.white} />
-                </View>
-                <View style={styles.quickShelfTextBottom}>
-                  <Text numberOfLines={2} style={styles.quickShelfTitle}>
-                    Nghe gần đây
-                  </Text>
-                  <Text style={styles.quickShelfSub}>
-                    {history.length > 0 ? `${history.length} bài` : "Lịch sử"}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
+              {/* Card 3: Playlist gần đây / gợi ý HOẶC Nghe gần đây khi offline */}
+              {currentPlaylist ? (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    navigation.navigate("PlaylistDetail", {
+                      id: currentPlaylist.id,
+                      title: currentPlaylist.title,
+                      thumbnail: currentPlaylist.thumbnail,
+                    })
+                  }
+                  style={styles.horizontalCard}
+                >
+                  <Image
+                    source={{ uri: currentPlaylist.thumbnail }}
+                    style={styles.horizontalCardImg}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.horizontalCardInfo}>
+                    <Text style={styles.horizontalCardBadge}>
+                      {lastPlayedPlaylist ? "Playlist gần đây" : "Playlist gợi ý"}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.horizontalCardTitle}>
+                      {currentPlaylist.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.horizontalCardSub}>
+                      {currentPlaylist.artistsNames || "Tuyển tập"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    navigation.navigate("SeeAll", {
+                      type: "history",
+                      title: "Nghe gần đây",
+                    })
+                  }
+                  style={styles.horizontalCard}
+                >
+                  <View style={[styles.horizontalCardImg, { backgroundColor: '#4F46E5', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Clock size={22} color={COLORS.white} />
+                  </View>
+                  <View style={styles.horizontalCardInfo}>
+                    <Text style={styles.horizontalCardBadge}>Lịch sử</Text>
+                    <Text numberOfLines={1} style={styles.horizontalCardTitle}>
+                      Nghe gần đây
+                    </Text>
+                    <Text numberOfLines={1} style={styles.horizontalCardSub}>
+                      {history.length > 0 ? `${history.length} bài hát` : "Đã nghe"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
 
@@ -853,53 +865,113 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // Quick Shelf: 3 card full background với dark overlay
-  quickShelfSection: {
-    flexDirection: "row",
+  // Quick Shelf Container
+  quickShelfContainer: {
     paddingHorizontal: SPACING.screenPadding,
     marginBottom: SPACING.xs,
-    gap: SPACING.md,
+    gap: 10,
     zIndex: 2,
   },
-  quickShelfCard: {
-    flex: 1,
-    minHeight: 112,
+  // Hero Liked Card: Full-width matching dual shelf cards below
+  heroLikedCard: {
+    width: "100%",
+    height: 64,
     borderRadius: LAYOUT.radiusMd,
+    backgroundColor: "#1E1E24",
+    flexDirection: "row",
+    alignItems: "center",
     overflow: "hidden",
-    backgroundColor: COLORS.bgSurfaceSecondary,
-    justifyContent: "space-between",
-    padding: SPACING.sm,
   },
-  quickShelfOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  heroLikedTile: {
+    width: 64,
+    height: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FC475C",
   },
-  quickShelfIconTop: {
-    alignSelf: "flex-start",
-    zIndex: 2,
+  heroLikedTextGroup: {
+    flex: 1,
+    paddingHorizontal: 12,
+    justifyContent: "center",
   },
-  quickShelfTextBottom: {
-    zIndex: 2,
-    marginTop: SPACING.xs,
-  },
-  quickShelfBadge: {
-    fontSize: TYPOGRAPHY.sizeMicro,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.7)",
-    textTransform: "uppercase",
-    letterSpacing: TYPOGRAPHY.letterSpacingWide,
-    marginBottom: 2,
-  },
-  quickShelfTitle: {
-    fontSize: TYPOGRAPHY.sizeCaption,
+  heroLikedBadge: {
+    fontSize: 9,
     fontWeight: "800",
+    color: "rgba(255, 255, 255, 0.6)",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 1,
+  },
+  heroLikedTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: COLORS.white,
+    lineHeight: 18,
+  },
+  heroLikedSub: {
+    fontSize: 11,
+    fontWeight: "400",
+    color: "rgba(255, 255, 255, 0.6)",
+    marginTop: 2,
+  },
+  heroLikedPlayBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.white,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+
+  // 2 Dual Horizontal Row Cards (Ảnh 1 bên, thông tin 1 bên)
+  shelfDualRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  horizontalCard: {
+    flex: 1,
+    height: 64,
+    borderRadius: LAYOUT.radiusMd,
+    backgroundColor: "#1E1E24",
+    flexDirection: "row",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  horizontalCardImg: {
+    width: 64,
+    height: 64,
+    backgroundColor: COLORS.bgSurfaceSecondary,
+  },
+  horizontalCardInfo: {
+    flex: 1,
+    paddingHorizontal: 8,
+    justifyContent: "center",
+  },
+  horizontalCardBadge: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: COLORS.accentPrimary,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginBottom: 1,
+  },
+  horizontalCardTitle: {
+    fontSize: 12,
+    fontWeight: "700",
     color: COLORS.white,
     lineHeight: 15,
   },
-  quickShelfSub: {
-    fontSize: TYPOGRAPHY.sizeMicro,
-    color: "rgba(255,255,255,0.65)",
-    marginTop: 2,
+  horizontalCardSub: {
+    fontSize: 10,
+    fontWeight: "400",
+    color: COLORS.textSecondary,
+    marginTop: 1,
   },
 
   feedContent: {

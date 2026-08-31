@@ -257,8 +257,8 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         {/* Section Heading: Playlists */}
         <Text style={styles.sectionHeading}>DANH SÁCH PHÁT CỦA BẠN</Text>
 
-        {playlists.length > 0 ? (
-          playlists.map((pl) => {
+        {playlists.filter((pl) => pl.name && !pl.name.includes('TEMPO_ACTIVE') && !pl.name.includes('active-server') && !pl.name.startsWith('__')).length > 0 ? (
+          playlists.filter((pl) => pl.name && !pl.name.includes('TEMPO_ACTIVE') && !pl.name.includes('active-server') && !pl.name.startsWith('__')).map((pl) => {
             const coverImage =
               pl.songs?.[0]?.thumbnail ||
               pl.coverUrl ||

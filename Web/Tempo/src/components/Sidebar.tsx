@@ -1,15 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Activity,
   Home,
+  Search,
   Download,
   FolderClosed,
-  Heart,
-  History,
-  Settings,
-  Sparkles,
+  Crown,
+  ListMusic,
 } from 'lucide-react';
 import { useLibraryStore } from '../store/libraryStore';
+import { apiClient } from '../api/client';
 
 interface SidebarProps {
   currentTab: string;
@@ -17,36 +16,64 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
-  const { likedSongs, history, playlists } = useLibraryStore();
+  const { playlists, fetchPlaylists } = useLibraryStore();
+  const [featuredPlaylists, setFeaturedPlaylists] = useState<any[]>([]);
 
+  // 5 Tab chính y như mobile: Trang chủ, Tìm kiếm, Thư viện, Tải xuống, Nâng cấp
   const menuItems = [
     { id: 'home', label: 'Trang chủ', icon: Home },
-    { id: 'downloads', label: 'Tải xuống', icon: Download },
+    { id: 'search', label: 'Tìm kiếm', icon: Search },
     { id: 'library', label: 'Thư viện', icon: FolderClosed },
-    { id: 'liked', label: 'Yêu thích', icon: Heart, badge: likedSongs.length },
-    { id: 'history', label: 'Lịch sử', icon: History },
-    { id: 'settings', label: 'Cài đặt', icon: Settings },
+    { id: 'downloads', label: 'Tải xuống', icon: Download },
+    { id: 'upgrade', label: 'Nâng cấp', icon: Crown },
   ];
 
   const defaultPlaylists = [
-    { id: 'p1', name: 'Nhạc chill', count: 56, thumb: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=100' },
-    { id: 'p2', name: 'Workout', count: 32, thumb: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=100' },
-    { id: 'p3', name: 'Ballad Việt', count: 48, thumb: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100' },
-    { id: 'p4', name: 'EDM Gaming', count: 27, thumb: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=100' },
+    { id: 'p1', name: 'Nhạc Chill Việt', count: 45, thumb: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=150' },
+    { id: 'p2', name: 'Workout Energy', count: 32, thumb: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=150' },
+    { id: 'p3', name: 'V-Pop Thịnh Hành', count: 50, thumb: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150' },
+    { id: 'p4', name: 'Acoustic Cafe', count: 28, thumb: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=150' },
+    { id: 'p5', name: 'Tâm Trạng Buồn', count: 36, thumb: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=150' },
+    { id: 'p6', name: 'EDM Sôi Động', count: 42, thumb: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=150' },
   ];
 
+  useEffect(() => {
+    fetchPlaylists();
+    apiClient.getHome().then((feed) => {
+      if (feed?.featuredPlaylists && feed.featuredPlaylists.length > 0) {
+        setFeaturedPlaylists(feed.featuredPlaylists.slice(0, 6));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const cleanUserPlaylists = playlists.filter(
+    (p) => p.name && !p.name.includes('TEMPO_ACTIVE') && !p.name.includes('active-server') && !p.name.startsWith('__')
+  );
+
+  const getPlaylistCover = (p: any, idx: number) => {
+    if (p.coverUrl || p.cover_url || p.thumbnail || p.thumbnailM || p.thumb) {
+      return p.coverUrl || p.cover_url || p.thumbnail || p.thumbnailM || p.thumb;
+    }
+    return defaultPlaylists[idx % defaultPlaylists.length].thumb;
+  };
+
   return (
-    <aside className="w-60 bg-[#121217] flex flex-col p-4 select-none flex-shrink-0 border-none overflow-y-auto custom-scrollbar">
+    <aside className="w-60 bg-[#121217] rounded-lg flex flex-col p-3.5 select-none flex-shrink-0 border-none overflow-y-auto custom-scrollbar">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-2 py-3 mb-4">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#6366F1] to-[#EC4899] flex items-center justify-center text-white shadow-lg">
-          <Activity className="w-5 h-5" strokeWidth={2.5} />
+      <div className="flex items-center gap-3 px-2 py-2.5 mb-3 cursor-pointer" onClick={() => setCurrentTab('home')}>
+        <img
+          src="/logo.png"
+          alt="Tempo Logo"
+          className="w-8 h-8 rounded-md object-contain drop-shadow-md"
+        />
+        <div className="flex flex-col">
+          <span className="text-base font-black text-white tracking-wide leading-tight">Tempo</span>
+          <span className="text-[10px] font-bold text-[#FC475C] tracking-wider uppercase leading-tight">Music Player</span>
         </div>
-        <span className="text-base font-extrabold text-white tracking-wide">Tải xuống</span>
       </div>
 
-      {/* Main Navigation Menu */}
-      <nav className="flex flex-col gap-1 mb-6">
+      {/* Main Navigation Menu (Sleek Gray active bg, reduced radius rounded-md, pure white text) */}
+      <nav className="flex flex-col gap-1 mb-5">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
@@ -54,65 +81,89 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
             <button
               key={item.id}
               onClick={() => setCurrentTab(item.id)}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-left border-none ${
+              className={`flex items-center justify-between px-3 py-2 rounded-md text-sm transition-all text-left border-none cursor-pointer ${
                 isActive
-                  ? 'bg-gradient-to-r from-[#FC475C]/15 to-transparent text-[#FC475C] font-bold'
-                  : 'text-text-secondary hover:bg-[#181820] hover:text-white'
+                  ? 'bg-[#262630] text-white font-bold shadow-sm'
+                  : 'text-text-secondary hover:bg-[#181820] hover:text-white font-semibold'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#FC475C]' : 'text-text-secondary'}`} />
+              <div className="flex items-center gap-2.5">
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-text-secondary'}`} />
                 <span>{item.label}</span>
               </div>
-              {item.badge ? (
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#181820] text-text-secondary">
-                  {item.badge}
-                </span>
-              ) : null}
             </button>
           );
         })}
       </nav>
 
-      {/* Playlists Section */}
-      <div className="mb-6">
-        <span className="text-[11px] font-extrabold text-text-muted tracking-wider px-3.5 block mb-3 uppercase">
+      {/* Playlists Section (Gợi ý & Playlist người dùng với ảnh bìa luôn hiện rõ) */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <span className="text-[10px] font-extrabold text-text-muted tracking-wider px-3 block mb-2 uppercase">
           PLAYLIST CỦA BẠN
         </span>
-        <div className="flex flex-col gap-1.5">
-          {defaultPlaylists.map((p) => (
+        <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-1 pb-8">
+          {/* User's custom playlists */}
+          {cleanUserPlaylists.map((p, idx) => (
             <div
               key={p.id}
-              onClick={() => setCurrentTab(`playlist_${p.id}`)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[#181820] cursor-pointer transition-colors group"
+              onClick={() => setCurrentTab('library')}
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-md hover:bg-[#181820] cursor-pointer transition-colors group"
             >
-              <img src={p.thumb} alt={p.name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+              <img
+                src={getPlaylistCover(p, idx)}
+                alt={p.name}
+                className="w-8 h-8 rounded-md object-cover flex-shrink-0 shadow-sm"
+              />
               <div className="min-w-0 flex-1">
-                <h4 className="text-xs font-bold text-white truncate group-hover:text-primary transition-colors">
+                <h5 className="text-xs font-bold text-white group-hover:text-[#FC475C] transition-colors truncate">
                   {p.name}
-                </h4>
-                <p className="text-[11px] text-text-muted truncate">{p.count} bài hát</p>
+                </h5>
+                <p className="text-[11px] text-text-muted truncate">{p.songCount || p.songs?.length || 0} bài hát</p>
               </div>
             </div>
           ))}
-        </div>
-      </div>
 
-      {/* Bottom Promo Card (Nâng cấp Premium) */}
-      <div className="mt-auto bg-[#181820] rounded-2xl p-4 flex flex-col border-none">
-        <div className="flex items-center gap-2 mb-2 text-[#FC475C]">
-          <Sparkles className="w-4 h-4" />
-          <span className="text-xs font-bold text-white">Nâng cấp Premium</span>
+          {/* Featured dynamic recommendations from API */}
+          {featuredPlaylists.length > 0
+            ? featuredPlaylists.map((pl, idx) => (
+                <div
+                  key={pl.encodeId || pl.id || idx}
+                  onClick={() => setCurrentTab('library')}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-md hover:bg-[#181820] cursor-pointer transition-colors group"
+                >
+                  <img
+                    src={getPlaylistCover(pl, idx)}
+                    alt={pl.title}
+                    className="w-8 h-8 rounded-md object-cover flex-shrink-0 shadow-sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h5 className="text-xs font-bold text-white group-hover:text-[#FC475C] transition-colors truncate">
+                      {pl.title}
+                    </h5>
+                    <p className="text-[11px] text-text-muted truncate">{pl.artistsNames || 'Gợi ý cho bạn'}</p>
+                  </div>
+                </div>
+              ))
+            : defaultPlaylists.map((p, idx) => (
+                <div
+                  key={p.id || idx}
+                  onClick={() => setCurrentTab('library')}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-md hover:bg-[#181820] cursor-pointer transition-colors group"
+                >
+                  <img
+                    src={p.thumb}
+                    alt={p.name}
+                    className="w-8 h-8 rounded-md object-cover flex-shrink-0 shadow-sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h5 className="text-xs font-bold text-white group-hover:text-[#FC475C] transition-colors truncate">
+                      {p.name}
+                    </h5>
+                    <p className="text-[11px] text-text-muted truncate">{p.count} bài hát</p>
+                  </div>
+                </div>
+              ))}
         </div>
-        <p className="text-[11px] text-text-secondary leading-snug mb-3">
-          Tải nhạc chất lượng cao không giới hạn.
-        </p>
-        <button
-          onClick={() => setCurrentTab('upgrade')}
-          className="w-full py-2.5 bg-gradient-to-r from-[#FC475C] to-[#C026D3] text-white rounded-xl text-xs font-extrabold hover:opacity-90 active:scale-98 transition-all shadow-md shadow-primary/20 border-none"
-        >
-          Nâng cấp ngay
-        </button>
       </div>
     </aside>
   );

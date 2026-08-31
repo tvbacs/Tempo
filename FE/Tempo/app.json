@@ -17,7 +17,6 @@
       "bundleIdentifier": "com.bactrv.tempo",
       "infoPlist": {
         "UIBackgroundModes": [
-          "audio",
           "audio"
         ]
       }
@@ -29,10 +28,6 @@
         "backgroundColor": "#000000"
       },
       "permissions": [
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "WAKE_LOCK",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "WAKE_LOCK",

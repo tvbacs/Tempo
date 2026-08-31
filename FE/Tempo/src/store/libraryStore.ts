@@ -243,7 +243,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (local) {
         const parsed = JSON.parse(local);
         if (Array.isArray(parsed)) {
-          set({ playlists: parsed });
+          const cleaned = parsed.filter((p: any) => p.name && !p.name.includes('TEMPO_ACTIVE') && !p.name.includes('active-server') && !p.name.startsWith('__'));
+          set({ playlists: cleaned });
         }
       }
     } catch (e) {}
@@ -264,18 +265,20 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       }
 
       if (data && data.length > 0) {
-        const localList = get().playlists;
-        const cloudPlaylists: CustomPlaylist[] = data.map((r: any) => {
-          const matchedLocal = localList.find((p) => p.id === r.id);
-          return {
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            coverUrl: r.cover_url,
-            songs: matchedLocal?.songs || [],
-            songCount: matchedLocal?.songs?.length || 0,
-          };
-        });
+        const localList = get().playlists.filter((p: any) => p.name && !p.name.includes('TEMPO_ACTIVE') && !p.name.includes('active-server') && !p.name.startsWith('__'));
+        const cloudPlaylists: CustomPlaylist[] = data
+          .filter((r: any) => r.name && !r.name.includes('TEMPO_ACTIVE') && !r.name.includes('active-server') && !r.name.startsWith('__'))
+          .map((r: any) => {
+            const matchedLocal = localList.find((p) => p.id === r.id);
+            return {
+              id: r.id,
+              name: r.name,
+              description: r.description,
+              coverUrl: r.cover_url,
+              songs: matchedLocal?.songs || [],
+              songCount: matchedLocal?.songs?.length || 0,
+            };
+          });
 
         // Merge
         const mergedMap = new Map<string, CustomPlaylist>();

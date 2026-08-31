@@ -1,20 +1,20 @@
 /**
- * Tempo Connect State Store (Spotify Connect Real-time Clone)
- * Manages Cross-Device Playback Sync via Supabase Realtime Broadcast
+ * Connect Store - Quản lý Spotify-style cross-device playback
+ * Kết nối Realtime qua Supabase Broadcast Channel 'tempo_connect_channel'
+ * Đảm bảo chỉ gửi qua WebSocket khi channel đã joined, loại bỏ triệt để warning REST fallback
  */
 import { create } from 'zustand';
 import { supabase } from '../api/supabase';
-import { UnifiedSong } from '../types/music';
 import { audioEngine } from '../services/audioPlayer';
 import { useToastStore } from './toastStore';
 
 export interface ConnectedDevice {
   deviceId: string;
   deviceName: string;
-  type: 'mobile' | 'web' | 'other';
+  type: 'mobile' | 'web' | 'desktop';
   isOnline: boolean;
   isPlaying?: boolean;
-  currentSong?: UnifiedSong | null;
+  currentSong?: any;
   volume?: number;
   lastSeen?: number;
 }
@@ -23,17 +23,17 @@ interface ConnectState {
   availableDevices: ConnectedDevice[];
   activeDevice: ConnectedDevice;
   isConnectModalVisible: boolean;
-  volume: number; // 0..1
+  volume: number;
   isInitialized: boolean;
+  isSubscribed: boolean;
 
-  // Actions
   initConnect: () => void;
   openConnectModal: () => void;
   closeConnectModal: () => void;
   selectDevice: (device: ConnectedDevice) => Promise<void>;
   setVolume: (volume: number) => void;
   sendRemoteCommand: (command: string, data?: any) => void;
-  broadcastLocalState: (song: UnifiedSong | null, isPlaying: boolean, positionMs: number, durationMs: number) => void;
+  broadcastLocalState: (song: any, isPlaying: boolean, positionMs: number, durationMs: number) => void;
 }
 
 const THIS_DEVICE: ConnectedDevice = {
@@ -45,15 +45,28 @@ const THIS_DEVICE: ConnectedDevice = {
 
 let realtimeChannel: any = null;
 
+const safeBroadcast = (event: string, payload: any) => {
+  if (realtimeChannel && realtimeChannel.state === 'joined') {
+    try {
+      realtimeChannel.send({
+        type: 'broadcast',
+        event,
+        payload,
+      });
+    } catch (_) {}
+  }
+};
+
 export const useConnectStore = create<ConnectState>((set, get) => ({
   availableDevices: [THIS_DEVICE],
   activeDevice: THIS_DEVICE,
   isConnectModalVisible: false,
   volume: 0.8,
   isInitialized: false,
+  isSubscribed: false,
 
   initConnect: () => {
-    if (get().isInitialized || realtimeChannel) return;
+    if (realtimeChannel) return;
 
     try {
       realtimeChannel = supabase.channel('tempo_connect_channel', {
@@ -68,15 +81,28 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           set({ availableDevices: updated });
         })
         .on('broadcast', { event: 'playback_state' }, ({ payload }: { payload: any }) => {
-          if (get().activeDevice.deviceId === payload.activeDeviceId) {
+          if (!payload) return;
+
+          // Nếu thiết bị đang phát là máy tính / thiết bị khác
+          if (payload.activeDeviceId && payload.activeDeviceId !== 'mobile-app') {
+            const dev: ConnectedDevice = {
+              deviceId: payload.activeDeviceId,
+              deviceName: payload.activeDeviceName || 'Web Player (PC)',
+              type: 'web',
+              isOnline: true,
+              lastSeen: Date.now(),
+            };
+            set({ activeDevice: dev });
+
             // Cập nhật trạng thái phát nhạc từ máy tính về điện thoại
             const { usePlayerStore } = require('./playerStore');
             if (payload.currentSong) {
               usePlayerStore.setState({
-                isPlaying: payload.isPlaying,
-                positionMs: payload.positionMs,
-                durationMs: payload.durationMs,
+                isPlaying: Boolean(payload.isPlaying),
+                positionMs: payload.positionMs || 0,
+                durationMs: payload.durationMs || (payload.currentSong.duration ? payload.currentSong.duration * 1000 : 0),
                 currentSong: payload.currentSong,
+                queue: payload.queue || [payload.currentSong],
               });
             }
           }
@@ -87,32 +113,26 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           if (command === 'next') usePlayerStore.getState().playNext();
           if (command === 'prev') usePlayerStore.getState().playPrev();
           if (command === 'toggle_play_pause') usePlayerStore.getState().togglePlayPause();
+          if (command === 'pause') audioEngine.stopAndUnload();
         })
         .subscribe((status: string) => {
           if (status === 'SUBSCRIBED') {
-            set({ isInitialized: true });
-            // Hỏi thăm các thiết bị đang online
-            realtimeChannel.send({
-              type: 'broadcast',
-              event: 'device_presence_query',
-              payload: {},
-            });
+            set({ isInitialized: true, isSubscribed: true });
+            // Hỏi thăm các thiết bị đang online qua WebSocket an toàn
+            safeBroadcast('device_presence_query', {});
 
             // Tự động broadcast state mỗi khi playerStore thay đổi (dùng subscribe)
             setTimeout(() => {
               try {
                 const { usePlayerStore } = require('./playerStore');
-                let broadcastInterval: any = null;
 
                 // Subscribe playerStore để detect thay đổi bài hát / trạng thái
                 usePlayerStore.subscribe(
                   (state: any, prevState: any) => {
                     const { currentSong, isPlaying, positionMs, durationMs } = state;
                     const connectState = get();
-                    // Chỉ broadcast khi đang phát từ điện thoại này
                     if (connectState.activeDevice.deviceId !== 'mobile-app') return;
                     if (!currentSong) return;
-                    // Tránh flood: chỉ broadcast khi bài thay đổi hoặc isPlaying thay đổi
                     if (prevState.currentSong?.id !== currentSong.id || prevState.isPlaying !== isPlaying) {
                       connectState.broadcastLocalState(currentSong, isPlaying, positionMs, durationMs);
                     }
@@ -120,7 +140,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
                 );
 
                 // Heartbeat position mỗi 2 giây khi đang phát
-                broadcastInterval = setInterval(() => {
+                setInterval(() => {
                   try {
                     const { usePlayerStore: ps } = require('./playerStore');
                     const { currentSong, isPlaying, positionMs, durationMs } = ps.getState();
@@ -150,7 +170,9 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
               } catch (e) {
                 console.warn('[ConnectStore] subscribe error:', e);
               }
-            }, 500);
+            }, 300);
+          } else {
+            set({ isSubscribed: false });
           }
         });
 
@@ -161,14 +183,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
 
   openConnectModal: () => {
     get().initConnect();
-    // Gửi tín hiệu tìm thiết bị
-    if (realtimeChannel) {
-      realtimeChannel.send({
-        type: 'broadcast',
-        event: 'device_presence_query',
-        payload: {},
-      });
-    }
+    safeBroadcast('device_presence_query', {});
     set({ isConnectModalVisible: true });
   },
 
@@ -185,35 +200,26 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
     const pos = playerState.positionMs;
 
     if (device.type === 'web') {
-      // 1. Chuyển quyền phát sang Loa Máy Tính
-      await audioEngine.pause();
+      // 1. Chuyển quyền phát sang Loa Máy Tính - Giải phóng hoàn toàn audio local trên mobile
+      await audioEngine.stopAndUnload();
+      usePlayerStore.setState({ isPlaying: true });
       useToastStore.getState().showToast(`Đang nghe trên ${device.deviceName}`, 'info');
 
-      if (realtimeChannel && song) {
-        realtimeChannel.send({
-          type: 'broadcast',
-          event: 'command',
-          payload: {
-            command: 'transfer_playback',
-            data: {
-              targetDeviceId: 'web-player-pc',
-              song,
-              positionMs: pos,
-            },
+      if (song) {
+        safeBroadcast('command', {
+          command: 'transfer_playback',
+          data: {
+            targetDeviceId: 'web-player-pc',
+            song,
+            queue: playerState.queue,
+            positionMs: pos,
           },
         });
       }
     } else {
-
       // 2. Chuyển ngược lại về Loa Điện Thoại
       useToastStore.getState().showToast('Đang phát qua Điện thoại này', 'info');
-      if (realtimeChannel) {
-        realtimeChannel.send({
-          type: 'broadcast',
-          event: 'command',
-          payload: { command: 'pause' },
-        });
-      }
+      safeBroadcast('command', { command: 'pause' });
       if (song) {
         await audioEngine.loadAndPlay(song);
         await audioEngine.seekTo(pos);
@@ -227,28 +233,18 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
   },
 
   sendRemoteCommand: (command: string, data?: any) => {
-    if (realtimeChannel) {
-      realtimeChannel.send({
-        type: 'broadcast',
-        event: 'command',
-        payload: { command, data },
-      });
-    }
+    safeBroadcast('command', { command, data });
   },
 
   broadcastLocalState: (song, isPlaying, positionMs, durationMs) => {
-    if (realtimeChannel && get().activeDevice.deviceId === 'mobile-app') {
-      realtimeChannel.send({
-        type: 'broadcast',
-        event: 'playback_state',
-        payload: {
-          activeDeviceId: 'mobile-app',
-          activeDeviceName: 'Điện thoại',
-          isPlaying,
-          positionMs,
-          durationMs,
-          currentSong: song,
-        },
+    if (get().activeDevice.deviceId === 'mobile-app') {
+      safeBroadcast('playback_state', {
+        activeDeviceId: 'mobile-app',
+        activeDeviceName: 'Điện thoại',
+        isPlaying,
+        positionMs,
+        durationMs,
+        currentSong: song,
       });
     }
   },

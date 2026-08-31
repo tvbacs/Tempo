@@ -8,27 +8,27 @@
  */
 
 export const COLORS = {
-  // Backgrounds
-  bgPrimary: '#000000',
-  bgSurface: '#121212',
-  bgSurfaceSecondary: '#1C1C1E',
-  bgPill: '#242426',
-  bgHover: '#2C2C2E',
+  // Backgrounds - Tông Dark Charcoal mềm mại, giảm bớt đen tuyền
+  bgPrimary: '#0F0F13',
+  bgSurface: '#16161B',
+  bgSurfaceSecondary: '#202026',
+  bgPill: '#282830',
+  bgHover: '#303038',
   bgOverlay: 'rgba(0, 0, 0, 0.55)',
-  bgProgressTrack: '#2A2A2E',
+  bgProgressTrack: '#2E2E36',
   bgProgressInactive: 'rgba(255, 255, 255, 0.2)',
-  bgActionBtn: '#18181A',
-  bgActionBtnActive: '#2A201A',
-  bgFollowActive: '#2A2A2E',
-  bgGradientOverlay: 'rgba(0, 0, 0, 0.45)',
-  bgNavCircle: 'rgba(0, 0, 0, 0.5)',
-  bgCardDark: '#141416',
-  bgCardAmber: '#161412',
-  bgUpgradeCard: '#261912',       // Upgrade card dark warm background
+  bgActionBtn: '#1E1E26',
+  bgActionBtnActive: '#302620',
+  bgFollowActive: '#2E2E36',
+  bgGradientOverlay: 'rgba(15, 15, 19, 0.5)',
+  bgNavCircle: 'rgba(15, 15, 19, 0.6)',
+  bgCardDark: '#17171E',
+  bgCardAmber: '#1A1816',
+  bgUpgradeCard: '#2B1C15',       // Upgrade card dark warm background
   bgHeroGradientDeep: '#3D1500',  // Hero gradient top (deep dark orange-red)
   bgHeroGradientMid: '#1C120C',   // Hero gradient mid
-  bgCardPlan: '#161618',          // Clean dark card for subscription plans
-  bgCardPlanFeatured: '#22161A',  // Highlighted plan card with subtle tint
+  bgCardPlan: '#1A1A20',          // Clean dark card for subscription plans
+  bgCardPlanFeatured: '#26181D',  // Highlighted plan card with subtle tint
   whiteAlpha10: 'rgba(255, 255, 255, 0.1)',
   whiteAlpha15: 'rgba(255, 255, 255, 0.15)',
   accentAlpha15: 'rgba(252, 71, 92, 0.15)',
@@ -67,12 +67,13 @@ export const COLORS = {
 };
 
 export const LAYOUT = {
-  // Radii
-  radiusXs: 4,
-  radiusSm: 8,
-  radiusMd: 12,
-  radiusLg: 16,
-  radiusXl: 24,
+  // Radii - Sleek & Modern (Reduced curvature)
+  radiusXs: 3,
+  radiusSm: 6,
+  radiusMd: 8,
+  radiusLg: 10,
+  radiusXl: 14,
+  radiusCard: 8,
   radiusFull: 9999,
   
   // Borders (Strictly Zero Borders across the entire design)

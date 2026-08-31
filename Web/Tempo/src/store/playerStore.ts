@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { UnifiedSong, LyricSentence } from '../types/music';
 import { apiClient } from '../api/client';
 import { useLibraryStore } from './libraryStore';
+import { useConnectStore } from './connectStore';
 
 interface PlayerState {
   currentSong: UnifiedSong | null;
@@ -28,6 +29,8 @@ interface PlayerState {
   setVolume: (vol: number) => void;
   toggleShuffle: () => void;
   toggleRepeat: () => void;
+  setShuffle: (val: boolean) => void;
+  setRepeat: (val: boolean) => void;
   toggleLyrics: () => void;
   setLyricsOpen: (open: boolean) => void;
 }
@@ -57,19 +60,36 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       set({ positionSec: audio.currentTime, durationSec: audio.duration || 0 });
     });
 
-    audio.addEventListener('play', () => set({ isPlaying: true }));
-    audio.addEventListener('pause', () => set({ isPlaying: false }));
-    audio.addEventListener('ended', () => get().playNext());
+    audio.addEventListener('play', () => {
+      set({ isPlaying: true });
+      useConnectStore.getState().broadcastState();
+    });
+
+    audio.addEventListener('pause', () => {
+      set({ isPlaying: false });
+      useConnectStore.getState().broadcastState();
+    });
+
+    audio.addEventListener('ended', () => {
+      get().playNext();
+    });
 
     set({ audioElement: audio });
   },
 
   playSong: async (song, newQueue, startPosSec = 0) => {
+    if (!get().audioElement) {
+      get().initAudio();
+    }
+
     let queue = newQueue || get().queue;
     if (!queue.some(s => (s.encodeId || s.id) === (song.encodeId || song.id))) {
       queue = [song, ...queue];
     }
     const currentIndex = queue.findIndex(s => (s.encodeId || s.id) === (song.encodeId || song.id));
+
+    // 1. Đặt Web PC làm active device
+    useConnectStore.setState({ activeDeviceId: 'web-player-pc', activeDeviceName: 'Web Player (PC)' });
 
     set({
       currentSong: song,
@@ -97,16 +117,29 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       audio.currentTime = startPosSec;
       audio.play().then(() => {
         set({ isPlaying: true, isLoading: false });
-      }).catch(() => {
+        useConnectStore.getState().broadcastState();
+      }).catch((err) => {
+        console.warn('[Web Player] Autoplay prevented or failed:', err.message);
         set({ isPlaying: false, isLoading: false });
+        useConnectStore.getState().broadcastState();
       });
     } else {
       set({ isLoading: false });
+      useConnectStore.getState().broadcastState();
     }
   },
 
   togglePlayPause: () => {
     const audio = get().audioElement;
+    const connect = useConnectStore.getState();
+    const isRemote = connect.activeDeviceId !== 'web-player-pc';
+
+    if (isRemote) {
+      connect.sendCommand('toggle_play_pause');
+      set({ isPlaying: !get().isPlaying });
+      return;
+    }
+
     if (!audio || !audio.src) return;
     if (audio.paused) {
       audio.play();
@@ -116,6 +149,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   playNext: () => {
+    const connect = useConnectStore.getState();
+    const isRemote = connect.activeDeviceId !== 'web-player-pc';
+
+    if (isRemote) {
+      connect.sendCommand('next');
+      return;
+    }
+
     const { queue, currentIndex, isShuffle, isRepeat } = get();
     if (queue.length === 0) return;
 
@@ -133,6 +174,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   playPrev: () => {
+    const connect = useConnectStore.getState();
+    const isRemote = connect.activeDeviceId !== 'web-player-pc';
+
+    if (isRemote) {
+      connect.sendCommand('prev');
+      return;
+    }
+
     const { queue, currentIndex, audioElement } = get();
     if (audioElement && audioElement.currentTime > 3) {
       audioElement.currentTime = 0;
@@ -145,10 +194,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   seekTo: (sec) => {
+    const connect = useConnectStore.getState();
+    const isRemote = connect.activeDeviceId !== 'web-player-pc';
+
+    if (isRemote) {
+      connect.sendCommand('seek', { positionMs: Math.floor(sec * 1000) });
+      set({ positionSec: sec });
+      return;
+    }
+
     const audio = get().audioElement;
     if (audio) {
       audio.currentTime = sec;
       set({ positionSec: sec });
+      useConnectStore.getState().broadcastState();
     }
   },
 
@@ -158,8 +217,24 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ volume: vol });
   },
 
-  toggleShuffle: () => set({ isShuffle: !get().isShuffle }),
-  toggleRepeat: () => set({ isRepeat: !get().isRepeat }),
+  toggleShuffle: () => {
+    const nextVal = !get().isShuffle;
+    set({ isShuffle: nextVal });
+    const connect = useConnectStore.getState();
+    if (connect.activeDeviceId !== 'web-player-pc') {
+      connect.sendCommand('set_shuffle', { isShuffle: nextVal });
+    }
+  },
+  toggleRepeat: () => {
+    const nextVal = !get().isRepeat;
+    set({ isRepeat: nextVal });
+    const connect = useConnectStore.getState();
+    if (connect.activeDeviceId !== 'web-player-pc') {
+      connect.sendCommand('set_repeat', { repeatMode: nextVal ? 'all' : 'off' });
+    }
+  },
+  setShuffle: (val) => set({ isShuffle: val }),
+  setRepeat: (val) => set({ isRepeat: val }),
   toggleLyrics: () => set({ isLyricsOpen: !get().isLyricsOpen }),
   setLyricsOpen: (open) => set({ isLyricsOpen: open }),
 }));

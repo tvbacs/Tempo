@@ -12,11 +12,15 @@ class AudioEngine {
   private onStatusUpdateCallback: ((status: AVPlaybackStatus) => void) | null = null;
   private onTrackEndedCallback: (() => void) | null = null;
   private isInitialized = false;
+  private currentSongId: string | null = null;
   // Mutex: mỗi lần loadAndPlay tăng lên 1 — request cũ tự huỷ nếu bị thay thế
   private currentLoadId = 0;
 
+  getCurrentSongId(): string | null {
+    return this.currentSongId;
+  }
+
   async init() {
-    if (this.isInitialized) return;
     try {
       await Audio.setIsEnabledAsync(true);
       await Audio.setAudioModeAsync({
@@ -33,7 +37,6 @@ class AudioEngine {
       console.error('Failed to configure audio mode:', e);
     }
   }
-
 
   setStatusCallback(cb: (status: AVPlaybackStatus) => void) {
     this.onStatusUpdateCallback = cb;
@@ -65,8 +68,8 @@ class AudioEngine {
       }
 
       // Resolve audio stream URL
-      // Ưu tiên 1: Kiểm tra bài đã tải xuống từ bất kỳ màn hình nào (Yêu thích, Lịch sử, v.v.)
-      let streamUrl = song.localUri || song.audioUrl;
+      // Ưu tiên 1: Kiểm tra bài đã tải xuống trên máy (local file)
+      let streamUrl = song.localUri;
       if (!streamUrl || !streamUrl.startsWith('file://')) {
         try {
           const { useDownloadStore } = require('../store/downloadStore');
@@ -79,8 +82,14 @@ class AudioEngine {
         } catch (e) {}
       }
 
-      if (!streamUrl || !streamUrl.startsWith('file://')) {
-        // Ưu tiên 2: Gọi API backend để lấy stream URL
+      // Ưu tiên 2: Sử dụng trực tiếp audioUrl nếu bài hát đã có sẵn link stream (nhạc trích xuất TikTok, YouTube, SoundCloud)
+      if (!streamUrl && song.audioUrl && (song.audioUrl.startsWith('http://') || song.audioUrl.startsWith('https://'))) {
+        streamUrl = song.audioUrl;
+        console.log('[AudioEngine] Using direct audioUrl for extracted stream track:', song.title);
+      }
+
+      // Ưu tiên 3: Nếu vẫn chưa có streamUrl (bài Zing MP3 thông thường), gọi API backend để resolve
+      if (!streamUrl) {
         try {
           const streamData = await apiClient.getSongStream(song.id, song.title, song.artistsNames);
           streamUrl = streamData.audioUrl;
@@ -140,6 +149,7 @@ class AudioEngine {
 
       // Gán sound mới
       this.sound = newSound;
+      this.currentSongId = song.id || song.encodeId || null;
       return true;
 
     } catch (error: any) {
@@ -184,6 +194,16 @@ class AudioEngine {
   async stop() {
     if (this.sound) {
       await this.sound.stopAsync();
+    }
+  }
+
+  async stopAndUnload() {
+    if (this.sound) {
+      const old = this.sound;
+      this.sound = null;
+      this.currentSongId = null;
+      try { await old.stopAsync(); } catch (_) {}
+      try { await old.unloadAsync(); } catch (_) {}
     }
   }
 }

@@ -1,10 +1,10 @@
 /**
  * Smart Fallback Audio Stream Resolver
- * Thứ tự ưu tiên:
+ * Thứ tự ưu tiên mở khóa VIP:
  * 1. Zing MP3 (Nếu là bài miễn phí)
- * 2. YouTube Official Audio (Bản gốc chính thức của ca sĩ qua yt-dlp)
- * 3. Audius (Kho nhạc quốc tế)
- * 4. Zing MP3 Alternative (Bản dự phòng cuối cùng)
+ * 2. YouTube Official Master Track (Bản gốc chính thức của ca sĩ qua yt-dlp)
+ * 3. Audius (Kho nhạc quốc tế chất lượng 320kbps)
+ * 4. Zing MP3 Alternative (Chỉ chọn bản gốc, loại bỏ hoàn toàn Remix/Cover/Lofi/Amateur)
  */
 const { ZingMp3 } = require("zingmp3-api-full");
 const zingService = require("./zingService");
@@ -60,36 +60,23 @@ const resolveAudioStream = async (songId, title = "", artist = "") => {
   }
 
   console.log(
-    `[Fallback] Tìm luồng phát thay thế cho bài VIP: "${songTitle}" - "${songArtist}"`
+    `[Fallback VIP] Tìm kiếm bản gốc chuẩn cho bài VIP: "${songTitle}" - "${songArtist}"`
   );
 
-  // 3. ƯU TIÊN 1: Tìm bản phát miễn phí trên Zing MP3 (Cực nhanh ~100ms, chất lượng Zing CDN)
+  // 3. ƯU TIÊN 1: YouTube Official Audio / Music Video của chính chủ nghệ sĩ
   if (songTitle) {
     try {
-      const searchRes = await zingService.search(songTitle);
-      if (searchRes?.songs) {
-        for (const altSong of searchRes.songs) {
-          if (altSong.rawId !== rawId && !altSong.isVip) {
-            try {
-              const stream = await zingService.getSongStream(altSong.rawId);
-              if (stream?.audioUrl) {
-                console.log(`[Zing Alt] OK - Tìm thấy bản phát cho "${songTitle}" (${altSong.artistsNames})`);
-                return {
-                  audioUrl: stream.audioUrl,
-                  quality: "128kbps",
-                  isFallback: true,
-                  fallbackSource: "zing_alt",
-                  message: `Đang phát bản thay thế (${altSong.artistsNames})`,
-                };
-              }
-            } catch (_) {}
-          }
-        }
+      const ytResult = await resolveYouTubeStream(songTitle, songArtist);
+      if (ytResult?.audioUrl) {
+        console.log(`[Fallback YouTube] OK - Đã lấy được bản gốc chính thức từ YouTube cho "${songTitle}"`);
+        return ytResult;
       }
-    } catch (e) {}
+    } catch (ytErr) {
+      console.warn("[Fallback YouTube] Lỗi:", ytErr.message);
+    }
   }
 
-  // 4. ƯU TIÊN 2: Kho nhạc quốc tế Audius (~200ms)
+  // 4. ƯU TIÊN 2: Kho nhạc quốc tế Audius 320kbps
   if (songTitle) {
     try {
       const query = `${songTitle} ${songArtist}`.trim();
@@ -109,16 +96,38 @@ const resolveAudioStream = async (songId, title = "", artist = "") => {
     }
   }
 
-  // 5. ƯU TIÊN 3: YouTube via yt-dlp (nếu môi trường có hỗ trợ yt-dlp / local)
+  // 5. ƯU TIÊN 3: Bản thay thế trên Zing MP3 (Chỉ chọn bản chuẩn, LỌC BỎ triệt để Remix/Cover/Lofi/Karaoke)
   if (songTitle) {
     try {
-      const ytResult = await resolveYouTubeStream(songTitle, songArtist);
-      if (ytResult?.audioUrl) {
-        return ytResult;
+      const searchRes = await zingService.search(songTitle);
+      if (searchRes?.songs) {
+        const unwantedKeywords = ["remix", "cover", "lofi", "karaoke", "sped up", "speed up", "slowed", "parody", "nhạc sống", "beat"];
+        const origHasKeyword = (kw) => songTitle.toLowerCase().includes(kw);
+
+        for (const altSong of searchRes.songs) {
+          if (altSong.rawId !== rawId && !altSong.isVip) {
+            const altTitleLower = (altSong.title || "").toLowerCase();
+            // Bỏ qua nếu là bản phối/remix/cover mà bài gốc không có
+            const isUnwanted = unwantedKeywords.some(kw => !origHasKeyword(kw) && altTitleLower.includes(kw));
+            if (isUnwanted) continue;
+
+            try {
+              const stream = await zingService.getSongStream(altSong.rawId);
+              if (stream?.audioUrl) {
+                console.log(`[Zing Alt] OK - Tìm thấy bản chuẩn cho "${songTitle}" (${altSong.artistsNames})`);
+                return {
+                  audioUrl: stream.audioUrl,
+                  quality: "128kbps",
+                  isFallback: true,
+                  fallbackSource: "zing_alt",
+                  message: `Đang phát bản chuẩn thay thế (${altSong.artistsNames})`,
+                };
+              }
+            } catch (_) {}
+          }
+        }
       }
-    } catch (ytErr) {
-      console.warn("[Fallback YouTube] Lỗi:", ytErr.message);
-    }
+    } catch (e) {}
   }
 
   throw new Error(

@@ -16,14 +16,16 @@ import { SleepTimerModal } from './src/components/SleepTimerModal';
 import { Toast } from './src/components/Toast';
 import { SplashScreen } from './src/components/SplashScreen';
 import { audioEngine } from './src/services/audioPlayer';
+import { useConnectStore } from './src/store/connectStore';
 import { COLORS } from './src/constants/theme';
 
 export default function App() {
   const [isSplashDone, setIsSplashDone] = useState(false);
 
   useEffect(() => {
-    // Initialize background audio session immediately
+    // Initialize background audio session and realtime connect immediately
     audioEngine.init();
+    useConnectStore.getState().initConnect();
   }, []);
 
   return (

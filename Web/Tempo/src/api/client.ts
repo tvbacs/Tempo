@@ -89,4 +89,19 @@ export const apiClient = {
       return null;
     }
   },
+
+  async extractYouTube(url: string): Promise<UnifiedSong | null> {
+    try {
+      const res = await fetch(`${API_BASE}/api/music/extract-youtube`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const json = await res.json();
+      return json.data || null;
+    } catch (e) {
+      console.error('extractYouTube error:', e);
+      return null;
+    }
+  },
 };

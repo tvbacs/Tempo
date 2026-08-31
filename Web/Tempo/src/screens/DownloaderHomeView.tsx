@@ -1,43 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Download,
   ChevronRight,
-  Link,
+  Link as LinkIcon,
   Zap,
-  ShieldCheck,
-  Clock,
-  Sparkles,
   Play,
+  Pause,
   Heart,
+  Download,
+  Check,
+  Music2,
   MoreVertical,
 } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { UnifiedSong } from '../types/music';
+import { apiClient } from '../api/client';
 
 interface DownloaderHomeViewProps {
   onViewDownloads?: () => void;
 }
 
 export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDownloads }) => {
-  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [inputUrl, setInputUrl] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
-  const { playSong } = usePlayerStore();
-  const { isLiked, toggleLike } = useLibraryStore();
+  const [extractedSong, setExtractedSong] = useState<UnifiedSong | null>(null);
+  const [recentExtracts, setRecentExtracts] = useState<UnifiedSong[]>([]);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [recommendations, setRecommendations] = useState<UnifiedSong[]>([]);
 
-  const handleExtract = async () => {
-    if (!youtubeUrl.trim()) return;
+  const { currentSong, isPlaying, playSong, togglePlayPause } = usePlayerStore();
+  const { downloadedSongs, isLiked, toggleLike, addDownloadedSong } = useLibraryStore();
+
+  const curatedSuggestions: (UnifiedSong & { url?: string })[] = [
+    {
+      id: 'sug_1',
+      title: 'Đừng Làm Trái Tim Anh Đau',
+      artistsNames: 'Sơn Tùng M-TP',
+      thumbnail: 'https://i.ytimg.com/vi/abPmZCZZrFA/hqdefault.jpg',
+      duration: 275,
+      url: 'https://www.youtube.com/watch?v=abPmZCZZrFA',
+    },
+    {
+      id: 'sug_2',
+      title: 'Không Thể Say',
+      artistsNames: 'HIEUTHUHAI',
+      thumbnail: 'https://i.ytimg.com/vi/i0nd3NPJ4MI/hqdefault.jpg',
+      duration: 222,
+      url: 'https://www.youtube.com/watch?v=i0nd3NPJ4MI',
+    },
+    {
+      id: 'sug_3',
+      title: 'Nâng Chén Tiêu Sầu',
+      artistsNames: 'Bích Phương',
+      thumbnail: 'https://i.ytimg.com/vi/sU8G7Q4rUA4/hqdefault.jpg',
+      duration: 215,
+      url: 'https://www.youtube.com/watch?v=sU8G7Q4rUA4',
+    },
+    {
+      id: 'sug_4',
+      title: 'Never Gonna Give You Up',
+      artistsNames: 'Rick Astley',
+      thumbnail: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+      duration: 212,
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    },
+  ];
+
+  useEffect(() => {
+    apiClient.getChart().then((chartSongs) => {
+      if (chartSongs && chartSongs.length > 0) {
+        setRecommendations(chartSongs.slice(0, 8));
+      } else {
+        apiClient.getHome().then((feed) => {
+          if (feed?.globalTrending && feed.globalTrending.length > 0) {
+            setRecommendations(feed.globalTrending.slice(0, 8));
+          } else if (feed?.newReleases && feed.newReleases.length > 0) {
+            setRecommendations(feed.newReleases.slice(0, 8));
+          } else {
+            setRecommendations(curatedSuggestions);
+          }
+        }).catch(() => {
+          setRecommendations(curatedSuggestions);
+        });
+      }
+    }).catch(() => {
+      setRecommendations(curatedSuggestions);
+    });
+  }, []);
+
+  const handleExtract = async (targetUrl?: string) => {
+    const urlToExtract = (targetUrl || inputUrl).trim();
+    if (!urlToExtract) return;
+
     setIsExtracting(true);
+    setDownloadSuccess(false);
+
     try {
-      const res = await fetch('/api/music/extract-youtube', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: youtubeUrl.trim() }),
-      });
-      const json = await res.json();
-      if (json.success && json.data) {
-        playSong(json.data);
-        setYoutubeUrl('');
+      const data = await apiClient.extractYouTube(urlToExtract);
+      if (data) {
+        setExtractedSong(data);
+        setRecentExtracts((prev) => {
+          const filtered = prev.filter((s) => s.id !== data.id);
+          return [data, ...filtered].slice(0, 6);
+        });
+        setInputUrl('');
       }
     } catch (e) {
       console.error('Extract error:', e);
@@ -46,196 +112,249 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
     }
   };
 
-  const sampleRecommendations: UnifiedSong[] = [
-    {
-      id: 'rec_1',
-      title: 'Đừng Làm Trái Tim Anh Đau',
-      artistsNames: 'Sơn Tùng M-TP',
-      thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400',
-      duration: 275,
-    },
-    {
-      id: 'rec_2',
-      title: 'Không Thể Say',
-      artistsNames: 'HIEUTHUHAI',
-      thumbnail: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400',
-      duration: 222,
-    },
-    {
-      id: 'rec_3',
-      title: 'Never Gonna Give You Up',
-      artistsNames: 'Rick Astley',
-      thumbnail: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=400',
-      duration: 207,
-    },
-    {
-      id: 'rec_4',
-      title: 'Chạy Về Khóc Với Anh',
-      artistsNames: 'ERIK',
-      thumbnail: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=400',
-      duration: 252,
-    },
-  ];
+  const handleSaveDownload = (song: UnifiedSong) => {
+    addDownloadedSong(song);
+    setDownloadSuccess(true);
+    setTimeout(() => setDownloadSuccess(false), 4000);
+  };
 
   const formatDuration = (sec: number) => {
+    if (!sec || isNaN(sec)) return '0:00';
     const m = Math.floor(sec / 60);
-    const s = sec % 60;
+    const s = Math.floor(sec % 60);
     return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  return (
-    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-6 select-none">
-      {/* 1. Top Hero Banner Card */}
-      <div className="bg-gradient-to-r from-[#181824] via-[#1A182E] to-[#12121A] rounded-2xl p-7 flex items-center justify-between relative overflow-hidden border-none shadow-xl">
-        <div className="flex items-center gap-6 z-10">
-          {/* Big Download Icon Square */}
-          <div className="w-28 h-28 rounded-2xl bg-gradient-to-br from-[#EC4899] via-[#8B5CF6] to-[#3B82F6] flex items-center justify-center text-white shadow-lg flex-shrink-0">
-            <Download className="w-12 h-12" strokeWidth={2.5} />
-          </div>
+  const isExtractedPlaying =
+    extractedSong &&
+    currentSong &&
+    (currentSong.id === extractedSong.id || currentSong.encodeId === extractedSong.id) &&
+    isPlaying;
 
-          <div className="flex flex-col">
-            <span className="text-[11px] font-extrabold text-[#EC4899] uppercase tracking-wider mb-1.5">
+  const displayList = recommendations.length > 0 ? recommendations : curatedSuggestions;
+
+  return (
+    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-6 select-none pb-28">
+      {/* 1. Top Hero Banner Card (Nhạc ngoại tuyến trên PC) */}
+      <div className="bg-[#181820] hover:bg-[#1B1B24] transition-colors rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-none shadow-md">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] font-black text-[#10B981] uppercase tracking-wider">
               NHẠC NGOẠI TUYẾN
             </span>
-            <h2 className="text-2xl font-black text-white mb-1.5">Bài hát đã tải xuống</h2>
-            <p className="text-xs text-text-secondary mb-4">
-              2 bài hát sẵn sàng nghe khi không có mạng
-            </p>
-            <button
-              onClick={onViewDownloads}
-              className="self-start flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] text-white rounded-xl text-xs font-extrabold hover:opacity-90 active:scale-98 transition-all border-none"
-            >
-              <span>Xem ngay</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
           </div>
+          <h2 className="text-base font-black text-white">Bài hát đã tải xuống</h2>
+          <p className="text-xs text-text-secondary">
+            {downloadedSongs.length > 0
+              ? `${downloadedSongs.length} bài hát sẵn sàng nghe ngoại tuyến trên máy tính`
+              : 'Chưa có bài hát nào được tải trên máy tính này'}
+          </p>
         </div>
 
-        {/* Decorative Wave Lines SVG Background */}
-        <div className="absolute right-0 top-0 bottom-0 w-80 opacity-20 pointer-events-none">
-          <svg className="w-full h-full" viewBox="0 0 300 200" fill="none">
-            <path
-              d="M0 100 C 50 150, 100 50, 150 120 C 200 190, 250 80, 300 130"
-              stroke="#EC4899"
-              strokeWidth="2"
-            />
-            <path
-              d="M0 120 C 60 170, 110 70, 160 140 C 210 210, 260 100, 300 150"
-              stroke="#8B5CF6"
-              strokeWidth="2"
-            />
-            <path
-              d="M0 80 C 40 130, 90 30, 140 100 C 190 170, 240 60, 300 110"
-              stroke="#3B82F6"
-              strokeWidth="2"
-            />
-          </svg>
-        </div>
+        <button
+          onClick={onViewDownloads}
+          className="self-start sm:self-center flex items-center gap-1.5 px-4 py-2 bg-white/10 hover:bg-white/15 active:scale-98 text-white rounded-md text-xs font-bold transition-all border-none cursor-pointer"
+        >
+          <span>Xem danh sách</span>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      {/* 2. YouTube Converter & Link Extractor Card */}
-      <div className="bg-[#181820] rounded-2xl p-6 flex flex-col border-none shadow-lg">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-2 h-2 rounded-full bg-[#FC475C] shadow-[0_0_8px_#FC475C]" />
-          <span className="text-[11px] font-extrabold text-[#FC475C] uppercase tracking-wider">
-            YOUTUBE CONVERTER
+      {/* 2. Universal Audio Converter & Link Extractor Card (Hỗ trợ YouTube, SoundCloud & TikTok) */}
+      <div className="bg-[#181820] rounded-lg p-5 flex flex-col border-none shadow-lg">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-[10px] font-extrabold text-[#FC475C] uppercase tracking-wider">
+            UNIVERSAL AUDIO CONVERTER
           </span>
         </div>
 
         <h3 className="text-base font-extrabold text-white mb-1">
-          Dán link YouTube để trích xuất
+          Dán link để trích xuất nhạc
         </h3>
         <p className="text-xs text-text-muted mb-4">
-          Hỗ trợ MP3 chất lượng cao đến 320kbps
+          Hỗ trợ trích xuất chất lượng cao từ YouTube, SoundCloud & TikTok (MP3 đến 320kbps)
         </p>
 
         {/* Input & Extract Button Row */}
-        <div className="flex items-center gap-3 mb-5">
-          <div className="flex-1 flex items-center bg-[#111117] rounded-xl px-4 h-12 gap-3 border-none focus-within:ring-2 focus-within:ring-[#FC475C]/40">
-            <Link className="w-4 h-4 text-text-muted flex-shrink-0" />
+        <div className="flex items-center gap-3">
+          <div className="flex-1 flex items-center bg-[#111117] rounded-md px-4 h-11 gap-3 border-none focus-within:ring-2 focus-within:ring-[#FC475C]/40">
+            <LinkIcon className="w-4 h-4 text-text-muted flex-shrink-0" />
             <input
               type="text"
-              value={youtubeUrl}
-              onChange={(e) => setYoutubeUrl(e.target.value)}
-              placeholder="Dán link YouTube tại đây..."
+              value={inputUrl}
+              onChange={(e) => setInputUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleExtract()}
+              placeholder="Dán link YouTube, SoundCloud hoặc TikTok tại đây..."
               className="w-full bg-transparent border-none outline-none text-xs text-white placeholder:text-text-muted"
             />
           </div>
 
           <button
-            onClick={handleExtract}
-            disabled={isExtracting || !youtubeUrl.trim()}
-            className="h-12 px-6 bg-gradient-to-r from-[#FC475C] to-[#EC4899] hover:opacity-90 active:scale-98 text-white rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all disabled:opacity-40 border-none flex-shrink-0 shadow-md shadow-primary/20"
+            onClick={() => handleExtract()}
+            disabled={isExtracting || !inputUrl.trim()}
+            className="h-11 px-6 bg-gradient-to-r from-[#FC475C] to-[#FC655A] hover:opacity-90 active:scale-98 text-white rounded-md text-xs font-extrabold flex items-center gap-2 transition-all disabled:opacity-40 border-none flex-shrink-0 shadow-md shadow-primary/20 cursor-pointer"
           >
             <Zap className="w-4 h-4 fill-white" />
             <span>{isExtracting ? 'Đang trích xuất...' : 'Trích xuất'}</span>
           </button>
         </div>
+      </div>
 
-        {/* 3 Features Pills */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="flex items-center gap-3 bg-[#121217] p-3 rounded-xl border-none">
-            <div className="w-8 h-8 rounded-lg bg-[#FC475C]/15 text-[#FC475C] flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-4 h-4" />
+      {/* 3. CARD TRÍCH XUẤT THÀNH CÔNG (Hiển thị bài vừa trích xuất) */}
+      {extractedSong && (
+        <div className="bg-gradient-to-br from-[#1C1A29] via-[#181824] to-[#12121A] rounded-xl p-5 border border-[#FC475C]/30 shadow-xl flex flex-col gap-4 animate-in fade-in slide-in-from-top duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-[#10B981]/20 text-[#10B981] text-[10px] font-black uppercase tracking-wider">
+                TRÍCH XUẤT THÀNH CÔNG
+              </span>
+              {extractedSong.source && (
+                <span className="px-2 py-0.5 rounded bg-white/10 text-text-secondary text-[10px] font-bold uppercase tracking-wider">
+                  {extractedSong.source}
+                </span>
+              )}
             </div>
-            <div className="min-w-0">
-              <h5 className="text-xs font-bold text-white">Chất lượng cao</h5>
-              <p className="text-[11px] text-text-muted">MP3 320kbps</p>
-            </div>
+            <button
+              onClick={() => setExtractedSong(null)}
+              className="text-text-muted hover:text-white text-xs border-none bg-transparent cursor-pointer"
+            >
+              Đóng
+            </button>
           </div>
 
-          <div className="flex items-center gap-3 bg-[#121217] p-3 rounded-xl border-none">
-            <div className="w-8 h-8 rounded-lg bg-[#3B82F6]/15 text-[#3B82F6] flex items-center justify-center flex-shrink-0">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <h5 className="text-xs font-bold text-white">An toàn</h5>
-              <p className="text-[11px] text-text-muted">Không lưu dữ liệu</p>
-            </div>
-          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Left Track Info */}
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-[#111117] flex-shrink-0 shadow-md">
+                <img
+                  src={
+                    extractedSong.thumbnail ||
+                    extractedSong.thumbnailM ||
+                    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120'
+                  }
+                  alt={extractedSong.title}
+                  className="w-full h-full object-cover"
+                />
+                {extractedSong.duration > 0 && (
+                  <span className="absolute bottom-1 right-1 bg-black/80 px-1 py-0.2 rounded text-[9px] font-bold text-white">
+                    {formatDuration(extractedSong.duration)}
+                  </span>
+                )}
+              </div>
 
-          <div className="flex items-center gap-3 bg-[#121217] p-3 rounded-xl border-none">
-            <div className="w-8 h-8 rounded-lg bg-[#EC4899]/15 text-[#EC4899] flex items-center justify-center flex-shrink-0">
-              <Clock className="w-4 h-4" />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-black text-white truncate mb-0.5">
+                  {extractedSong.title}
+                </h4>
+                <p className="text-xs text-text-secondary truncate mb-2">
+                  {extractedSong.artistsNames || 'Nghệ sĩ'}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="px-1.5 py-0.5 rounded bg-[#FC475C]/15 text-[#FC475C] text-[10px] font-extrabold">
+                    MP3 HQ
+                  </span>
+                  <span className="text-[11px] text-text-muted font-medium">
+                    {formatDuration(extractedSong.duration)}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h5 className="text-xs font-bold text-white">Nhanh chóng</h5>
-              <p className="text-[11px] text-text-muted">Trích xuất tức thì</p>
+
+            {/* Action Buttons: Play / Download / Like */}
+            <div className="flex items-center gap-2 self-start sm:self-center flex-shrink-0">
+              {/* Play / Nghe thử */}
+              <button
+                onClick={() => {
+                  if (isExtractedPlaying) {
+                    togglePlayPause();
+                  } else {
+                    playSong(extractedSong, [extractedSong, ...recentExtracts]);
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FC475C] to-[#FC655A] hover:opacity-90 active:scale-95 text-white rounded-md text-xs font-extrabold transition-all border-none shadow-md shadow-primary/20 cursor-pointer"
+              >
+                {isExtractedPlaying ? (
+                  <>
+                    <Pause className="w-3.5 h-3.5 fill-white" />
+                    <span>Tạm dừng</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                    <span>Nghe thử</span>
+                  </>
+                )}
+              </button>
+
+              {/* Tải xuống máy tính */}
+              <button
+                onClick={() => handleSaveDownload(extractedSong)}
+                disabled={downloadSuccess}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-bold transition-all border-none cursor-pointer ${
+                  downloadSuccess
+                    ? 'bg-[#10B981] text-white'
+                    : 'bg-white/10 hover:bg-white/15 active:scale-95 text-white'
+                }`}
+              >
+                {downloadSuccess ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Đã lưu</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Tải về PC</span>
+                  </>
+                )}
+              </button>
+
+              {/* Like */}
+              <button
+                onClick={() => toggleLike(extractedSong)}
+                className={`p-2 rounded-md bg-white/10 hover:bg-white/15 transition-colors border-none cursor-pointer ${
+                  isLiked(extractedSong.id) ? 'text-[#FC475C]' : 'text-text-muted hover:text-white'
+                }`}
+              >
+                <Heart
+                  className={`w-4 h-4 ${isLiked(extractedSong.id) ? 'fill-[#FC475C]' : ''}`}
+                />
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* 3. "Gợi ý cho bạn" Section */}
+      {/* 4. Gợi ý cho bạn (Trending Recommendations) */}
       <div className="flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-white">Gợi ý cho bạn</h3>
-          <span className="text-xs font-bold text-text-muted hover:text-white cursor-pointer">
-            Xem tất cả
-          </span>
         </div>
 
-        {/* 4 Wide Cards Row */}
+        {/* Grid Cards Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {sampleRecommendations.map((song) => {
+          {displayList.map((song) => {
             const liked = isLiked(song.id);
+            const thumbUrl = song.thumbnail || song.thumbnailM || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400';
             return (
               <div
                 key={song.id}
-                onClick={() => playSong(song, sampleRecommendations)}
-                className="bg-[#181820] hover:bg-[#22222D] p-3 rounded-2xl cursor-pointer transition-all flex flex-col border-none group"
+                onClick={() => playSong(song, displayList)}
+                className="bg-[#181820] hover:bg-[#22222D] p-3 rounded-lg cursor-pointer transition-all flex flex-col border-none group"
               >
                 {/* Artwork with duration badge */}
-                <div className="relative aspect-[4/3] w-full rounded-xl overflow-hidden mb-3 bg-[#111117]">
+                <div className="relative aspect-[4/3] w-full rounded-md overflow-hidden mb-3 bg-[#111117] shadow-sm">
                   <img
-                    src={song.thumbnail}
+                    src={thumbUrl}
                     alt={song.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                   />
                   {/* Duration Badge on bottom right */}
-                  <span className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-white">
-                    {formatDuration(song.duration)}
-                  </span>
+                  {song.duration > 0 && (
+                    <span className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-white">
+                      {formatDuration(song.duration)}
+                    </span>
+                  )}
 
                   {/* Play Overlay */}
                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -260,13 +379,13 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
                         e.stopPropagation();
                         toggleLike(song);
                       }}
-                      className={`p-1 ${liked ? 'text-[#FC475C]' : 'text-text-muted hover:text-white'}`}
+                      className={`p-1 border-none bg-transparent cursor-pointer ${liked ? 'text-[#FC475C]' : 'text-text-muted hover:text-white'}`}
                     >
                       <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-[#FC475C]' : ''}`} />
                     </button>
                     <button
                       onClick={(e) => e.stopPropagation()}
-                      className="p-1 text-text-muted hover:text-white"
+                      className="p-1 text-text-muted hover:text-white border-none bg-transparent cursor-pointer"
                     >
                       <MoreVertical className="w-3.5 h-3.5" />
                     </button>

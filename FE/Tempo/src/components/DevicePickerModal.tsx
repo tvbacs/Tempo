@@ -1,15 +1,15 @@
 /**
  * DevicePickerModal Component (Spotify Connect Clone)
- * Directly matches reference design from Spotify Connect
+ * 100% NO EMOJIS, Compact Content-Hug Bottom Sheet
+ * Tokenized Theme with COLORS.accentPrimary for Active Device
  */
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   Modal,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   TouchableWithoutFeedback,
   ScrollView,
 } from 'react-native';
@@ -18,15 +18,11 @@ import {
   Laptop,
   Smartphone,
   Check,
-  Volume2,
-  VolumeX,
   Radio,
-  Bluetooth,
   X,
   Play,
   Pause,
 } from 'lucide-react-native';
-import Slider from '@react-native-community/slider';
 import { useConnectStore, ConnectedDevice } from '../store/connectStore';
 import { usePlayerStore } from '../store/playerStore';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -39,22 +35,14 @@ export const DevicePickerModal: React.FC = () => {
     availableDevices,
     activeDevice,
     selectDevice,
-    volume,
-    setVolume,
-    initConnect,
   } = useConnectStore();
 
   const { currentSong, isPlaying } = usePlayerStore();
 
-  useEffect(() => {
-    if (isConnectModalVisible) {
-      initConnect();
-    }
-  }, [isConnectModalVisible, initConnect]);
-
   if (!isConnectModalVisible) return null;
 
   const isWebActive = activeDevice.type === 'web';
+  // Luôn dùng màu primary thương hiệu Tempo, không dùng xanh Spotify
   const activeColor = COLORS.accentPrimary;
 
   return (
@@ -67,84 +55,65 @@ export const DevicePickerModal: React.FC = () => {
       <TouchableWithoutFeedback onPress={closeConnectModal}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
-            <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, SPACING.md) + SPACING.md }]}>
+            <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, SPACING.md) + 4 }]}>
               {/* Drag Handle */}
               <View style={styles.handleBar} />
 
-              {/* Title */}
+              {/* Header */}
               <View style={styles.header}>
-                <Text style={styles.title}>Connect</Text>
+                <Text style={styles.title}>Kết nối thiết bị</Text>
                 <TouchableOpacity
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   onPress={closeConnectModal}
                 >
                   <X size={20} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>
 
-              {/* Active Device Highlight Card */}
+              {/* Active Device Highlight Card (Màu Primary ở đây) */}
               <View style={styles.activeCard}>
-                <View style={styles.activeCardTop}>
-                  <View style={styles.activeCardIcon}>
-                    {isWebActive ? (
-                      <Laptop size={32} color={activeColor} />
-                    ) : (
-                      <Smartphone size={32} color={activeColor} />
-                    )}
-                  </View>
-                  <View style={styles.activeCardInfo}>
-                    <Text style={styles.activeDeviceName}>{activeDevice.deviceName}</Text>
-                    {currentSong && (
-                      <View style={styles.trackInfoRow}>
-                        {isPlaying ? (
-                          <Play size={12} color={activeColor} fill={activeColor} style={{ marginRight: 4 }} />
-                        ) : (
-                          <Pause size={12} color={activeColor} fill={activeColor} style={{ marginRight: 4 }} />
-                        )}
-                        <Text numberOfLines={1} style={[styles.activeTrackName, { color: activeColor }]}>
-                          {currentSong.title} – {currentSong.artistsNames}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                <View style={styles.activeCardIcon}>
+                  {isWebActive ? (
+                    <Laptop size={26} color={activeColor} />
+                  ) : (
+                    <Smartphone size={26} color={activeColor} />
+                  )}
                 </View>
-
-
-                {/* Volume Slider for Active Device */}
-                <View style={styles.volumeRow}>
-                  <VolumeX size={16} color={COLORS.textMuted} />
-                  <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={1}
-                    value={volume}
-                    onValueChange={setVolume}
-                    minimumTrackTintColor={activeColor}
-                    maximumTrackTintColor="rgba(255,255,255,0.15)"
-                    thumbTintColor={COLORS.white}
-                  />
-                  <Volume2 size={16} color={COLORS.textMuted} />
+                <View style={styles.activeCardInfo}>
+                  <Text style={styles.activeDeviceName}>{activeDevice.deviceName}</Text>
+                  {currentSong && (
+                    <View style={styles.trackInfoRow}>
+                      {isPlaying ? (
+                        <Play size={11} color={activeColor} fill={activeColor} style={{ marginRight: 4 }} />
+                      ) : (
+                        <Pause size={11} color={activeColor} fill={activeColor} style={{ marginRight: 4 }} />
+                      )}
+                      <Text numberOfLines={1} style={[styles.activeTrackName, { color: activeColor }]}>
+                        {currentSong.title} – {currentSong.artistsNames}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
-              {/* Discovered Devices List */}
+              {/* Discovered Devices List (Chữ trắng / neutral, không dùng màu hồng trong list) */}
               <Text style={styles.sectionHeading}>Phát trên các thiết bị của bạn</Text>
 
-              <ScrollView style={styles.deviceList} showsVerticalScrollIndicator={false}>
+              <ScrollView style={styles.deviceList} bounces={false} showsVerticalScrollIndicator={false}>
                 {/* 1. Điện thoại này */}
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => selectDevice({ deviceId: 'mobile-app', deviceName: 'Điện thoại này', type: 'mobile', isOnline: true })}
                   style={styles.deviceItem}
                 >
-                  <Smartphone size={22} color={!isWebActive ? activeColor : COLORS.textPrimary} />
+                  <Smartphone size={22} color={COLORS.white} />
                   <View style={styles.deviceItemText}>
-                    <Text style={[styles.deviceItemName, !isWebActive && { color: activeColor, fontWeight: '700' }]}>
+                    <Text style={styles.deviceItemName}>
                       Điện thoại này
                     </Text>
                     <Text style={styles.deviceItemSub}>Loa & Tai nghe điện thoại</Text>
                   </View>
-                  {!isWebActive && <Check size={20} color={activeColor} />}
+                  {!isWebActive && <Check size={18} color={COLORS.white} />}
                 </TouchableOpacity>
 
                 {/* 2. Danh sách thiết bị thực tế đang trực tuyến */}
@@ -160,19 +129,19 @@ export const DevicePickerModal: React.FC = () => {
                         style={styles.deviceItem}
                       >
                         {device.type === 'web' ? (
-                          <Laptop size={22} color={isSelected ? activeColor : COLORS.textPrimary} />
+                          <Laptop size={22} color={COLORS.white} />
                         ) : (
-                          <Radio size={22} color={isSelected ? activeColor : COLORS.textPrimary} />
+                          <Radio size={22} color={COLORS.white} />
                         )}
                         <View style={styles.deviceItemText}>
-                          <Text style={[styles.deviceItemName, isSelected && { color: activeColor, fontWeight: '700' }]}>
+                          <Text style={styles.deviceItemName}>
                             {device.deviceName}
                           </Text>
                           <Text style={styles.deviceItemSub}>
-                            {device.type === 'web' ? 'Loa máy tính · Trực tuyến' : 'Thiết bị Tempo Connect'}
+                            {device.type === 'web' ? 'Loa máy tính · Trực tuyến' : 'Thiết bị Tempo Kết nối'}
                           </Text>
                         </View>
-                        {isSelected && <Check size={20} color={activeColor} />}
+                        {isSelected && <Check size={18} color={COLORS.white} />}
                       </TouchableOpacity>
                     );
                   })}
@@ -180,7 +149,7 @@ export const DevicePickerModal: React.FC = () => {
                 {availableDevices.filter((d) => d.deviceId !== 'mobile-app' && d.isOnline).length === 0 && (
                   <View style={styles.noDeviceHint}>
                     <Text style={styles.noDeviceText}>
-                      Đang tìm kiếm... Hãy mở Tempo Web Player trên máy tính để kết nối tự động.
+                      Đang tìm kiếm... Hãy mở Tempo Web trên máy tính để tự động kết nối.
                     </Text>
                   </View>
                 )}
@@ -193,26 +162,24 @@ export const DevicePickerModal: React.FC = () => {
   );
 };
 
-
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: '#1E1E24',
-    borderTopLeftRadius: LAYOUT.radiusLg,
-    borderTopRightRadius: LAYOUT.radiusLg,
+    borderTopLeftRadius: LAYOUT.radiusCard + 4,
+    borderTopRightRadius: LAYOUT.radiusCard + 4,
     paddingHorizontal: SPACING.screenPadding,
     paddingTop: SPACING.md,
-    maxHeight: Dimensions.get('window').height * 0.75,
   },
   handleBar: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'center',
     marginBottom: SPACING.md,
   },
@@ -220,28 +187,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   title: {
-    fontSize: TYPOGRAPHY.sizeHeading,
+    fontSize: TYPOGRAPHY.sizeHeading - 2,
     fontWeight: '800',
     color: COLORS.white,
   },
   activeCard: {
-    backgroundColor: '#282832',
-    borderRadius: LAYOUT.radiusMd,
+    backgroundColor: '#262630',
+    borderRadius: LAYOUT.radiusCard,
     padding: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  activeCardTop: {
+    marginBottom: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    marginBottom: SPACING.md,
   },
   activeCardIcon: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
+    borderRadius: LAYOUT.radiusCard - 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -249,13 +215,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activeDeviceName: {
-    fontSize: TYPOGRAPHY.sizeBody,
+    fontSize: TYPOGRAPHY.sizeBodySmall,
     fontWeight: '800',
     color: COLORS.white,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   activeTrackName: {
-    fontSize: TYPOGRAPHY.sizeCaption,
+    fontSize: TYPOGRAPHY.sizeMicro + 1,
     fontWeight: '600',
     flex: 1,
   },
@@ -263,54 +229,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  volumeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  slider: {
-    flex: 1,
-    height: 30,
-  },
   sectionHeading: {
-    fontSize: TYPOGRAPHY.sizeBodySmall,
+    fontSize: TYPOGRAPHY.sizeCaption,
     fontWeight: '700',
     color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs + 2,
+    marginTop: 2,
   },
   deviceList: {
-    maxHeight: 220,
-    marginBottom: SPACING.lg,
+    maxHeight: 200,
+    marginBottom: SPACING.xs,
   },
   deviceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.md - 2,
+    paddingVertical: SPACING.sm + 2,
     gap: SPACING.md,
   },
   deviceItemText: {
     flex: 1,
   },
   deviceItemName: {
-    fontSize: TYPOGRAPHY.sizeBody,
+    fontSize: TYPOGRAPHY.sizeBodySmall,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: COLORS.white,
   },
   deviceItemSub: {
-    fontSize: TYPOGRAPHY.sizeCaption,
+    fontSize: TYPOGRAPHY.sizeMicro,
     color: COLORS.textMuted,
-    marginTop: 2,
+    marginTop: 1,
   },
   noDeviceHint: {
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   noDeviceText: {
-    fontSize: TYPOGRAPHY.sizeCaption,
+    fontSize: TYPOGRAPHY.sizeMicro,
     color: COLORS.textMuted,
     textAlign: 'center',
-    lineHeight: TYPOGRAPHY.lineHeightCaption,
+    lineHeight: 16,
   },
 });

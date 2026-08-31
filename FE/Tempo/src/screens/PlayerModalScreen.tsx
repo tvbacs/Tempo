@@ -328,12 +328,12 @@ export const PlayerModalScreen: React.FC = () => {
     // 2. Chế độ Trộn bài (Shuffle)
     if (isShuffle) {
       const { shuffleHistory, currentIndex } = usePlayerStore.getState();
-      const unplayed = queue.filter((s) => !shuffleHistory.includes(s.id));
+      const unplayed = queue.filter((s: UnifiedSong) => !shuffleHistory.includes(s.id));
       if (unplayed.length > 0) {
         // Chọn bài ngẫu nhiên khác với bài tuần tự nếu có nhiều hơn 1 bài chưa nghe
         const sequentialNextId = queue[currentIndex + 1]?.id;
         const candidates = unplayed.length > 1 && sequentialNextId 
-          ? unplayed.filter((s) => s.id !== sequentialNextId)
+          ? unplayed.filter((s: UnifiedSong) => s.id !== sequentialNextId)
           : unplayed;
         const targetList = candidates.length > 0 ? candidates : unplayed;
         const pseudoRandIdx = Math.floor(Math.abs(Math.sin((currentSong.title.length + unplayed.length) * 11)) * targetList.length);
@@ -345,7 +345,7 @@ export const PlayerModalScreen: React.FC = () => {
         };
       }
       if (repeatMode === 'all') {
-        const otherSongs = queue.filter((s) => s.id !== currentSong.id);
+        const otherSongs = queue.filter((s: UnifiedSong) => s.id !== currentSong.id);
         const nextInLoop = otherSongs[otherSongs.length - 1] || currentSong;
         return {
           song: nextInLoop,

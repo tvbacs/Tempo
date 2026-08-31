@@ -101,6 +101,13 @@ class AudioEngine {
         console.log('[AudioEngine] Using direct audioUrl for extracted stream track:', song.title);
       }
 
+      // Nếu là bài offline thuần mà không có file trên máy -> Báo không còn file
+      const isPureOffline = (song.source as any) === 'downloaded' || song.source === 'local' || (song as any).isOffline === true || song.id.startsWith('local_') || song.id.startsWith('download_');
+      if (isPureOffline && !streamUrl) {
+        useToastStore.getState().showToast('File nhạc tải về không còn tồn tại trên máy', 'info');
+        return false;
+      }
+
       // Ưu tiên 3: Nếu vẫn chưa có streamUrl (bài Zing MP3 thông thường), gọi API backend để resolve
       if (!streamUrl) {
         try {
@@ -138,14 +145,14 @@ class AudioEngine {
       let newPlayer: AudioPlayer | null = null;
       try {
         newPlayer = createAudioPlayer(streamUrl, {
-          updateInterval: 300,
+          updateInterval: 400,
           keepAudioSessionActive: true,
         });
       } catch (directError: any) {
         console.warn('[AudioEngine] Direct player creation failed, trying stream-proxy:', directError?.message);
         const proxyUrl = `${API_BASE_URL}/music/stream-proxy?url=${encodeURIComponent(streamUrl)}`;
         newPlayer = createAudioPlayer(proxyUrl, {
-          updateInterval: 300,
+          updateInterval: 400,
           keepAudioSessionActive: true,
         });
       }

@@ -84,6 +84,21 @@ function generateUUID(): string {
 const uid = () => useAuthStore.getState().user?.id ?? null;
 const userKey = (base: string) => `${base}_${uid() || 'anon'}`;
 
+const isGhostOfflineSong = (s: any): boolean => {
+  if (!s) return true;
+  const isOfflineType = s.source === 'downloaded' || s.source === 'local' || s.isOffline === true;
+  const isLocalId = typeof s.id === 'string' && (s.id.startsWith('local_') || s.id.startsWith('download_'));
+  if (isOfflineType || isLocalId) {
+    try {
+      const { useDownloadStore } = require('./downloadStore');
+      const downloadedSongs = useDownloadStore.getState().downloadedSongs;
+      return !downloadedSongs.some((d: any) => d.id === s.id);
+    } catch (_) {}
+    return true;
+  }
+  return false;
+};
+
 const STORAGE_KEYS = {
   LIKED: 'tempo_liked_songs',
   PLAYLISTS: 'tempo_custom_playlists',
@@ -126,7 +141,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (local) {
         const parsed: UnifiedSong[] = JSON.parse(local);
         if (Array.isArray(parsed)) {
-          set({ likedSongs: parsed });
+          const validLocal = parsed.filter((s) => !isGhostOfflineSong(s));
+          set({ likedSongs: validLocal });
         }
       }
     } catch (e) {
@@ -149,28 +165,38 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       }
 
       if (data && data.length > 0) {
-        const cloudSongs: UnifiedSong[] = data.map((r: any) => ({
-          id: r.song_id,
-          rawId: r.song_id,
-          title: r.title || 'Bài hát',
-          artistsNames: r.artists_names || 'Nghệ sĩ',
-          thumbnail: r.thumbnail || '',
-          duration: r.duration || 0,
-          source: (r.source as any) || 'zing',
-        }));
+        const cloudSongs: UnifiedSong[] = data
+          .map((r: any) => ({
+            id: r.song_id,
+            rawId: r.song_id,
+            title: r.title || 'Bài hát',
+            artistsNames: r.artists_names || 'Nghệ sĩ',
+            thumbnail: r.thumbnail || '',
+            duration: r.duration || 0,
+            source: (r.source as any) || 'zing',
+            addedAt: r.created_at,
+          }))
+          .filter((s) => !isGhostOfflineSong(s));
 
         // Merge cloud with local
-        const currentLocal = get().likedSongs;
+        const currentLocal = get().likedSongs.filter((s) => !isGhostOfflineSong(s));
         const mergedMap = new Map<string, UnifiedSong>();
         cloudSongs.forEach((s) => mergedMap.set(s.id, s));
-        currentLocal.forEach((s) => mergedMap.set(s.id, s));
-        const merged = Array.from(mergedMap.values());
+        currentLocal.forEach((s) => {
+          if (!mergedMap.has(s.id)) {
+            mergedMap.set(s.id, s);
+          } else {
+            const cloud = mergedMap.get(s.id)!;
+            mergedMap.set(s.id, { ...cloud, addedAt: cloud.addedAt || s.addedAt });
+          }
+        });
+        const merged = Array.from(mergedMap.values()).filter((s) => !isGhostOfflineSong(s));
 
         set({ likedSongs: merged });
         await AsyncStorage.setItem(storageKey, JSON.stringify(merged));
       } else if (get().likedSongs.length > 0) {
         // Cloud is empty but local has items: sync local up to Supabase
-        const localSongs = get().likedSongs;
+        const localSongs = get().likedSongs.filter((s) => !isGhostOfflineSong(s));
         for (const s of localSongs) {
           await supabase.from('liked_songs').upsert({
             user_id: userId,
@@ -198,7 +224,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       updated = likedSongs.filter((s) => s.id !== song.id);
       useToastStore.getState().showToast('Đã xóa khỏi Bài hát ưa thích', 'info');
     } else {
-      updated = [song, ...likedSongs];
+      const nowIso = new Date().toISOString();
+      const songWithAddedAt: UnifiedSong = { ...song, addedAt: song.addedAt || nowIso };
+      updated = [songWithAddedAt, ...likedSongs];
       useToastStore.getState().showToast('Đã thêm vào Bài hát ưa thích', 'info');
     }
 
@@ -270,13 +298,14 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           .filter((r: any) => r.name && !r.name.includes('TEMPO_ACTIVE') && !r.name.includes('active-server') && !r.name.startsWith('__'))
           .map((r: any) => {
             const matchedLocal = localList.find((p) => p.id === r.id);
+            const validSongs = (matchedLocal?.songs || []).filter((s) => !isGhostOfflineSong(s));
             return {
               id: r.id,
               name: r.name,
               description: r.description,
               coverUrl: r.cover_url,
-              songs: matchedLocal?.songs || [],
-              songCount: matchedLocal?.songs?.length || 0,
+              songs: validSongs,
+              songCount: validSongs.length,
             };
           });
 
@@ -284,7 +313,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         const mergedMap = new Map<string, CustomPlaylist>();
         cloudPlaylists.forEach((p) => mergedMap.set(p.id, p));
         localList.forEach((p) => {
-          if (!mergedMap.has(p.id)) mergedMap.set(p.id, p);
+          if (!mergedMap.has(p.id)) {
+            const validSongs = (p.songs || []).filter((s) => !isGhostOfflineSong(s));
+            mergedMap.set(p.id, { ...p, songs: validSongs, songCount: validSongs.length });
+          }
         });
         const merged = Array.from(mergedMap.values());
 
@@ -577,7 +609,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       const local = await AsyncStorage.getItem(storageKey);
       if (local) {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed)) set({ history: parsed });
+        if (Array.isArray(parsed)) {
+          set({ history: parsed.filter((item: HistoryItem) => !isGhostOfflineSong(item?.song)) });
+        }
       }
     } catch (e) {}
 
@@ -592,13 +626,16 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         .limit(100);
 
       if (!error && data && data.length > 0) {
-        const historyItems = data.map((r: any) => r.song_data);
+        const historyItems = data
+          .map((r: any) => r.song_data)
+          .filter((h: HistoryItem) => h?.song && !isGhostOfflineSong(h.song));
         const mergedMap = new Map<string, HistoryItem>();
         historyItems.forEach((h: HistoryItem) => mergedMap.set(h.song.id, h));
         get().history.forEach((h) => {
-          if (!mergedMap.has(h.song.id)) mergedMap.set(h.song.id, h);
+          if (!mergedMap.has(h.song.id) && !isGhostOfflineSong(h.song)) mergedMap.set(h.song.id, h);
         });
         const merged = Array.from(mergedMap.values())
+          .filter((h) => !isGhostOfflineSong(h.song))
           .sort((a, b) => b.updatedAt - a.updatedAt)
           .slice(0, 100);
 

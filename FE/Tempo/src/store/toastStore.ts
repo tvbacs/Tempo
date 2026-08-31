@@ -6,10 +6,13 @@ import { create } from 'zustand';
 
 export type ToastType = 'info' | 'success' | 'vip' | 'error' | 'warning';
 
-interface DownloadToast {
+export interface DownloadToast {
   songId: string;
   title: string;        // short title (max 22 chars)
   progress: number;     // 0..1
+  currentIndex?: number;
+  totalCount?: number;
+  remainingInQueue?: number;
 }
 
 interface ToastState {
@@ -23,7 +26,12 @@ interface ToastState {
   showToast: (message: string, type?: ToastType) => void;
   hideToast: () => void;
 
-  showDownloadToast: (songId: string, title: string, progress: number) => void;
+  showDownloadToast: (
+    songId: string,
+    title: string,
+    progress: number,
+    queueInfo?: { currentIndex?: number; totalCount?: number; remainingInQueue?: number }
+  ) => void;
   hideDownloadToast: (songId?: string) => void;
 }
 
@@ -49,12 +57,26 @@ export const useToastStore = create<ToastState>((set, get) => ({
     set({ visible: false });
   },
 
-  showDownloadToast: (songId: string, title: string, progress: number) => {
+  showDownloadToast: (
+    songId: string,
+    title: string,
+    progress: number,
+    queueInfo?: { currentIndex?: number; totalCount?: number; remainingInQueue?: number }
+  ) => {
     const shortTitle = title.length > 22 ? title.substring(0, 22) + '…' : title;
     const clampedProgress = Math.min(Math.max(progress, 0), 1);
-    set({ downloadToast: { songId, title: shortTitle, progress: clampedProgress } });
+    set({
+      downloadToast: {
+        songId,
+        title: shortTitle,
+        progress: clampedProgress,
+        currentIndex: queueInfo?.currentIndex,
+        totalCount: queueInfo?.totalCount,
+        remainingInQueue: queueInfo?.remainingInQueue,
+      },
+    });
 
-    // Khi đạt 100%, tự động ẩn thanh download sau 1 giây
+    // Khi đạt 100%, tự động ẩn thanh download sau 1.2 giây
     if (clampedProgress >= 1) {
       if (downloadTimeoutId) clearTimeout(downloadTimeoutId);
       downloadTimeoutId = setTimeout(() => {

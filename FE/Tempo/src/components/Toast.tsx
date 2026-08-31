@@ -24,15 +24,15 @@ export const Toast: React.FC = () => {
   const renderIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle2 size={18} color="#22C55E" />;
+        return <CheckCircle2 size={22} color="#22C55E" />;
       case 'error':
-        return <AlertCircle size={18} color="#EF4444" />;
+        return <AlertCircle size={22} color="#EF4444" />;
       case 'warning':
-        return <AlertTriangle size={18} color="#F59E0B" />;
+        return <AlertTriangle size={22} color="#F59E0B" />;
       case 'vip':
       case 'info':
       default:
-        return <Info size={18} color={COLORS.accentPrimary} />;
+        return <Info size={22} color={COLORS.accentPrimary} />;
     }
   };
 
@@ -67,11 +67,14 @@ export const Toast: React.FC = () => {
             onPress={() => setIsMinimized(false)}
             style={[styles.minimizedPill, { top: downloadTopOffset }]}
           >
-            <Download size={16} color={COLORS.accentPrimary} />
+            <Download size={18} color={COLORS.accentPrimary} />
             <Text style={styles.minimizedPct}>
+              {downloadToast.totalCount && downloadToast.totalCount > 1
+                ? `${downloadToast.currentIndex}/${downloadToast.totalCount} • `
+                : ''}
               {Math.round(downloadToast.progress * 100)}%
             </Text>
-            <Maximize2 size={15} color={COLORS.textSecondary} style={{ marginLeft: 2 }} />
+            <Maximize2 size={16} color={COLORS.textSecondary} style={{ marginLeft: 2 }} />
             <TouchableOpacity
               hitSlop={{ top: 12, bottom: 12, left: 10, right: 12 }}
               onPress={(e) => {
@@ -80,17 +83,34 @@ export const Toast: React.FC = () => {
               }}
               style={styles.minimizedCloseBtn}
             >
-              <X size={15} color={COLORS.textMuted} />
+              <X size={16} color={COLORS.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         ) : (
           /* Dạng Đầy Đủ (Thanh tiến trình chi tiết) */
           <View style={[styles.downloadContainer, { top: downloadTopOffset }]}>
             <View style={styles.downloadHeader}>
-              <Download size={16} color={COLORS.accentPrimary} />
-              <Text style={styles.downloadTitle} numberOfLines={1}>
-                {downloadToast.title}
-              </Text>
+              <Download size={20} color={COLORS.accentPrimary} />
+              <View style={{ flex: 1, marginHorizontal: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {downloadToast.totalCount && downloadToast.totalCount > 1 ? (
+                    <View style={styles.batchBadge}>
+                      <Text style={styles.batchBadgeText}>
+                        {downloadToast.currentIndex}/{downloadToast.totalCount}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Text style={styles.downloadTitle} numberOfLines={1}>
+                    {downloadToast.title}
+                  </Text>
+                </View>
+                {downloadToast.remainingInQueue && downloadToast.remainingInQueue > 0 ? (
+                  <Text style={styles.queueSubText}>
+                    Còn {downloadToast.remainingInQueue} bài hát trong hàng đợi
+                  </Text>
+                ) : null}
+              </View>
+
               <Text style={styles.downloadPct}>
                 {Math.round(downloadToast.progress * 100)}%
               </Text>
@@ -193,6 +213,23 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizeCaption,
     fontWeight: '700',
     color: '#111827',
+  },
+  batchBadge: {
+    backgroundColor: 'rgba(252, 71, 92, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  batchBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.accentPrimary,
+  },
+  queueSubText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 2,
   },
   downloadPct: {
     fontSize: TYPOGRAPHY.sizeCaption,

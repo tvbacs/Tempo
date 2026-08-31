@@ -27,6 +27,8 @@ import { Search as SearchIcon, X, Music, ChevronRight } from "lucide-react-nativ
 import { apiClient } from "../api/client";
 import { UnifiedSong, Artist } from "../types/music";
 import { SongItem } from "../components/SongItem";
+import { AddToPlaylistModal } from "../components/AddToPlaylistModal";
+import { SongOptionsModal } from "../components/SongOptionsModal";
 import { usePlayerStore } from "../store/playerStore";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 
@@ -134,6 +136,8 @@ export const SearchScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [trendingPlaylists, setTrendingPlaylists] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState<UnifiedSong | null>(null);
+  const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
 
   const { playSong } = usePlayerStore();
   const searchTimeout = useRef<any>(null);
@@ -276,6 +280,7 @@ export const SearchScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   Keyboard.dismiss();
                   playSong(item, songs, { type: 'search', title: `Tìm kiếm: "${query}"` });
                 }}
+                onMorePress={() => setSelectedSongForOptions(item)}
               />
             )}
             contentContainerStyle={styles.listContent}
@@ -384,6 +389,20 @@ export const SearchScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <View style={{ height: LAYOUT.miniPlayerHeight + SPACING.bottomPaddingOffset }} />
         </ScrollView>
       )}
+
+      {/* Add To Playlist Modal */}
+      <AddToPlaylistModal
+        visible={selectedSongForPlaylist !== null}
+        song={selectedSongForPlaylist}
+        onClose={() => setSelectedSongForPlaylist(null)}
+      />
+
+      {/* Song Options Modal (3 dots menu) */}
+      <SongOptionsModal
+        visible={selectedSongForOptions !== null}
+        song={selectedSongForOptions}
+        onClose={() => setSelectedSongForOptions(null)}
+      />
     </SafeAreaView>
   );
 };
@@ -407,7 +426,9 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.bgSurfaceSecondary,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
     borderRadius: LAYOUT.radiusFull,
     height: LAYOUT.searchBarHeight,
     paddingHorizontal: SPACING.lg,
@@ -445,6 +466,7 @@ const styles = StyleSheet.create({
   },
   browseContent: {
     paddingTop: SPACING.xs,
+    paddingBottom: LAYOUT.miniPlayerHeight + SPACING.bottomPaddingOffset,
   },
   sectionBlock: {
     marginBottom: SPACING.xxl + 4,

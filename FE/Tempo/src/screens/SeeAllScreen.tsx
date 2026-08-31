@@ -14,12 +14,13 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   Dimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Play, Pause, Shuffle, Music, Flame, Sparkles } from "lucide-react-native";
+import { ChevronLeft, Play, Pause, Shuffle, Music, Flame, Sparkles, Search, X } from "lucide-react-native";
 import { SongItem } from "../components/SongItem";
 import { SongItemSkeleton } from "../components/SkeletonLoader";
 import { usePlayerStore } from "../store/playerStore";
@@ -43,6 +44,7 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
   const [title, setTitle] = useState<string>(initialTitle || "Xem tất cả");
   const [songs, setSongs] = useState<UnifiedSong[]>([]);
   const [playlists, setPlaylists] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const { playSong, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
@@ -104,15 +106,36 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
     };
   }, [type, initialTitle]);
 
+  const filteredSongs = React.useMemo(() => {
+    if (!searchQuery.trim()) return songs;
+    const q = searchQuery.toLowerCase().trim();
+    return songs.filter(
+      (s) =>
+        s.title?.toLowerCase().includes(q) ||
+        s.artistsNames?.toLowerCase().includes(q)
+    );
+  }, [songs, searchQuery]);
+
+  const filteredPlaylists = React.useMemo(() => {
+    if (!searchQuery.trim()) return playlists;
+    const q = searchQuery.toLowerCase().trim();
+    return playlists.filter(
+      (p) =>
+        p.title?.toLowerCase().includes(q) ||
+        p.artistsNames?.toLowerCase().includes(q) ||
+        p.sortDescription?.toLowerCase().includes(q)
+    );
+  }, [playlists, searchQuery]);
+
   const handlePlayAll = () => {
-    if (songs.length === 0) return;
+    if (filteredSongs.length === 0) return;
     if (isCurrentCollectionPlaying) {
       togglePlayPause();
       return;
     }
     const songsToPlay = isShuffle
-      ? [...songs].sort(() => Math.random() - 0.5)
-      : songs;
+      ? [...filteredSongs].sort(() => Math.random() - 0.5)
+      : filteredSongs;
     playSong(songsToPlay[0], songsToPlay, { type: type === 'chart' ? 'chart' : 'custom', title, id: type });
   };
 
@@ -120,9 +143,9 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
     if (!isShuffle) {
       toggleShuffle();
     }
-    if (!isCurrentCollectionPlaying && songs.length > 0) {
-      const shuffled = [...songs].sort(() => Math.random() - 0.5);
-      playSong(shuffled[0], songs, { type: type === 'chart' ? 'chart' : 'custom', title, id: type });
+    if (!isCurrentCollectionPlaying && filteredSongs.length > 0) {
+      const shuffled = [...filteredSongs].sort(() => Math.random() - 0.5);
+      playSong(shuffled[0], filteredSongs, { type: type === 'chart' ? 'chart' : 'custom', title, id: type });
     } else {
       toggleShuffle();
     }
@@ -156,7 +179,7 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
       </View>
 
       {/* Hero Header Card for Songs List */}
-      {!isPlaylistMode && songs.length > 0 && !isLoading && (
+      {!isPlaylistMode && songs.length > 0 && !isLoading && !searchQuery && (
         <View style={styles.heroBanner}>
           <Image
             source={{
@@ -234,9 +257,34 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
                 />
               </TouchableOpacity>
 
-              <Text style={styles.heroSongCountRight}>{songs.length} ca khúc</Text>
+              <Text style={styles.heroSongCountRight}>{filteredSongs.length} ca khúc</Text>
             </View>
           </View>
+        </View>
+      )}
+
+      {/* Inline Search Bar */}
+      {!isLoading && (songs.length > 0 || playlists.length > 0) && (
+        <View style={styles.searchBarWrap}>
+          <Search size={16} color={COLORS.textMuted} style={styles.searchIcon} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={isPlaylistMode ? "Tìm danh sách phát..." : "Tìm trong danh sách này..."}
+            placeholderTextColor={COLORS.textMuted}
+            style={styles.searchInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setSearchQuery("")}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={16} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -249,9 +297,9 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
         </View>
       ) : isPlaylistMode ? (
         /* Grid Mode: Playlists & Albums */
-        playlists.length > 0 ? (
+        filteredPlaylists.length > 0 ? (
           <FlatList
-            data={playlists}
+            data={filteredPlaylists}
             keyExtractor={(item, index) => item.id + index}
             numColumns={2}
             columnWrapperStyle={styles.gridRow}
@@ -289,14 +337,16 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
         ) : (
           <View style={styles.emptyContainer}>
             <Music size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>Chưa có danh sách phát nào</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery ? `Không tìm thấy danh sách phát "${searchQuery}"` : "Chưa có danh sách phát nào"}
+            </Text>
           </View>
         )
       ) : (
         /* List Mode: Songs */
-        songs.length > 0 ? (
+        filteredSongs.length > 0 ? (
           <FlatList
-            data={songs}
+            data={filteredSongs}
             keyExtractor={(item) => item.id}
             contentContainerStyle={[styles.listContent, { paddingBottom: bottomPadding }]}
             showsVerticalScrollIndicator={false}
@@ -305,14 +355,16 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
                 song={item}
                 index={index}
                 showIndex={type === "chart"}
-                onPress={() => playSong(item, songs, { type: type === 'chart' ? 'chart' : 'custom', title })}
+                onPress={() => playSong(item, filteredSongs, { type: type === 'chart' ? 'chart' : 'custom', title })}
               />
             )}
           />
         ) : (
           <View style={styles.emptyContainer}>
             <Music size={40} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>Không có bài hát nào</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery ? `Không tìm thấy bài hát nào khớp với "${searchQuery}"` : "Không có bài hát nào"}
+            </Text>
           </View>
         )
       )}
@@ -352,13 +404,33 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 1,
   },
-  shuffleHeaderBtn: {
+  navCircleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
+  },
+  searchBarWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: LAYOUT.radiusFull,
+    paddingHorizontal: SPACING.md,
+    height: 46,
+    marginHorizontal: SPACING.screenPadding,
+    marginBottom: SPACING.md,
+    gap: SPACING.xs + 2,
+  },
+  searchIcon: {
+    marginRight: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.sizeBodySmall,
+    color: COLORS.textPrimary,
+    paddingVertical: 0,
   },
   heroBanner: {
     height: 180,

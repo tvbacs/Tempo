@@ -110,7 +110,7 @@ export const SPACING = {
   xxl: 24,
   xxxl: 28,
   screenPadding: 16,
-  bottomPaddingOffset: 64,
+  bottomPaddingOffset: 84,
 };
 
 export const TYPOGRAPHY = {

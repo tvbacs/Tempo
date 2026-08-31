@@ -26,11 +26,13 @@ import {
   Pause,
   Shuffle,
   UserPlus,
-  Check,
+  CheckCircle2,
   MoreHorizontal,
   BadgeCheck,
 } from "lucide-react-native";
 import { GradientPlayButton } from "../components/GradientButton";
+import { SongItem } from "../components/SongItem";
+import { SongOptionsModal } from "../components/SongOptionsModal";
 import { usePlayerStore } from "../store/playerStore";
 import { useActivePlayback } from "../store/connectStore";
 import { useLibraryStore } from "../store/libraryStore";
@@ -62,6 +64,7 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
   const [topSongs, setTopSongs] = useState<UnifiedSong[]>([]);
   const [albums, setAlbums] = useState<any[]>([]);
+  const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showFullBio, setShowFullBio] = useState<boolean>(false);
   const { playSong, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
@@ -241,7 +244,7 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           >
             {isFollowing ? (
               <View style={styles.btnContentRow}>
-                <Check size={16} color={COLORS.white} style={{ marginRight: 6 }} />
+                <CheckCircle2 size={16} color="#1DB954" style={{ marginRight: 6 }} />
                 <Text style={styles.followTextActive}>Đang theo dõi</Text>
               </View>
             ) : (
@@ -281,53 +284,16 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           {isLoading ? (
             <ActivityIndicator size="small" color={COLORS.accentPrimary} style={{ marginVertical: SPACING.xl }} />
           ) : topSongs.length > 0 ? (
-            topSongs.slice(0, 8).map((song, index) => {
-              const isThisPlaying = currentSong?.id === song.id && isPlaying;
-              return (
-                <TouchableOpacity
-                  key={song.id}
-                  activeOpacity={0.8}
-                  onPress={() => playSong(song, topSongs, { type: 'artist', title: artistName })}
-                  style={styles.songRow}
-                >
-                  <Text style={styles.songIndex}>{index + 1}</Text>
-                  <Image
-                    source={{
-                      uri:
-                        song.thumbnail ||
-                        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120",
-                    }}
-                    style={styles.songThumb}
-                  />
-
-                  <View style={styles.songInfo}>
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.songTitle,
-                        isThisPlaying && { color: COLORS.accentPrimary },
-                      ]}
-                    >
-                      {song.title}
-                    </Text>
-                    <View style={styles.songMetaRow}>
-                      {song.isVip && (
-                        <View style={styles.vipBadge}>
-                          <Text style={styles.vipText}>VIP</Text>
-                        </View>
-                      )}
-                      <Text numberOfLines={1} style={styles.songArtist}>
-                        {song.artistsNames}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.durationText}>
-                    {formatDurationMs(song.duration * 1000)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })
+            topSongs.slice(0, 10).map((song, index) => (
+              <SongItem
+                key={song.id}
+                song={song}
+                index={index + 1}
+                showIndex
+                onPress={() => playSong(song, topSongs, { type: 'artist', title: artistName, id: alias || artistName })}
+                onMorePress={() => setSelectedSongForOptions(song)}
+              />
+            ))
           ) : (
             <Text style={styles.emptyNotice}>Chưa có bài hát nổi bật</Text>
           )}
@@ -367,9 +333,9 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                 style={styles.bioText}
                 numberOfLines={showFullBio ? undefined : 4}
               >
-                {artistData.biography || artistData.sortBiography}
+                {artistData?.biography || artistData?.sortBiography}
               </Text>
-              {(artistData.biography || "").length > 150 && (
+              {(artistData?.biography?.length || 0) > 200 && (
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => setShowFullBio(!showFullBio)}
@@ -386,6 +352,13 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
         <View style={{ height: currentSong ? LAYOUT.miniPlayerHeight + SPACING.md : SPACING.xxl }} />
       </ScrollView>
+
+      {/* Song Options Modal */}
+      <SongOptionsModal
+        visible={!!selectedSongForOptions}
+        song={selectedSongForOptions}
+        onClose={() => setSelectedSongForOptions(null)}
+      />
     </View>
   );
 };
@@ -409,8 +382,6 @@ const styles = StyleSheet.create({
   navCircleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: 18,
-    backgroundColor: COLORS.bgNavCircle,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -503,8 +474,6 @@ const styles = StyleSheet.create({
   shuffleBtn: {
     width: LAYOUT.iconButtonLg,
     height: LAYOUT.iconButtonLg,
-    borderRadius: 22,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },

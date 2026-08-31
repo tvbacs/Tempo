@@ -28,9 +28,12 @@ import {
   ChevronRight,
   HardDriveDownload,
   Music,
+  ListPlus,
+  Plus,
 } from "lucide-react-native";
 import { apiClient } from "../api/client";
 import { UnifiedSong } from "../types/music";
+import { AddToPlaylistModal } from "../components/AddToPlaylistModal";
 import { usePlayerStore } from "../store/playerStore";
 import { useDownloadStore } from "../store/downloadStore";
 import { useLibraryStore } from "../store/libraryStore";
@@ -73,7 +76,9 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   const [url, setUrl] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedSong, setExtractedSong] = useState<(UnifiedSong & { audioUrl: string; quality?: string; fileSize?: string }) | null>(null);
+  const [searchResults, setSearchResults] = useState<UnifiedSong[]>([]);
   const [recentExtracts, setRecentExtracts] = useState<UnifiedSong[]>([]);
+  const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState<UnifiedSong | null>(null);
 
   const { playSong } = usePlayerStore();
   const { downloadedSongs, downloadSong, isDownloaded, isDownloading, fetchDownloads } = useDownloadStore();
@@ -86,26 +91,44 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   }, [fetchDownloads]);
 
   const handleExtract = async (targetUrl?: string) => {
-    const inputUrl = (targetUrl || url).trim();
-    if (!inputUrl) {
-      showToast("Vui lòng dán đường dẫn YouTube, SoundCloud hoặc TikTok", "info");
+    const inputStr = (targetUrl || url).trim();
+    if (!inputStr) {
+      showToast("Vui lòng nhập tên bài hát hoặc dán đường dẫn", "info");
       return;
     }
 
-    // Kiểm tra giới hạn 5 lần cho tài khoản Free
-    if (!canExtract()) {
-      showToast("Bạn đã dùng hết 5 lượt trích xuất Free. Nâng cấp VIP để trích xuất không giới hạn!", "vip");
-      navigation.navigate("UpgradeScreen");
-      return;
-    }
+    const isUrl = inputStr.startsWith('http://') || inputStr.startsWith('https://') || inputStr.includes('youtu.be') || inputStr.includes('youtube.com') || inputStr.includes('tiktok.com') || inputStr.includes('soundcloud.com');
 
     Keyboard.dismiss();
     setIsExtracting(true);
     setExtractedSong(null);
+    setSearchResults([]);
+
+    // Nếu người dùng nhập tên bài hát (không phải URL) -> Tìm kiếm bài hát
+    if (!isUrl) {
+      try {
+        showToast(`Đang tìm kiếm "${inputStr}"...`, "info");
+        const searchData = await apiClient.search(inputStr);
+        if (searchData && searchData.songs && searchData.songs.length > 0) {
+          setSearchResults(searchData.songs);
+          showToast(`Tìm thấy ${searchData.songs.length} bài hát!`, "success");
+          setIsExtracting(false);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    // Kiểm tra giới hạn 5 lần cho tài khoản Free khi trích xuất link
+    if (!canExtract()) {
+      showToast("Bạn đã dùng hết 5 lượt trích xuất Free. Nâng cấp VIP để trích xuất không giới hạn!", "vip");
+      navigation.navigate("UpgradeScreen");
+      setIsExtracting(false);
+      return;
+    }
 
     try {
       showToast("Đang kết nối & trích xuất âm thanh...", "info");
-      const data = await apiClient.extractYouTube(inputUrl);
+      const data = await apiClient.extractYouTube(inputStr);
       setExtractedSong(data);
 
       await incrementExtractCount();
@@ -118,7 +141,7 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
       showToast(`Đã trích xuất xong "${data.title}"!`, "success");
     } catch (err: any) {
       console.warn("Extract error handled:", err.message);
-      showToast(err.message || "Trích xuất thất bại. Vui lòng kiểm tra lại liên kết.", "error");
+      showToast(err.message || "Không thể tìm hoặc trích xuất bài hát này.", "error");
     } finally {
       setIsExtracting(false);
     }
@@ -194,17 +217,17 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
           <View style={styles.extractorHeader}>
             <View style={styles.tagWrap}>
               <Music size={14} color={COLORS.accentPrimary} />
-              <Text style={styles.tagText}>UNIVERSAL AUDIO CONVERTER</Text>
+              <Text style={styles.tagText}>UNIVERSAL MUSIC DOWNLOADER</Text>
             </View>
-            <Text style={styles.extractorTitle}>Dán Link Để Trích Xuất Nhạc</Text>
+            <Text style={styles.extractorTitle}>Tải Nhạc Trực Tiếp & Trích Xuất</Text>
             <Text style={styles.extractorSub}>
-              Hỗ trợ YouTube, SoundCloud & TikTok.
+              Có thể nghe & thêm vào Yêu thích / Danh sách phát mà không cần tải xuống, hoặc lưu về máy để nghe Offline.
             </Text>
             <View style={styles.quotaBadge}>
               <Text style={styles.quotaBadgeText}>
                 {user?.isVip
-                  ? "VIP: Trích xuất không giới hạn"
-                  : `Hạn mức Free: Còn lại ${remaining} / 5 lượt`}
+                  ? "VIP: Tải & Trích xuất không giới hạn"
+                  : `Trích xuất link Free: Còn lại ${remaining} / 5 lượt`}
               </Text>
             </View>
           </View>
@@ -214,14 +237,15 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
             <TextInput
               value={url}
               onChangeText={setUrl}
-              placeholder="Dán link YouTube, SoundCloud, TikTok..."
+              placeholder="Nhập tên bài hát hoặc dán link..."
               placeholderTextColor={COLORS.textMuted}
               style={styles.inputField}
               autoCapitalize="none"
               autoCorrect={false}
+              onSubmitEditing={() => handleExtract()}
             />
             {url.length > 0 && (
-              <TouchableOpacity onPress={() => setUrl("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={() => { setUrl(""); setSearchResults([]); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <X size={16} color={COLORS.textSecondary} />
               </TouchableOpacity>
             )}
@@ -242,16 +266,95 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
               {isExtracting ? (
                 <View style={styles.btnInner}>
                   <ActivityIndicator size="small" color={COLORS.white} />
-                  <Text style={styles.extractBtnText}>Đang trích xuất...</Text>
+                  <Text style={styles.extractBtnText}>Đang xử lý...</Text>
                 </View>
               ) : (
                 <View style={styles.btnInner}>
-                  <Text style={styles.extractBtnText}>Trích Xuất & Nghe Thử</Text>
+                  <Text style={styles.extractBtnText}>Trích xuất</Text>
                 </View>
               )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
+
+        {/* Danh sách kết quả tìm kiếm bài hát theo tên */}
+        {searchResults.length > 0 && (
+          <View style={styles.resultCard}>
+            <View style={styles.resultHeader}>
+              <Text style={styles.resultHeaderText}>KẾT QUẢ TÌM KIẾM ({searchResults.length})</Text>
+            </View>
+
+            {searchResults.map((song) => {
+              const downloading = isDownloading(song.id);
+              const downloaded = isDownloaded(song.id);
+              const liked = isLiked(song.id);
+
+              return (
+                <View key={song.id} style={[styles.resultBody, { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', paddingBottom: 12, marginBottom: 12 }]}>
+                  <Image source={{ uri: song.thumbnail }} style={styles.resultThumb} />
+                  <View style={styles.resultInfo}>
+                    <Text numberOfLines={1} style={styles.resultTitle}>
+                      {song.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.resultArtist}>
+                      {song.artistsNames}
+                    </Text>
+                    <View style={styles.resultMetaRow}>
+                      <View style={styles.qualityBadge}>
+                        <Text style={styles.qualityBadgeText}>320k HQ</Text>
+                      </View>
+                      <Text style={styles.resultMetaText}>{formatDuration(song.duration)}</Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => playSong(song, searchResults)}
+                      style={[styles.actionIconBtnPrimary, { width: 36, height: 36 }]}
+                    >
+                      <Play size={16} color={COLORS.white} fill={COLORS.white} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => downloadSong(song)}
+                      style={[styles.actionIconBtn, { width: 36, height: 36 }]}
+                    >
+                      {downloading ? (
+                        <ActivityIndicator size="small" color="#1DB954" />
+                      ) : downloaded ? (
+                        <CheckCircle size={18} color="#1DB954" />
+                      ) : (
+                        <Download size={18} color={COLORS.textPrimary} />
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setSelectedSongForPlaylist(song)}
+                      style={[styles.actionIconBtn, { width: 36, height: 36 }]}
+                    >
+                      <ListPlus size={18} color={COLORS.textPrimary} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => toggleLike(song)}
+                      style={[styles.actionIconBtn, { width: 36, height: 36 }]}
+                    >
+                      <Heart
+                        size={18}
+                        color={liked ? COLORS.accentPrimary : COLORS.textPrimary}
+                        fill={liked ? COLORS.accentPrimary : "transparent"}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {extractedSong && (
           <View style={styles.resultCard}>
@@ -302,17 +405,27 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => toggleLike(extractedSong)}
-                style={styles.actionIconBtn}
-              >
-                <Heart
-                  size={20}
-                  color={isLiked(extractedSong.id) ? COLORS.accentPrimary : COLORS.textPrimary}
-                  fill={isLiked(extractedSong.id) ? COLORS.accentPrimary : "transparent"}
-                />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedSongForPlaylist(extractedSong)}
+                  style={styles.actionIconBtn}
+                >
+                  <ListPlus size={20} color={COLORS.textPrimary} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => toggleLike(extractedSong)}
+                  style={styles.actionIconBtn}
+                >
+                  <Heart
+                    size={20}
+                    color={isLiked(extractedSong.id) ? COLORS.accentPrimary : COLORS.textPrimary}
+                    fill={isLiked(extractedSong.id) ? COLORS.accentPrimary : "transparent"}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -333,9 +446,6 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
               <HardDriveDownload size={24} color={COLORS.white} />
             </View>
             <View style={styles.offlineHubTextWrap}>
-              <View style={styles.offlineBadge}>
-                <Text style={styles.offlineBadgeText}>KHO NHẠC NGOẠI TUYẾN</Text>
-              </View>
               <Text style={styles.offlineHubTitle}>Bài Hát Đã Tải Xuống</Text>
               <Text style={styles.offlineHubSub}>
                 {downloadedSongs.length > 0
@@ -368,13 +478,22 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                     {song.artistsNames}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  activeOpacity={0.75}
-                  onPress={() => downloadSong(song)}
-                  style={styles.recentDownloadBtn}
-                >
-                  <Download size={18} color={isDownloaded(song.id) ? COLORS.accentPrimary : COLORS.textSecondary} />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => setSelectedSongForPlaylist(song)}
+                    style={styles.recentDownloadBtn}
+                  >
+                    <ListPlus size={18} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => downloadSong(song)}
+                    style={styles.recentDownloadBtn}
+                  >
+                    <Download size={18} color={isDownloaded(song.id) ? COLORS.accentPrimary : COLORS.textSecondary} />
+                  </TouchableOpacity>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -382,6 +501,13 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
 
         <View style={{ height: LAYOUT.miniPlayerHeight + SPACING.bottomPaddingOffset }} />
       </ScrollView>
+
+      {/* Add To Playlist Modal */}
+      <AddToPlaylistModal
+        visible={selectedSongForPlaylist !== null}
+        song={selectedSongForPlaylist}
+        onClose={() => setSelectedSongForPlaylist(null)}
+      />
     </SafeAreaView>
   );
 };
@@ -555,7 +681,9 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.bgSurface,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
     borderRadius: LAYOUT.radiusFull,
     paddingHorizontal: SPACING.md,
     height: 48,

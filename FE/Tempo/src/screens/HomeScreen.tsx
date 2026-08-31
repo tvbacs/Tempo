@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  ActivityIndicator,
   StyleSheet,
   Dimensions,
 } from "react-native";
@@ -38,6 +39,7 @@ import {
   Compass,
 } from "lucide-react-native";
 import { apiClient } from "../api/client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { HomeFeedData, ChartData, UnifiedSong } from "../types/music";
 import { SongItem } from "../components/SongItem";
 import { HomeScreenSkeleton } from "../components/SkeletonLoader";
@@ -66,7 +68,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [hasError, setHasError] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
 
-  const { playSong, positionMs, durationMs, currentSong } = usePlayerStore();
+  const { playSong, currentSong } = usePlayerStore();
   const {
     history,
     fetchHistory,
@@ -101,6 +103,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       setChart(chartData);
       setIsOffline(false);
 
+      // Lưu cache mới nhất
+      AsyncStorage.multiSet([
+        ['@tempo_home_feed_cache', JSON.stringify(feedData)],
+        ['@tempo_chart_cache', JSON.stringify(chartData)],
+      ]).catch(() => {});
+
       // 2. Tải các mục phụ (TikTok, Ambient Themes) ngầm trong background (không block UI)
       Promise.all([
         apiClient.search("Nhạc Hot TikTok").catch(() => ({ songs: [] })),
@@ -116,21 +124,35 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (rainRes?.songs?.length) setRainSongs(rainRes.songs);
       }).catch(() => {});
     } catch (e: any) {
-      if (e?.name === 'AbortError' || e?.message?.includes('Aborted') || e?.message?.includes('Network request failed')) {
-        console.log("ℹ️ [Tempo] Không có kết nối mạng · Đang chạy chế độ Ngoại tuyến (Offline)");
-      } else {
-        console.log("ℹ️ [Tempo] Offline mode:", e?.message || e);
-      }
-      // Không có mạng → lập tức chuyển sang chế độ Offline mượt mà
+      console.log("ℹ️ [Tempo] Không có kết nối mạng · Đang chạy chế độ Ngoại tuyến (Offline)");
       setIsOffline(true);
       setHasError(false);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, [fetchHistory, fetchLikedSongs, fetchLastPlayedContext, fetchDownloads]);
+  }, [fetchHistory, fetchLikedSongs, fetchLastPlayedContext, fetchDownloads, fetchNotifications]);
 
   useEffect(() => {
+    // 1. Tải cache ngay lập tức (0ms)
+    AsyncStorage.multiGet(['@tempo_home_feed_cache', '@tempo_chart_cache'])
+      .then(([feedEntry, chartEntry]) => {
+        if (feedEntry?.[1]) {
+          try {
+            const cachedFeed = JSON.parse(feedEntry[1]);
+            if (cachedFeed) setFeed(cachedFeed);
+          } catch (_) {}
+        }
+        if (chartEntry?.[1]) {
+          try {
+            const cachedChart = JSON.parse(chartEntry[1]);
+            if (cachedChart) setChart(cachedChart);
+          } catch (_) {}
+        }
+      })
+      .catch(() => {});
+
+    // 2. Chạy loadData
     loadData();
   }, [loadData]);
 
@@ -148,12 +170,52 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const globalTrendingSongs = feed?.globalTrending || [];
   const topChartSongs = chart?.items || [];
 
-  // Lấy 1 album và 1 playlist từ API gợi ý (nếu chưa có lịch sử nghe)
-  const quickAlbum = featuredPlaylists[0]?.items?.[0] ?? null;
-  const quickPlaylist = featuredPlaylists[1]?.items?.[0] ?? featuredPlaylists[0]?.items?.[1] ?? null;
+  // Danh sách phẳng tất cả album/playlist từ API để chọn gợi ý thông minh
+  const allFeaturedPlaylists = useMemo(() => {
+    const list: any[] = [];
+    (featuredPlaylists || []).forEach((sec: any) => {
+      if (sec.items && Array.isArray(sec.items)) {
+        list.push(...sec.items);
+      }
+    });
+    return list;
+  }, [featuredPlaylists]);
 
-  const currentAlbum = lastPlayedAlbum || quickAlbum;
-  const currentPlaylist = lastPlayedPlaylist || quickPlaylist;
+  // Card 2: Lấy album hoặc playlist vừa nghe gần đây nhất
+  const recentPlayedItem = useMemo(() => {
+    if (lastPlayedAlbum) {
+      return { ...lastPlayedAlbum, badge: "Album vừa nghe" };
+    }
+    if (lastPlayedPlaylist) {
+      return { ...lastPlayedPlaylist, badge: "Playlist vừa nghe" };
+    }
+    // Nếu chưa nghe gì: lấy item đầu tiên từ featured
+    if (allFeaturedPlaylists.length > 0) {
+      return { ...allFeaturedPlaylists[0], badge: "Thịnh hành hôm nay" };
+    }
+    return null;
+  }, [lastPlayedAlbum, lastPlayedPlaylist, allFeaturedPlaylists]);
+
+  // Card 3: Gợi ý KHÁM PHÁ MỚI - Tuyệt đối không trùng với recentPlayedItem
+  const suggestedDiscoverItem = useMemo(() => {
+    const recentId = recentPlayedItem?.id;
+    const recentTitle = recentPlayedItem?.title?.toLowerCase() || "";
+    
+    // Tìm trong danh sách featured playlist 1 item khác hoàn toàn với recentPlayedItem
+    const candidate = allFeaturedPlaylists.find(
+      (item) => item.id !== recentId && (!recentTitle || !item.title?.toLowerCase().includes(recentTitle))
+    );
+
+    if (candidate) {
+      return { ...candidate, badge: "Gợi ý khám phá" };
+    }
+
+    if (allFeaturedPlaylists.length > 1) {
+      return { ...allFeaturedPlaylists[1], badge: "Gợi ý khám phá" };
+    }
+
+    return null;
+  }, [recentPlayedItem, allFeaturedPlaylists]);
 
   // Nghệ sĩ từ API nếu có, không thì dùng nghệ sĩ từ bảng xếp hạng
   const apiArtists: Array<{ id: string; name: string; alias: string; thumbnail: string }> =
@@ -401,7 +463,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={COLORS.accentPrimary}
+            tintColor="transparent"
+            colors={["transparent"]}
+            progressBackgroundColor="transparent"
           />
         }
       >
@@ -493,6 +557,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
+          {/* Reload Status Indicator below Header */}
+          {refreshing && (
+            <View style={styles.refreshBar}>
+              <ActivityIndicator size="small" color={COLORS.accentPrimary} />
+            </View>
+          )}
+
           {/* Quick Shelf Section: Hero Card Yêu thích Full-Width + 2 Card dài bên dưới (ảnh 1 bên, info 1 bên) */}
           <View style={styles.quickShelfContainer}>
             {/* 1. Card Yêu thích FULL WIDTH theo phong cách Spotify Hiện Đại */}
@@ -540,15 +611,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
             {/* 2. Hàng 2 card còn lại (dài nhưng không full width, ảnh 1 bên, thông tin 1 bên) */}
             <View style={styles.shelfDualRow}>
-              {/* Card 2: Album gần đây / gợi ý HOẶC Đã tải xuống khi offline */}
-              {currentAlbum ? (
+              {/* Card 2: Khi Online -> Album vừa nghe / Album thịnh hành; Khi Offline -> Đã tải xuống */}
+              {!isOffline && recentPlayedItem ? (
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() =>
                     navigation.navigate("PlaylistDetail", {
-                      id: currentAlbum.id,
-                      title: currentAlbum.title,
-                      thumbnail: currentAlbum.thumbnail,
+                      id: recentPlayedItem.id,
+                      title: recentPlayedItem.title,
+                      thumbnail: recentPlayedItem.thumbnail,
                     })
                   }
                   style={styles.horizontalCard}
@@ -556,7 +627,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   <Image
                     source={{
                       uri:
-                        currentAlbum.thumbnail ||
+                        recentPlayedItem.thumbnail ||
                         "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300",
                     }}
                     style={styles.horizontalCardImg}
@@ -564,13 +635,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   />
                   <View style={styles.horizontalCardInfo}>
                     <Text style={styles.horizontalCardBadge}>
-                      {lastPlayedAlbum ? "Album gần đây" : "Album gợi ý"}
+                      {recentPlayedItem.badge || "Gần đây nghe"}
                     </Text>
                     <Text numberOfLines={1} style={styles.horizontalCardTitle}>
-                      {currentAlbum.title}
+                      {recentPlayedItem.title}
                     </Text>
                     <Text numberOfLines={1} style={styles.horizontalCardSub}>
-                      {currentAlbum.artistsNames || "Album"}
+                      {recentPlayedItem.artistsNames || "Album"}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -580,11 +651,19 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   onPress={() => navigation.navigate("Downloads")}
                   style={styles.horizontalCard}
                 >
-                  <View style={[styles.horizontalCardImg, { backgroundColor: COLORS.bgSurfaceSecondary, alignItems: 'center', justifyContent: 'center' }]}>
-                    <Download size={20} color={COLORS.textPrimary} />
-                  </View>
+                  {downloadedSongs[0]?.thumbnail ? (
+                    <Image
+                      source={{ uri: downloadedSongs[0].thumbnail }}
+                      style={styles.horizontalCardImg}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.horizontalCardImg, { backgroundColor: '#2A1719', alignItems: 'center', justifyContent: 'center' }]}>
+                      <Download size={20} color={COLORS.accentPrimary} />
+                    </View>
+                  )}
                   <View style={styles.horizontalCardInfo}>
-                    <Text style={[styles.horizontalCardBadge, { color: COLORS.textMuted }]}>Ngoại tuyến</Text>
+                    <Text style={[styles.horizontalCardBadge, { color: COLORS.accentPrimary }]}>Ngoại tuyến</Text>
                     <Text numberOfLines={1} style={styles.horizontalCardTitle}>
                       Đã tải xuống
                     </Text>
@@ -595,15 +674,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 </TouchableOpacity>
               )}
 
-              {/* Card 3: Playlist gần đây / gợi ý HOẶC Nghe gần đây khi offline */}
-              {currentPlaylist ? (
+              {/* Card 3: Khi Online -> Gợi ý khám phá; Khi Offline -> Nghe gần đây */}
+              {!isOffline && suggestedDiscoverItem ? (
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() =>
                     navigation.navigate("PlaylistDetail", {
-                      id: currentPlaylist.id,
-                      title: currentPlaylist.title,
-                      thumbnail: currentPlaylist.thumbnail,
+                      id: suggestedDiscoverItem.id,
+                      title: suggestedDiscoverItem.title,
+                      thumbnail: suggestedDiscoverItem.thumbnail,
                     })
                   }
                   style={styles.horizontalCard}
@@ -611,21 +690,21 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   <Image
                     source={{
                       uri:
-                        currentPlaylist.thumbnail ||
+                        suggestedDiscoverItem.thumbnail ||
                         "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300",
                     }}
                     style={styles.horizontalCardImg}
                     resizeMode="cover"
                   />
                   <View style={styles.horizontalCardInfo}>
-                    <Text style={styles.horizontalCardBadge}>
-                      {lastPlayedPlaylist ? "Playlist gần đây" : "Playlist gợi ý"}
+                    <Text style={[styles.horizontalCardBadge, { color: '#8B5CF6' }]}>
+                      {suggestedDiscoverItem.badge || "Gợi ý khám phá"}
                     </Text>
                     <Text numberOfLines={1} style={styles.horizontalCardTitle}>
-                      {currentPlaylist.title}
+                      {suggestedDiscoverItem.title}
                     </Text>
                     <Text numberOfLines={1} style={styles.horizontalCardSub}>
-                      {currentPlaylist.artistsNames || "Tuyển tập"}
+                      {suggestedDiscoverItem.artistsNames || "Tuyển tập"}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -640,11 +719,19 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   }
                   style={styles.horizontalCard}
                 >
-                  <View style={[styles.horizontalCardImg, { backgroundColor: COLORS.bgSurfaceSecondary, alignItems: 'center', justifyContent: 'center' }]}>
-                    <Clock size={20} color={COLORS.textPrimary} />
-                  </View>
+                  {history[0]?.song?.thumbnail ? (
+                    <Image
+                      source={{ uri: history[0].song.thumbnail }}
+                      style={styles.horizontalCardImg}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.horizontalCardImg, { backgroundColor: '#1A1B2E', alignItems: 'center', justifyContent: 'center' }]}>
+                      <Clock size={20} color={'#8B5CF6'} />
+                    </View>
+                  )}
                   <View style={styles.horizontalCardInfo}>
-                    <Text style={[styles.horizontalCardBadge, { color: COLORS.textMuted }]}>Lịch sử</Text>
+                    <Text style={[styles.horizontalCardBadge, { color: '#8B5CF6' }]}>Lịch sử</Text>
                     <Text numberOfLines={1} style={styles.horizontalCardTitle}>
                       Nghe gần đây
                     </Text>
@@ -704,9 +791,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   >
                     {offlineContinue.map((item) => {
                       const song = item.song;
-                      const isCurrent = currentSong?.id === song.id;
-                      const songDur = isCurrent && durationMs > 0 ? durationMs : item.durationMs;
-                      const songPos = isCurrent ? positionMs : item.lastPositionMs;
+                      const songDur = item.durationMs || (song?.duration ? song.duration * 1000 : 0);
+                      const songPos = item.lastPositionMs || 0;
                       const progressRatio = songDur > 0 ? Math.min(songPos / songDur, 1) : 0;
                       return (
                         <TouchableOpacity
@@ -715,17 +801,48 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                           onPress={() => handlePlaySong(song, offlineContinue.map((h) => h.song), { type: 'single', title: 'Nghe tiếp' })}
                           style={styles.continueCard}
                         >
-                          <View style={styles.continueCoverWrapper}>
-                            <Image source={{ uri: song.thumbnail || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300" }} style={styles.continueCover} />
-                            <View style={styles.continuePlayBtn}>
-                              <Play size={14} color={COLORS.black} fill={COLORS.black} style={{ marginLeft: 2 }} />
+                          <Image
+                            source={{
+                              uri:
+                                song.thumbnail ||
+                                "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
+                            }}
+                            style={styles.continueCardBg}
+                          />
+                          <LinearGradient
+                            colors={["rgba(0,0,0,0.15)", "rgba(10,10,14,0.85)"]}
+                            locations={[0, 1]}
+                            style={styles.continueCardOverlay}
+                          />
+
+                          <View style={styles.continueCardInner}>
+                            <View style={styles.continueTextGroup}>
+                              <Text numberOfLines={1} style={styles.continueTitle}>
+                                {song.title}
+                              </Text>
+                              <Text numberOfLines={1} style={styles.continueArtist}>
+                                {song.artistsNames}
+                              </Text>
                             </View>
-                            <View style={styles.continueProgressTrack}>
-                              <View style={[styles.continueProgressBar, { width: `${Math.max(progressRatio * 100, 8)}%` }]} />
+
+                            <View style={styles.continuePlayBtn}>
+                              <Play
+                                size={12}
+                                color={COLORS.black}
+                                fill={COLORS.black}
+                                style={{ marginLeft: 2 }}
+                              />
                             </View>
                           </View>
-                          <Text numberOfLines={1} style={styles.continueTitle}>{song.title}</Text>
-                          <Text numberOfLines={1} style={styles.continueArtist}>{song.artistsNames}</Text>
+
+                          <View style={styles.continueProgressTrack}>
+                            <View
+                              style={[
+                                styles.continueProgressBar,
+                                { width: `${Math.max(progressRatio * 100, 8)}%` },
+                              ]}
+                            />
+                          </View>
                         </TouchableOpacity>
                       );
                     })}
@@ -803,9 +920,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 >
                   {history.slice(0, 8).map((item) => {
                     const song = item.song;
-                    const isCurrent = currentSong?.id === song.id;
-                    const songDur = isCurrent && durationMs > 0 ? durationMs : item.durationMs;
-                    const songPos = isCurrent ? positionMs : item.lastPositionMs;
+                    const songDur = item.durationMs || (song?.duration ? song.duration * 1000 : 0);
+                    const songPos = item.lastPositionMs || 0;
                     const progressRatio = songDur > 0 ? Math.min(songPos / songDur, 1) : 0;
 
                     return (
@@ -815,42 +931,48 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         onPress={() => handlePlaySong(song, history.map((h) => h.song), { type: 'single', title: 'Tiếp tục nghe' })}
                         style={styles.continueCard}
                       >
-                        <View style={styles.continueCoverWrapper}>
-                          <Image
-                            source={{
-                              uri:
-                                song.thumbnail ||
-                                "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300",
-                            }}
-                            style={styles.continueCover}
-                          />
-                          <TouchableOpacity
-                            activeOpacity={0.85}
-                            onPress={() => handlePlaySong(song, history.map((h) => h.song), { type: 'single', title: 'Tiếp tục nghe' })}
-                            style={styles.continuePlayBtn}
-                          >
+                        <Image
+                          source={{
+                            uri:
+                              song.thumbnail ||
+                              "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
+                          }}
+                          style={styles.continueCardBg}
+                        />
+                        <LinearGradient
+                          colors={["rgba(0,0,0,0.15)", "rgba(10,10,14,0.85)"]}
+                          locations={[0, 1]}
+                          style={styles.continueCardOverlay}
+                        />
+
+                        <View style={styles.continueCardInner}>
+                          <View style={styles.continueTextGroup}>
+                            <Text numberOfLines={1} style={styles.continueTitle}>
+                              {song.title}
+                            </Text>
+                            <Text numberOfLines={1} style={styles.continueArtist}>
+                              {song.artistsNames}
+                            </Text>
+                          </View>
+
+                          <View style={styles.continuePlayBtn}>
                             <Play
-                              size={14}
+                              size={12}
                               color={COLORS.black}
                               fill={COLORS.black}
                               style={{ marginLeft: 2 }}
                             />
-                          </TouchableOpacity>
-                          <View style={styles.continueProgressTrack}>
-                            <View
-                              style={[
-                                styles.continueProgressBar,
-                                { width: `${Math.max(progressRatio * 100, 8)}%` },
-                              ]}
-                            />
                           </View>
                         </View>
-                        <Text numberOfLines={1} style={styles.continueTitle}>
-                          {song.title}
-                        </Text>
-                        <Text numberOfLines={1} style={styles.continueArtist}>
-                          {song.artistsNames}
-                        </Text>
+
+                        <View style={styles.continueProgressTrack}>
+                          <View
+                            style={[
+                              styles.continueProgressBar,
+                              { width: `${Math.max(progressRatio * 100, 8)}%` },
+                            ]}
+                          />
+                        </View>
                       </TouchableOpacity>
                     );
                   })}
@@ -1109,7 +1231,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding }}
                 >
-                  {(featuredPlaylists[0]?.items || []).slice(0, 8).map((album: any) => (
+                  {(featuredPlaylists[0]?.items || [])
+                    .filter((a: any) => a.id !== recentPlayedItem?.id && a.id !== suggestedDiscoverItem?.id)
+                    .slice(0, 8)
+                    .map((album: any) => (
                     <TouchableOpacity
                       key={album.id}
                       activeOpacity={0.85}
@@ -1349,10 +1474,28 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accentPrimary,
   },
 
+  // Refresh Indicator
+  refreshBar: {
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    width: 36,
+    height: 36,
+    backgroundColor: "rgba(30, 30, 36, 0.92)",
+    borderRadius: 18,
+    marginBottom: SPACING.md,
+    zIndex: 4,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+
   // Quick Shelf Container
   quickShelfContainer: {
     paddingHorizontal: SPACING.screenPadding,
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.xxl,
     gap: 10,
     zIndex: 2,
   },
@@ -1483,35 +1626,71 @@ const styles = StyleSheet.create({
     color: COLORS.accentPrimary,
   },
 
-  // Continue Listening Card
+  // Continue Listening Card (Phong cách Duyệt tìm tất cả - Bo góc Top-Left, các góc dưới vuông vức)
   continueCard: {
-    width: 140,
-    marginRight: SPACING.md,
-  },
-  continueCoverWrapper: {
-    width: 140,
-    height: 140,
-    borderRadius: LAYOUT.radiusMd,
+    width: 172,
+    height: 92,
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 6,
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
     overflow: "hidden",
-    backgroundColor: COLORS.bgSurfaceSecondary,
-    marginBottom: SPACING.xs + 2,
     position: "relative",
+    marginRight: SPACING.md,
+    backgroundColor: COLORS.bgSurfaceSecondary,
   },
-  continueCover: {
+  continueCardBg: {
+    ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
+    resizeMode: "cover",
+  },
+  continueCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  continueCardInner: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    paddingHorizontal: 11,
+    paddingTop: 8,
+    paddingBottom: 12,
+    zIndex: 2,
+  },
+  continueTextGroup: {
+    flex: 1,
+    marginRight: 6,
+  },
+  continueTitle: {
+    fontSize: TYPOGRAPHY.sizeBodySmall,
+    fontWeight: "800",
+    color: COLORS.white,
+    marginBottom: 2,
+    textShadowColor: "rgba(0, 0, 0, 0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  continueArtist: {
+    fontSize: TYPOGRAPHY.sizeMicro,
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.8)",
+    textShadowColor: "rgba(0, 0, 0, 0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   continuePlayBtn: {
-    position: "absolute",
-    right: 8,
-    bottom: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: COLORS.white,
     alignItems: "center",
     justifyContent: "center",
-    elevation: 3,
+    elevation: 4,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
   },
   continueProgressTrack: {
     position: "absolute",
@@ -1519,21 +1698,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: COLORS.bgProgressInactive,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    zIndex: 3,
   },
   continueProgressBar: {
     height: "100%",
     backgroundColor: COLORS.accentPrimary,
-  },
-  continueTitle: {
-    fontSize: TYPOGRAPHY.sizeBodySmall,
-    fontWeight: "700",
-    color: COLORS.textPrimary,
-    marginBottom: 2,
-  },
-  continueArtist: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    color: COLORS.textSecondary,
   },
 
   // Album & Tuyển tập Card

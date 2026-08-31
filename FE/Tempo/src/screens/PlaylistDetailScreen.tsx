@@ -13,15 +13,17 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronLeft, Play, Pause, Shuffle, Heart, MoreHorizontal, Plus, Music } from "lucide-react-native";
+import { ChevronLeft, Play, Pause, Shuffle, Heart, MoreHorizontal, Plus, Music, Search, X } from "lucide-react-native";
 import { GradientPlayButton } from "../components/GradientButton";
 import { SongItem } from "../components/SongItem";
 import { SongItemSkeleton } from "../components/SkeletonLoader";
 import { AddSongsModal } from "../components/AddSongsModal";
+import { SongOptionsModal } from "../components/SongOptionsModal";
 import { usePlayerStore } from "../store/playerStore";
 import { useActivePlayback } from "../store/connectStore";
 import { useLibraryStore } from "../store/libraryStore";
@@ -48,9 +50,11 @@ export const PlaylistDetailScreen: React.FC<{
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const { playSong, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
   const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
-  const { playlists, savedAlbums, setLastPlayedContext, toggleSaveAlbum, isAlbumSaved } = useLibraryStore();
+  const { playlists, savedAlbums, setLastPlayedContext, toggleSaveAlbum, isAlbumSaved, removeSongFromPlaylist } = useLibraryStore();
   const { showToast } = useToastStore();
 
   const isLiked = id ? isAlbumSaved(id) : false;
@@ -155,37 +159,66 @@ export const PlaylistDetailScreen: React.FC<{
           }
         }
 
-        // 1. Kiểm tra xem có phải playlist cá nhân do user tự tạo không
-        const customPl = playlists.find((p) => p.id === id);
-        if (customPl) {
+        // 1. Kiểm tra Playlist cá nhân người dùng tự tạo
+        const localPl = playlists.find((p) => p.id === id);
+        if (localPl) {
           if (isMounted) {
+            const songs = localPl.songs || [];
             setPlaylist({
-              id: customPl.id,
-              title: customPl.name,
+              id: localPl.id,
+              title: localPl.name,
               thumbnail:
-                customPl.songs?.[0]?.thumbnail ||
-                customPl.coverUrl ||
-                initThumb ||
-                "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300",
-              artistsNames: `${customPl.songs?.length || 0} bài hát`,
-              songs: customPl.songs || [],
+                localPl.coverUrl ||
+                songs[0]?.thumbnail ||
+                "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500",
+              artistsNames: `${songs.length} bài hát`,
+              songs: songs,
             });
             setIsLoading(false);
           }
           return;
         }
 
-        // 2. Nếu là playlist/album trực tuyến từ Zing API
-        const data = await apiClient.getPlaylistDetail(id);
-        if (isMounted && data) {
-          setPlaylist(data);
+        // 2. Fetch Playlist / Album từ Zing / Audius
+        try {
+          const res = await apiClient.getPlaylistDetail(id);
+          if (res && isMounted) {
+            setPlaylist({
+              id: res.id || id,
+              title: res.title || initTitle || "Danh sách phát",
+              thumbnail: res.thumbnail || initThumb || "",
+              artistsNames: res.artistsNames || `${res.songs?.length || 0} bài hát`,
+              songs: res.songs || [],
+            });
+          }
+        } catch (apiErr) {
+          // Fallback: Tìm kiếm các bài hát theo tên Playlist nếu getPlaylistDetail không có
+          const searchTitle = initTitle || "Nhạc tuyển chọn";
+          const fallbackRes = await apiClient.search(searchTitle).catch(() => ({ songs: [] }));
+          if (fallbackRes?.songs?.length && isMounted) {
+            setPlaylist({
+              id,
+              title: searchTitle,
+              thumbnail: initThumb || fallbackRes.songs[0]?.thumbnail || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
+              artistsNames: initArtists || `${fallbackRes.songs.length} bài hát`,
+              songs: fallbackRes.songs,
+            });
+          } else if (isMounted) {
+            setPlaylist({
+              id,
+              title: initTitle || "Danh sách phát",
+              thumbnail: initThumb || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
+              artistsNames: "Tuyển tập đặc sắc",
+              songs: [],
+            });
+          }
         }
-      } catch (e: any) {
-        console.warn("Playlist API fallback:", e?.message || e);
-        if (isMounted && !playlist) {
+      } catch (err) {
+        console.error("Failed to load playlist detail:", err);
+        if (isMounted) {
           setPlaylist({
-            id: id || "unknown",
-            title: initTitle || "Tuyển tập âm nhạc",
+            id,
+            title: initTitle || "Danh sách phát",
             thumbnail: initThumb || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
             artistsNames: "Tuyển tập đặc sắc",
             songs: [],
@@ -210,6 +243,16 @@ export const PlaylistDetailScreen: React.FC<{
     "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500";
   const songList = playlist?.songs || [];
 
+  const filteredSongs = React.useMemo(() => {
+    if (!searchQuery.trim()) return songList;
+    const q = searchQuery.toLowerCase().trim();
+    return songList.filter(
+      (s) =>
+        s.title?.toLowerCase().includes(q) ||
+        s.artistsNames?.toLowerCase().includes(q)
+    );
+  }, [songList, searchQuery]);
+
   const isCustomPlaylist =
     playlists.some((p) => p.id === id) ||
     (typeof id === 'string' && id.startsWith('pl_'));
@@ -226,7 +269,7 @@ export const PlaylistDetailScreen: React.FC<{
      (playbackContext?.title && playbackContext.title === displayTitle));
 
   const handlePlayAll = () => {
-    if (songList.length === 0) return;
+    if (filteredSongs.length === 0) return;
     if (isCurrentPlaylistPlaying) {
       togglePlayPause();
       return;
@@ -240,8 +283,8 @@ export const PlaylistDetailScreen: React.FC<{
     });
 
     const songsToPlay = isShuffle
-      ? [...songList].sort(() => Math.random() - 0.5)
-      : songList;
+      ? [...filteredSongs].sort(() => Math.random() - 0.5)
+      : filteredSongs;
     playSong(songsToPlay[0], songsToPlay, { type: 'playlist', title: displayTitle, id: playlist?.id || id });
   };
 
@@ -253,16 +296,16 @@ export const PlaylistDetailScreen: React.FC<{
       type: contextType,
       artistsNames: playlist?.artistsNames,
     });
-    playSong(song, songList, { type: 'playlist', title: displayTitle, id: playlist?.id || id });
+    playSong(song, filteredSongs, { type: 'playlist', title: displayTitle, id: playlist?.id || id });
   };
 
   const handleToggleShuffle = () => {
     if (!isShuffle) {
       toggleShuffle();
     }
-    if (!isCurrentPlaylistPlaying && songList.length > 0) {
-      const shuffled = [...songList].sort(() => Math.random() - 0.5);
-      playSong(shuffled[0], songList, { type: 'playlist', title: displayTitle, id: playlist?.id || id });
+    if (!isCurrentPlaylistPlaying && filteredSongs.length > 0) {
+      const shuffled = [...filteredSongs].sort(() => Math.random() - 0.5);
+      playSong(shuffled[0], filteredSongs, { type: 'playlist', title: displayTitle, id: playlist?.id || id });
     } else {
       toggleShuffle();
     }
@@ -276,6 +319,15 @@ export const PlaylistDetailScreen: React.FC<{
       artistsNames: playlist?.artistsNames,
       songs: songList,
     });
+  };
+
+  const handleRemoveSongFromPlaylist = async (songToRemove: UnifiedSong) => {
+    if (id) {
+      await removeSongFromPlaylist(id, songToRemove.id);
+    }
+    setPlaylist((prev) =>
+      prev ? { ...prev, songs: prev.songs.filter((s) => s.id !== songToRemove.id) } : null
+    );
   };
 
   const getSubtitle = () => {
@@ -333,10 +385,10 @@ export const PlaylistDetailScreen: React.FC<{
               activeOpacity={0.8}
               onPress={handleToggleLike}
               hitSlop={{ top: SPACING.md, bottom: SPACING.md, left: SPACING.md, right: SPACING.md }}
-              style={styles.heartBtn}
+              style={styles.actionCircleBtn}
             >
               <Heart
-                size={24}
+                size={22}
                 color={isLiked ? COLORS.accentPrimary : COLORS.textSecondary}
                 fill={isLiked ? COLORS.accentPrimary : COLORS.transparent}
               />
@@ -344,12 +396,13 @@ export const PlaylistDetailScreen: React.FC<{
 
             {isCustomPlaylist && (
               <TouchableOpacity
-                activeOpacity={0.85}
+                activeOpacity={0.75}
+                hitSlop={{ top: SPACING.sm, bottom: SPACING.sm, left: SPACING.sm, right: SPACING.sm }}
                 onPress={() => setShowAddModal(true)}
-                style={styles.addSongBtnSmall}
+                style={styles.actionCircleBtn}
+                accessibilityLabel="Thêm bài hát"
               >
-                <Plus size={16} color={COLORS.textPrimary} style={{ marginRight: 4 }} />
-                <Text style={styles.addSongTextSmall}>Thêm bài hát</Text>
+                <Plus size={20} color={COLORS.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -380,6 +433,31 @@ export const PlaylistDetailScreen: React.FC<{
           </View>
         </View>
 
+        {/* Inline Search Bar */}
+        {songList.length > 0 && (
+          <View style={styles.searchBarWrap}>
+            <Search size={16} color={COLORS.textMuted} style={styles.searchIcon} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Tìm trong danh sách này..."
+              placeholderTextColor={COLORS.textMuted}
+              style={styles.searchInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setSearchQuery("")}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={16} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* Songs List */}
         <View style={styles.songsList}>
           {isLoading ? (
@@ -394,13 +472,21 @@ export const PlaylistDetailScreen: React.FC<{
                 Tìm kiếm và thêm bài hát yêu thích để lấp đầy danh sách phát này.
               </Text>
             </View>
+          ) : filteredSongs.length === 0 ? (
+            <View style={styles.emptyNotice}>
+              <Text style={styles.emptyTitle}>Không tìm thấy bài hát</Text>
+              <Text style={styles.emptyText}>
+                Không có bài hát nào khớp với từ khóa "{searchQuery}"
+              </Text>
+            </View>
           ) : (
-            songList.map((song, index) => (
+            filteredSongs.map((song, index) => (
               <SongItem
                 key={song.id}
                 song={song}
                 index={index + 1}
                 onPress={() => handlePlaySingle(song)}
+                onMorePress={() => setSelectedSongForOptions(song)}
               />
             ))
           )}
@@ -415,6 +501,14 @@ export const PlaylistDetailScreen: React.FC<{
         playlistId={id}
         playlistTitle={displayTitle}
         onClose={() => setShowAddModal(false)}
+      />
+
+      {/* Song Options Modal (3 dots menu) */}
+      <SongOptionsModal
+        visible={selectedSongForOptions !== null}
+        song={selectedSongForOptions}
+        onClose={() => setSelectedSongForOptions(null)}
+        onRemoveFromPlaylist={isCustomPlaylist ? handleRemoveSongFromPlaylist : undefined}
       />
     </SafeAreaView>
   );
@@ -436,8 +530,6 @@ const styles = StyleSheet.create({
   navCircleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -489,27 +581,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: SPACING.sm,
   },
-  addSongBtnSmall: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.bgSurfaceSecondary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: LAYOUT.radiusFull,
-    minHeight: 36,
-  },
-  addSongTextSmall: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    fontWeight: "700",
-    color: COLORS.textPrimary,
-  },
-  heartBtn: {
+  actionCircleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
+  },
+  searchBarWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: LAYOUT.radiusFull,
+    paddingHorizontal: SPACING.md,
+    height: 46,
+    marginHorizontal: SPACING.screenPadding,
+    marginBottom: SPACING.md,
+    gap: SPACING.xs + 2,
+  },
+  searchIcon: {
+    marginRight: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.sizeBodySmall,
+    color: COLORS.textPrimary,
+    paddingVertical: 0,
   },
   rightActions: {
     flexDirection: "row",
@@ -519,8 +617,6 @@ const styles = StyleSheet.create({
   shuffleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },

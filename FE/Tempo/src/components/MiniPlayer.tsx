@@ -4,10 +4,18 @@
  * 100% NO EMOJIS - Clean Vector Icons & Tokenized Theme
  */
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Play, Pause, Cast, Radio } from 'lucide-react-native';
+import { Play, Pause, Cast, Radio, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import { GradientPlayButton } from './GradientButton';
 import { usePlayerStore } from '../store/playerStore';
 import { useNavStore } from '../store/navStore';
@@ -28,7 +36,7 @@ export const MiniPlayer: React.FC = () => {
     isLoading,
     device,
     togglePlayPause,
-  } = useActivePlayback();
+  } = useActivePlayback(true);
 
   const {
     newlyDiscoveredDevice,
@@ -37,6 +45,12 @@ export const MiniPlayer: React.FC = () => {
     openConnectModal,
   } = useConnectStore();
   const [showTooltip, setShowTooltip] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const bottomInset = insets.bottom > 0 ? insets.bottom : SPACING.sm;
+  const bottomPosition = hasTabBar
+    ? LAYOUT.tabBarHeight + bottomInset + SPACING.xs
+    : bottomInset + SPACING.xs;
 
   // Trigger Spotify-style speech bubble tooltip khi thiết bị từ xa đang active HOẶC vừa phát hiện Web Player online
   useEffect(() => {
@@ -55,10 +69,6 @@ export const MiniPlayer: React.FC = () => {
   if (!song) return null;
 
   const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
-  const bottomInset = insets.bottom > 0 ? insets.bottom : SPACING.sm;
-  const bottomPosition = hasTabBar
-    ? LAYOUT.tabBarHeight + bottomInset + SPACING.xs
-    : bottomInset + SPACING.xs;
 
   const tooltipHeading = isRemote
     ? 'Đang nghe trên'
@@ -82,7 +92,7 @@ export const MiniPlayer: React.FC = () => {
   return (
     <>
       {/* 1. Spotify-style Floating Speech Bubble Tooltip above MiniPlayer */}
-      {showTooltip && (
+      {showTooltip && !isCollapsed && (
         <View style={[styles.tooltipContainer, { bottom: bottomPosition + LAYOUT.miniPlayerHeight + 10 }]}>
           <TouchableOpacity
             activeOpacity={0.9}
@@ -109,111 +119,147 @@ export const MiniPlayer: React.FC = () => {
         </View>
       )}
 
-      {/* 2. Main MiniPlayer Card with Dynamic Blurred Artwork Background */}
-      <View style={[styles.wrapper, { bottom: bottomPosition }]}>
-        {/* Dynamic Blurred Artwork Background */}
-        {song?.thumbnail ? (
-          <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-            <Image
-              source={{ uri: song.thumbnail }}
-              style={[StyleSheet.absoluteFillObject, { opacity: 0.55 }]}
-              blurRadius={Platform.OS === 'ios' ? 25 : 12}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={['rgba(15, 15, 20, 0.45)', 'rgba(12, 12, 18, 0.8)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
-          </View>
-        ) : null}
+      {/* 2. Collapsed Floating Disc on the Right OR Full MiniPlayer Card */}
+      {isCollapsed ? (
+        <View style={[styles.collapsedWrapper, { bottom: bottomPosition }]}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setIsCollapsed(false)}
+            style={styles.collapsedPill}
+          >
+            <ChevronLeft size={16} color={COLORS.white} style={styles.expandChevron} />
+            <View style={styles.collapsedDiscWrapper}>
+              <Image
+                source={{
+                  uri:
+                    song.thumbnail ||
+                    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120',
+                }}
+                style={styles.collapsedDiscImage}
+              />
+              {isPlaying && (
+                <View style={styles.collapsedPlayingDot} />
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={[styles.wrapper, { bottom: bottomPosition }]}>
+          {/* Dynamic Blurred Artwork Background */}
+          {song?.thumbnail ? (
+            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+              <Image
+                source={{ uri: song.thumbnail }}
+                style={[StyleSheet.absoluteFillObject, { opacity: 0.55 }]}
+                blurRadius={Platform.OS === 'ios' ? 25 : 12}
+                resizeMode="cover"
+              />
+              <LinearGradient
+                colors={['rgba(15, 15, 20, 0.45)', 'rgba(12, 12, 18, 0.8)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+            </View>
+          ) : null}
 
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={openFullPlayer}
-          style={styles.container}
-        >
-          <Image
-            source={{
-              uri:
-                song.thumbnail ||
-                'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120',
-            }}
-            style={styles.thumbnail}
-          />
-
-          <View style={styles.info}>
-            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
-              {song.title}
-            </Text>
-
-            {isRemote ? (
-              <View style={styles.remoteSubRow}>
-                <Radio size={11} color={COLORS.accentPrimary} />
-                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.remoteSubText}>
-                  {device.deviceName}
-                </Text>
-              </View>
-            ) : (
-              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.artist}>
-                {song.artistsNames}
-              </Text>
-            )}
-          </View>
-
-          <View style={styles.controls}>
-            {/* Cast / Connect Button with Active Glow/Indicator */}
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={openFullPlayer}
+            style={styles.container}
+          >
+            {/* Nút mũi tên thu nhỏ sang phải (ChevronRight - Mũi tên góc không có dấu -) */}
             <TouchableOpacity
               activeOpacity={0.7}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              onPress={openConnectModal}
-              style={styles.iconBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+              onPress={() => setIsCollapsed(true)}
+              style={styles.collapseBtn}
+              accessibilityLabel="Thu nhỏ sang phải"
             >
-              <Cast
-                size={19}
-                color={
-                  isRemote
-                    ? COLORS.accentPrimary
-                    : COLORS.textSecondary
-                }
-              />
-              {isRemote && (
-                <View
-                  style={[
-                    styles.castDot,
-                    { backgroundColor: COLORS.accentPrimary },
-                  ]}
-                />
-              )}
+              <ChevronRight size={18} color={COLORS.textSecondary} />
             </TouchableOpacity>
 
-            <GradientPlayButton onPress={togglePlayPause} size={38}>
-              {isLoading ? (
-                <ActivityIndicator size="small" color={COLORS.white} />
-              ) : isPlaying ? (
-                <Pause size={18} color={COLORS.white} fill={COLORS.white} />
-              ) : (
-                <Play size={18} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 2 }} />
-              )}
-            </GradientPlayButton>
-          </View>
-        </TouchableOpacity>
+            <Image
+              source={{
+                uri:
+                  song.thumbnail ||
+                  'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120',
+              }}
+              style={styles.thumbnail}
+            />
 
-        {/* Thanh ngang thời lượng ở đáy card */}
-        <View style={styles.bottomProgressTrack}>
-          <LinearGradient
-            colors={
-              isRemote
-                ? [COLORS.accentPrimary, '#FC655A']
-                : [COLORS.gradientTop, COLORS.gradientBottom]
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.bottomProgressBar, { width: `${progress * 100}%` }]}
-          />
+            <View style={styles.info}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
+                {song.title}
+              </Text>
+
+              {isRemote ? (
+                <View style={styles.remoteSubRow}>
+                  <Radio size={11} color={COLORS.accentPrimary} />
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.remoteSubText}>
+                    {device.deviceName}
+                  </Text>
+                </View>
+              ) : (
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.artist}>
+                  {song.artistsNames}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.controls}>
+              {/* Cast / Connect Button with Active Glow/Indicator */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                onPress={openConnectModal}
+                style={styles.iconBtn}
+              >
+                <Cast
+                  size={19}
+                  color={
+                    isRemote
+                      ? COLORS.accentPrimary
+                      : COLORS.textSecondary
+                  }
+                />
+                {isRemote && (
+                  <View
+                    style={[
+                      styles.castDot,
+                      { backgroundColor: COLORS.accentPrimary },
+                    ]}
+                  />
+                )}
+              </TouchableOpacity>
+
+              <GradientPlayButton onPress={togglePlayPause} size={38}>
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : isPlaying ? (
+                  <Pause size={18} color={COLORS.white} fill={COLORS.white} />
+                ) : (
+                  <Play size={18} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 2 }} />
+                )}
+              </GradientPlayButton>
+            </View>
+          </TouchableOpacity>
+
+          {/* Thanh ngang thời lượng ở đáy card */}
+          <View style={styles.bottomProgressTrack}>
+            <LinearGradient
+              colors={
+                isRemote
+                  ? [COLORS.accentPrimary, '#FC655A']
+                  : [COLORS.gradientTop, COLORS.gradientBottom]
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.bottomProgressBar, { width: `${progress * 100}%` }]}
+            />
+          </View>
         </View>
-      </View>
+      )}
 
       <DevicePickerModal />
     </>
@@ -305,7 +351,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 7,
+    paddingTop: 9.5,
+    paddingBottom: 5.5,
   },
   thumbnail: {
     width: 46,
@@ -361,6 +408,58 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
+  },
+  collapseBtn: {
+    paddingHorizontal: 5,
+    paddingVertical: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 3,
+  },
+  collapsedWrapper: {
+    position: 'absolute',
+    right: SPACING.md,
+    zIndex: 999,
+    elevation: 20,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+  },
+  collapsedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1C1C24',
+    paddingVertical: 5,
+    paddingLeft: 7,
+    paddingRight: 6,
+    borderRadius: LAYOUT.radiusFull,
+    gap: 4,
+  },
+  expandChevron: {
+    marginRight: 1,
+  },
+  collapsedDiscWrapper: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: COLORS.bgSurfaceSecondary,
+  },
+  collapsedDiscImage: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  collapsedPlayingDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1DB954',
   },
   bottomProgressTrack: {
     height: 3,

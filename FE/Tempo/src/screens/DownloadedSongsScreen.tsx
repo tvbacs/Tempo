@@ -21,7 +21,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   ChevronLeft,
@@ -53,6 +53,7 @@ import { formatDuration } from "../utils/format";
 export const DownloadedSongsScreen: React.FC<{
   navigation: any;
 }> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -62,7 +63,7 @@ export const DownloadedSongsScreen: React.FC<{
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const { playSong, isLoading, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
-  const { isPlaying, togglePlayPause } = useActivePlayback();
+  const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { downloadedSongs, fetchDownloads, removeDownload } = useDownloadStore();
   const { showToast } = useToastStore();
 
@@ -373,12 +374,12 @@ export const DownloadedSongsScreen: React.FC<{
           )}
         </View>
 
-        <View style={{ height: isSelectMode ? 100 : LAYOUT.miniPlayerHeight + SPACING.bottomPaddingOffset }} />
+        <View style={{ height: isSelectMode ? 130 : LAYOUT.miniPlayerHeight + SPACING.bottomPaddingOffset }} />
       </ScrollView>
 
       {/* Floating Bottom Action Toolbar for Multi-Select Mode */}
       {isSelectMode && (
-        <View style={styles.floatingActionToolbar}>
+        <View style={[styles.floatingActionToolbar, { bottom: currentSong ? LAYOUT.miniPlayerHeight + insets.bottom + SPACING.sm : insets.bottom + SPACING.md }]}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={handleRemoveSelected}
@@ -434,8 +435,6 @@ const styles = StyleSheet.create({
   navCircleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -449,13 +448,11 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   selectToggleBtn: {
-    backgroundColor: COLORS.bgSurfaceSecondary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 8,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
     minHeight: 36,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: LAYOUT.radiusFull,
   },
   selectToggleBtnText: {
     fontSize: TYPOGRAPHY.sizeBodySmall,
@@ -488,10 +485,12 @@ const styles = StyleSheet.create({
   searchBarWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.bgSurfaceSecondary,
-    borderRadius: LAYOUT.radiusMd,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: LAYOUT.radiusFull,
     paddingHorizontal: SPACING.md,
-    height: 44,
+    height: 46,
     gap: SPACING.sm,
     marginBottom: SPACING.md,
   },
@@ -546,8 +545,6 @@ const styles = StyleSheet.create({
   shuffleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -642,20 +639,13 @@ const styles = StyleSheet.create({
   },
   floatingActionToolbar: {
     position: "absolute",
-    bottom: SPACING.xl,
     left: SPACING.screenPadding,
     right: SPACING.screenPadding,
-    backgroundColor: COLORS.bgSurface,
-    borderRadius: LAYOUT.radiusFull,
-    padding: SPACING.xs + 2,
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.sm,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    justifyContent: "center",
+    gap: SPACING.md,
+    zIndex: 99,
   },
   toolbarActionBtn: {
     flex: 1,
@@ -663,17 +653,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: SPACING.xs + 2,
-    paddingVertical: SPACING.sm + 2,
+    paddingVertical: SPACING.sm + 3,
     borderRadius: LAYOUT.radiusFull,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
   },
   toolbarDeleteBtn: {
-    backgroundColor: COLORS.tileOrange,
+    backgroundColor: '#26161A',
   },
   toolbarBtnDisabled: {
-    opacity: 0.4,
+    opacity: 0.45,
   },
   toolbarDeleteText: {
-    fontSize: TYPOGRAPHY.sizeCaption,
+    fontSize: TYPOGRAPHY.sizeBodySmall,
     fontWeight: "700",
     color: COLORS.accentPrimary,
   },

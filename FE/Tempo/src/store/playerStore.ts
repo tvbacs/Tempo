@@ -34,12 +34,16 @@ interface PlayerState {
   isFullPlayerVisible: boolean;
   playbackContext: PlaybackContext | null;
   shuffleHistory: string[]; // Danh sách ID các bài đã phát trong phiên shuffle
+  shuffledQueue: UnifiedSong[]; // Hàng chờ trộn bài đồng bộ
+  shuffledIndex: number; // Vị trí hiện tại trong hàng chờ trộn bài
 
   // Actions
   init: () => Promise<void>;
   playSong: (song: UnifiedSong, newQueue?: UnifiedSong[], context?: PlaybackContext) => Promise<void>;
   setPlaybackContext: (context: PlaybackContext | null) => void;
   togglePlayPause: () => Promise<void>;
+  pause: () => Promise<void>;
+  resume: () => Promise<void>;
   playNext: () => Promise<void>;
   playPrev: () => Promise<void>;
   seekTo: (positionMs: number) => Promise<void>;
@@ -49,6 +53,7 @@ interface PlayerState {
   closeFullPlayer: () => void;
   setQueue: (queue: UnifiedSong[]) => void;
   addToQueue: (song: UnifiedSong) => void;
+  getNextTrack: () => { song: UnifiedSong; label: string } | null;
 }
 
 const saveSettings = async (isShuffle: boolean, repeatMode: RepeatMode) => {
@@ -66,7 +71,8 @@ const saveLastSession = async (
   currentSong: UnifiedSong | null,
   queue: UnifiedSong[],
   currentIndex: number,
-  playbackContext: PlaybackContext | null
+  playbackContext: PlaybackContext | null,
+  positionMs: number = 0
 ) => {
   try {
     if (!currentSong) return;
@@ -77,11 +83,21 @@ const saveLastSession = async (
         queue: queue.slice(0, 50), // Lưu tối đa 50 bài gần nhất
         currentIndex,
         playbackContext,
+        positionMs,
       })
     );
   } catch (e) {
     console.warn('[PlayerStore] Failed to save last session:', e);
   }
+};
+
+const shuffleArray = <T>(array: T[]): T[] => {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 };
 
 export const usePlayerStore = create<PlayerState>((set, get) => {
@@ -103,29 +119,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       // Clamp position — không bao giờ để position > duration
       const rawPosition = status.positionMillis || 0;
-      const clampedPosition = accurateDurationMs > 0
+      const accuratePositionMs = accurateDurationMs > 0
         ? Math.min(rawPosition, accurateDurationMs)
         : rawPosition;
 
       set({
         isPlaying: status.isPlaying,
-        positionMs: clampedPosition,
+        positionMs: accuratePositionMs,
         durationMs: accurateDurationMs,
         isLoading: status.isBuffering,
       });
     }
   });
 
-  // Automatically play next song when current track ends
+  // Track finished listener
   audioEngine.setTrackEndedCallback(() => {
     const { repeatMode, playNext, seekTo } = get();
+
+    // 1. Kiểm tra hẹn giờ đi ngủ "Dừng khi hết bài hát"
     try {
       const { useSleepTimerStore } = require('./sleepTimerStore');
-      if (useSleepTimerStore.getState().activeOption === 'end_of_track') {
-        useSleepTimerStore.getState().onTrackEnded();
+      const sleepTimer = useSleepTimerStore.getState();
+      if (sleepTimer.isTimerActive && sleepTimer.activeOption === 'end_of_track') {
+        sleepTimer.onTrackEnded();
         return;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[PlayerStore] SleepTimer callback error:', e);
+    }
 
     if (repeatMode === 'one') {
       seekTo(0).then(() => audioEngine.play());
@@ -147,6 +168,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     isFullPlayerVisible: false,
     playbackContext: null,
     shuffleHistory: [],
+    shuffledQueue: [],
+    shuffledIndex: -1,
 
     init: async () => {
       try {
@@ -168,8 +191,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
               queue: session.queue || [session.currentSong],
               currentIndex: session.currentIndex ?? 0,
               playbackContext: session.playbackContext || null,
+              positionMs: session.positionMs || 0,
               durationMs: session.currentSong.duration ? session.currentSong.duration * 1000 : 0,
               shuffleHistory: [session.currentSong.id],
+              shuffledQueue: session.queue || [session.currentSong],
+              shuffledIndex: session.currentIndex ?? 0,
             });
           }
         }
@@ -200,6 +226,29 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         currentIndex = queue.length - 1;
       } else {
         currentIndex = queue.findIndex((s) => s.id === song.id);
+      }
+
+      // Xử lý shuffledQueue
+      const isShuffle = get().isShuffle;
+      let shuffledQueue = get().shuffledQueue;
+      let shuffledIndex = get().shuffledIndex;
+
+      if (newQueue || shuffledQueue.length !== queue.length || !shuffledQueue.some(s => s.id === song.id)) {
+        if (isShuffle) {
+          const others = queue.filter(s => s.id !== song.id);
+          shuffledQueue = [song, ...shuffleArray(others)];
+          shuffledIndex = 0;
+        } else {
+          shuffledQueue = queue;
+          shuffledIndex = currentIndex;
+        }
+      } else {
+        const foundIdx = shuffledQueue.findIndex(s => s.id === song.id);
+        if (foundIdx !== -1) {
+          shuffledIndex = foundIdx;
+        } else {
+          shuffledIndex = currentIndex;
+        }
       }
 
       // Xử lý context
@@ -236,6 +285,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
             currentSong: song,
             queue,
             currentIndex,
+            shuffledQueue,
+            shuffledIndex,
             playbackContext: currentContext,
             shuffleHistory: updatedHistory,
             isLoading: false,
@@ -258,6 +309,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         currentSong: song,
         queue,
         currentIndex,
+        shuffledQueue,
+        shuffledIndex,
         playbackContext: currentContext,
         shuffleHistory: updatedHistory,
         isLoading: true,
@@ -271,6 +324,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       const success = await audioEngine.loadAndPlay(song);
       set({ isLoading: false, isPlaying: success });
+      if (!success && queue.length > 1) {
+        // Tự động chuyển bài kế tiếp nếu bài này không khả dụng
+        setTimeout(() => {
+          get().playNext();
+        }, 500);
+      }
     },
 
     togglePlayPause: async () => {
@@ -298,22 +357,77 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const targetSongId = currentSong.id || (currentSong as any).encodeId;
 
       if (!currentLoadedId || currentLoadedId !== targetSongId) {
-        // Bài hiện tại chưa được nạp vào audio engine -> Nạp và phát bài mới ngay lập tức
+        // Bài hiện tại chưa được nạp vào audio engine -> Nạp và tự động tua đến vị trí trước đó nếu có
+        const savedPos = get().positionMs;
         await playSong(currentSong, queue);
+        if (savedPos > 1000) {
+          await get().seekTo(savedPos);
+        }
         return;
       }
 
       if (isPlaying) {
         await audioEngine.pause();
+        const { currentSong: cur, queue: q, currentIndex: cIdx, playbackContext: pCtx, positionMs: pMs } = get();
         set({ isPlaying: false });
+        saveLastSession(cur, q, cIdx, pCtx, pMs);
       } else {
         await audioEngine.play();
         set({ isPlaying: true });
       }
     },
 
+    pause: async () => {
+      const { useConnectStore } = require('./connectStore');
+      const connect = useConnectStore.getState();
+      const isRemote = connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app';
+
+      if (isRemote) {
+        connect.sendRemoteCommand('pause');
+      }
+
+      await audioEngine.pause();
+      const { currentSong, queue, currentIndex, playbackContext, positionMs } = get();
+      set({ isPlaying: false });
+      saveLastSession(currentSong, queue, currentIndex, playbackContext, positionMs);
+    },
+
+    resume: async () => {
+      const { currentSong, queue, playSong, seekTo } = get();
+      const { useConnectStore } = require('./connectStore');
+      const connect = useConnectStore.getState();
+      const isRemote = connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app';
+
+      if (isRemote) {
+        connect.sendRemoteCommand('play');
+        set({ isPlaying: true });
+        return;
+      }
+
+      if (!currentSong) {
+        if (queue.length > 0) {
+          await playSong(queue[0]);
+        }
+        return;
+      }
+
+      const currentLoadedId = audioEngine.getCurrentSongId();
+      const targetSongId = currentSong.id || (currentSong as any).encodeId;
+      if (!currentLoadedId || currentLoadedId !== targetSongId) {
+        const savedPos = get().positionMs;
+        await playSong(currentSong, queue);
+        if (savedPos > 1000) {
+          await seekTo(savedPos);
+        }
+        return;
+      }
+
+      await audioEngine.play();
+      set({ isPlaying: true });
+    },
+
     playNext: async () => {
-      const { queue, currentIndex, isShuffle, repeatMode, shuffleHistory, playSong, seekTo } = get();
+      const { queue, currentIndex, isShuffle, repeatMode, shuffledQueue, shuffledIndex, playSong, seekTo } = get();
       const { useConnectStore } = require('./connectStore');
       const connect = useConnectStore.getState();
       const isRemote = connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app';
@@ -345,31 +459,31 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         return;
       }
 
-      // 1. Chế độ Trộn Bài (Shuffle = TRUE): Smart Random không lặp lại bài đã nghe
+      // 1. Chế độ Trộn Bài (Shuffle = TRUE): Phát chính xác bài tiếp theo trong shuffledQueue
       if (isShuffle) {
-        // Lấy danh sách các bài chưa phát trong hàng chờ
-        const unplayed = queue.filter((s) => !shuffleHistory.includes(s.id));
+        const activeShuffled = shuffledQueue.length > 0 ? shuffledQueue : queue;
+        const nextIdx = shuffledIndex + 1;
 
-        if (unplayed.length > 0) {
-          // Chọn ngẫu nhiên 1 bài trong số các bài CHƯA phát
-          const randIdx = Math.floor(Math.random() * unplayed.length);
-          const nextSong = unplayed[randIdx];
+        if (nextIdx < activeShuffled.length) {
+          const nextSong = activeShuffled[nextIdx];
+          set({ shuffledIndex: nextIdx });
           await playSong(nextSong, queue);
           return;
         } else {
-          // Đã nghe hết toàn bộ danh sách ở chế độ shuffle
+          // Đã nghe hết toàn bộ danh sách shuffle
           if (repeatMode === 'all') {
-            // Lặp lại toàn bộ: reset pool đã nghe (giữ lại bài vừa xong) và chọn bài ngẫu nhiên tiếp theo
             const currentSongId = get().currentSong?.id;
-            const freshCandidates = queue.filter((s) => s.id !== currentSongId);
-            const randIdx = Math.floor(Math.random() * freshCandidates.length);
-            const nextSong = freshCandidates[randIdx] || queue[0];
-            set({ shuffleHistory: [nextSong.id] });
+            const others = queue.filter((s) => s.id !== currentSongId);
+            const newShuffled = [get().currentSong!, ...shuffleArray(others)].filter(Boolean) as UnifiedSong[];
+            const nextSong = newShuffled[1] || queue[0];
+            set({
+              shuffledQueue: newShuffled,
+              shuffledIndex: 1,
+            });
             await playSong(nextSong, queue);
             return;
           } else {
-            // repeatMode === 'off': dừng phát khi hết playlist
-            set({ shuffleHistory: [] });
+            // repeatMode === 'off': dừng phát khi hết danh sách
             await seekTo(0);
             await audioEngine.pause();
             set({ isPlaying: false });
@@ -399,7 +513,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     playPrev: async () => {
-      const { queue, currentIndex, isShuffle, shuffleHistory, positionMs, playSong, seekTo } = get();
+      const { queue, currentIndex, isShuffle, shuffledQueue, shuffledIndex, positionMs, playSong, seekTo } = get();
       const { useConnectStore } = require('./connectStore');
       const connect = useConnectStore.getState();
       const isRemote = connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app';
@@ -429,15 +543,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         return;
       }
 
-      // Nếu đang ở chế độ shuffle và có lịch sử shuffle
-      if (isShuffle && shuffleHistory.length > 1) {
-        const updatedHistory = [...shuffleHistory];
-        updatedHistory.pop(); // Bỏ bài hiện tại
-        const prevSongId = updatedHistory[updatedHistory.length - 1];
-        const prevSong = queue.find((s) => s.id === prevSongId);
-
-        if (prevSong) {
-          set({ shuffleHistory: updatedHistory });
+      // Nếu đang ở chế độ shuffle
+      if (isShuffle) {
+        const activeShuffled = shuffledQueue.length > 0 ? shuffledQueue : queue;
+        const prevIdx = shuffledIndex - 1;
+        if (prevIdx >= 0 && prevIdx < activeShuffled.length) {
+          const prevSong = activeShuffled[prevIdx];
+          set({ shuffledIndex: prevIdx });
           await playSong(prevSong, queue);
           return;
         }
@@ -481,9 +593,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       // Người dùng VIP: Mở khóa bật/tắt tự do
       const newShuffle = !get().isShuffle;
+      const { currentSong, queue } = get();
+      let shuffledQueue = queue;
+      let shuffledIndex = get().currentIndex;
+
+      if (newShuffle && currentSong) {
+        const others = queue.filter((s) => s.id !== currentSong.id);
+        shuffledQueue = [currentSong, ...shuffleArray(others)];
+        shuffledIndex = 0;
+      }
+
       set({
         isShuffle: newShuffle,
-        shuffleHistory: get().currentSong ? [get().currentSong!.id] : [],
+        shuffledQueue,
+        shuffledIndex,
+        shuffleHistory: currentSong ? [currentSong.id] : [],
       });
       saveSettings(newShuffle, get().repeatMode);
 
@@ -507,6 +631,52 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           );
         }
       } catch (e) {}
+    },
+
+    getNextTrack: () => {
+      const { currentSong, queue, isShuffle, repeatMode, shuffledQueue, shuffledIndex, currentIndex } = get();
+      if (!currentSong || queue.length === 0) return null;
+
+      if (repeatMode === 'one') {
+        return {
+          song: currentSong,
+          label: 'BÀI TIẾP THEO (LẶP LẠI BÀI NÀY)',
+        };
+      }
+
+      if (isShuffle) {
+        const activeShuffled = shuffledQueue.length > 0 ? shuffledQueue : queue;
+        const nextIdx = shuffledIndex + 1;
+        if (nextIdx < activeShuffled.length) {
+          return {
+            song: activeShuffled[nextIdx],
+            label: 'BÀI TIẾP THEO (TRỘN NGẪU NHIÊN)',
+          };
+        }
+        if (repeatMode === 'all' && activeShuffled.length > 0) {
+          return {
+            song: activeShuffled[0],
+            label: 'BÀI TIẾP THEO (LẶP LẠI DANH SÁCH)',
+          };
+        }
+        return null;
+      }
+
+      // Tuần tự
+      const nextIdx = currentIndex + 1;
+      if (nextIdx < queue.length) {
+        return {
+          song: queue[nextIdx],
+          label: 'BÀI TIẾP THEO',
+        };
+      }
+      if (repeatMode === 'all') {
+        return {
+          song: queue[0],
+          label: 'BÀI TIẾP THEO (LẶP LẠI TỪ ĐẦU)',
+        };
+      }
+      return null;
     },
 
     cycleRepeat: () => {

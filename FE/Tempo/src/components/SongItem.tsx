@@ -3,31 +3,42 @@
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import { Play, Pause, MoreVertical, ArrowDownCircle } from 'lucide-react-native';
+import { Play, Pause, MoreVertical, ArrowDownCircle, Plus, CheckCircle2 } from 'lucide-react-native';
 import { UnifiedSong } from '../types/music';
 import { usePlayerStore } from '../store/playerStore';
 import { useDownloadStore } from '../store/downloadStore';
+import { useLibraryStore } from '../store/libraryStore';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
-import { formatDuration } from '../utils/format';
+import { formatDuration, formatAddedDate } from '../utils/format';
 
 interface SongItemProps {
   song: UnifiedSong;
   index?: number;
   showIndex?: boolean;
+  hideSavedBadge?: boolean;
   onPress?: () => void;
   onMorePress?: () => void;
+  onPlusPress?: () => void;
 }
 
-export const SongItem: React.FC<SongItemProps> = ({
+export const SongItem: React.FC<SongItemProps> = React.memo(({
   song,
   index,
   showIndex = false,
+  hideSavedBadge = false,
   onPress,
   onMorePress,
+  onPlusPress,
 }) => {
-  const { currentSong, isPlaying, isLoading, playSong, togglePlayPause } = usePlayerStore();
+  const isCurrent = usePlayerStore((s) => s.currentSong?.id === song.id);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const isLoading = usePlayerStore((s) => s.isLoading);
+  const playSong = usePlayerStore((s) => s.playSong);
+  const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
   const isDownloaded = useDownloadStore((s) => s.downloadedSongs.some((ds) => ds.id === song.id)) || song.isOffline;
-  const isCurrent = currentSong?.id === song.id;
+  const isDownloading = useDownloadStore((s) => s.downloadingIds.includes(song.id));
+  const isQueued = useDownloadStore((s) => s.queueSongIds?.includes(song.id));
+  const isSaved = useLibraryStore((s) => s.likedSongs.some((ls) => ls.id === song.id));
 
   const handlePress = () => {
     if (onPress) {
@@ -100,9 +111,18 @@ export const SongItem: React.FC<SongItemProps> = ({
           {song.title}
         </Text>
         <View style={styles.metaRow}>
-          {isDownloaded && (
+          {isDownloading ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginRight: 4 }}>
+              <ActivityIndicator size={10} color="#1DB954" />
+              <Text style={{ fontSize: 10, color: '#1DB954', fontWeight: '800' }}>Đang tải...</Text>
+            </View>
+          ) : isQueued ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginRight: 4 }}>
+              <Text style={{ fontSize: 10, color: COLORS.accentPrimary, fontWeight: '700' }}>Đang chờ tải...</Text>
+            </View>
+          ) : isDownloaded ? (
             <ArrowDownCircle size={13} color="#1DB954" style={{ marginRight: 2 }} />
-          )}
+          ) : null}
           {song.isVip && (
             <View style={[styles.sourceBadge, { backgroundColor: COLORS.tileOrange }]}>
               <Text style={[styles.sourceText, { color: COLORS.accentPrimary }]}>VIP</Text>
@@ -119,7 +139,30 @@ export const SongItem: React.FC<SongItemProps> = ({
         </View>
       </View>
 
-      <Text style={styles.durationText}>{formatDuration(song.duration)}</Text>
+      <View style={styles.rightMetaWrap}>
+        <Text style={styles.durationText}>{formatDuration(song.duration)}</Text>
+        {!!song.addedAt && (
+          <Text style={styles.addedDateText}>{formatAddedDate(song.addedAt)}</Text>
+        )}
+      </View>
+
+      {onPlusPress ? (
+        <TouchableOpacity
+          hitSlop={{ top: SPACING.md, bottom: SPACING.md, left: SPACING.md, right: SPACING.md }}
+          onPress={onPlusPress}
+          style={styles.moreButton}
+        >
+          {isSaved ? (
+            <CheckCircle2 size={18} color="#1DB954" />
+          ) : (
+            <Plus size={18} color={COLORS.textSecondary} />
+          )}
+        </TouchableOpacity>
+      ) : (!hideSavedBadge && isSaved) ? (
+        <View style={styles.savedBadgeSlot}>
+          <CheckCircle2 size={16} color="#1DB954" />
+        </View>
+      ) : null}
 
       {onMorePress && (
         <TouchableOpacity
@@ -132,7 +175,7 @@ export const SongItem: React.FC<SongItemProps> = ({
       )}
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -239,12 +282,28 @@ const styles = StyleSheet.create({
     lineHeight: TYPOGRAPHY.lineHeightSecondary,
     flex: 1,
   },
+  rightMetaWrap: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginRight: SPACING.xs,
+  },
   durationText: {
     fontSize: TYPOGRAPHY.sizeCaption,
     fontWeight: '500',
     color: COLORS.textMuted,
     fontVariant: ['tabular-nums'],
-    marginRight: SPACING.xs,
+  },
+  addedDateText: {
+    fontSize: 10,
+    fontWeight: '400',
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  savedBadgeSlot: {
+    padding: SPACING.xs,
+    marginLeft: SPACING.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   moreButton: {
     padding: SPACING.xs,

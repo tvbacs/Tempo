@@ -475,7 +475,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
  * useActivePlayback - Hook duy nhất để UI (MiniPlayer, FullPlayer, v.v.)
  * tiêu thụ thông tin phát nhạc độc quyền mà không cần quan tâm là Local hay Remote.
  */
-export const useActivePlayback = () => {
+export const useActivePlayback = (withProgress = false) => {
   const activeDevice = useConnectStore((s) => s.activeDevice);
   const remotePlayback = useConnectStore((s) => s.remotePlayback);
   const isRemote = activeDevice.deviceId !== THIS_DEVICE.deviceId;
@@ -483,8 +483,8 @@ export const useActivePlayback = () => {
   const { usePlayerStore } = require('./playerStore');
   const localCurrentSong = usePlayerStore((s: any) => s.currentSong);
   const localIsPlaying = usePlayerStore((s: any) => s.isPlaying);
-  const localPositionMs = usePlayerStore((s: any) => s.positionMs);
-  const localDurationMs = usePlayerStore((s: any) => s.durationMs);
+  const localPositionMs = usePlayerStore((s: any) => (withProgress ? s.positionMs : 0));
+  const localDurationMs = usePlayerStore((s: any) => (withProgress ? s.durationMs : 0));
   const localQueue = usePlayerStore((s: any) => s.queue);
   const localIsLoading = usePlayerStore((s: any) => s.isLoading);
 

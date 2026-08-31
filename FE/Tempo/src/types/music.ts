@@ -39,6 +39,7 @@ export interface UnifiedSong {
   isVip?: boolean;
   isOffline?: boolean;
   genre?: string;
+  addedAt?: string;
 }
 
 export interface LyricSentence {

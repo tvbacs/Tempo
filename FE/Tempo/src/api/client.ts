@@ -23,7 +23,7 @@ export const getActiveApiUrl = async (): Promise<string> => {
     return `http://${host}:5050/api`;
   }
 
-  // 2. Lấy URL Cloudflare Tunnel mới nhất được cập nhật tự động lên Supabase (với timeout 2.5s)
+  // 2. Lấy URL Cloudflare Tunnel mới nhất được cập nhật tự động lên Supabase (với timeout 2s)
   try {
     const supabasePromise = supabase
       .from('playlists')
@@ -32,7 +32,7 @@ export const getActiveApiUrl = async (): Promise<string> => {
       .maybeSingle();
 
     const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-      setTimeout(() => reject(new Error('Supabase discovery timeout')), 4500)
+      setTimeout(() => reject(new Error('Supabase discovery timeout')), 2000)
     );
 
     const { data } = await Promise.race([supabasePromise, timeoutPromise]);
@@ -56,9 +56,9 @@ export const getActiveApiUrl = async (): Promise<string> => {
 export const API_BASE_URL = currentApiUrl;
 
 /**
- * Fetch với timeout tối ưu (mặc định 5s) cho phép tải nội dung trước khi fallback offline
+ * Fetch với timeout tối ưu (mặc định 3s) cho phép phát hiện offline nhanh chóng
  */
-export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 5000): Promise<Response> => {
+export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 3000): Promise<Response> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

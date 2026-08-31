@@ -21,6 +21,7 @@ import {
   Clock,
   Trash2,
   ListPlus,
+  Download,
 } from 'lucide-react-native';
 import { UnifiedSong } from '../types/music';
 import { useSleepTimerStore } from '../store/sleepTimerStore';
@@ -36,6 +37,8 @@ interface SongOptionsModalProps {
   onClose: () => void;
   song: UnifiedSong | null;
   onOpenArtist?: () => void;
+  onAddToPlaylist?: (song: UnifiedSong) => void;
+  onRemoveFromPlaylist?: (song: UnifiedSong) => void;
 }
 
 export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
@@ -43,6 +46,8 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
   onClose,
   song,
   onOpenArtist,
+  onAddToPlaylist,
+  onRemoveFromPlaylist,
 }) => {
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   const { openModal: openSleepTimer, isTimerActive, remainingSeconds, activeOption } = useSleepTimerStore();
@@ -67,6 +72,15 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
     onClose();
   };
 
+  const handleAddToPlaylist = () => {
+    if (onAddToPlaylist) {
+      onClose();
+      setTimeout(() => onAddToPlaylist(song), 100);
+    } else {
+      setShowAddToPlaylist(true);
+    }
+  };
+
   const handleViewArtist = () => {
     onClose();
     setTimeout(() => {
@@ -86,7 +100,7 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Modal visible={visible && !showAddToPlaylist} transparent animationType="fade" onRequestClose={onClose}>
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={styles.overlay}>
             <TouchableWithoutFeedback>
@@ -119,10 +133,7 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
                   {/* 1. Thêm vào danh sách phát (Cho chọn playlist) */}
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    onPress={() => {
-                      onClose();
-                      setTimeout(() => setShowAddToPlaylist(true), 150);
-                    }}
+                    onPress={handleAddToPlaylist}
                     style={styles.menuItem}
                   >
                     <View style={styles.menuIconWrap}>
@@ -130,9 +141,31 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
                     </View>
                     <View style={styles.menuTextWrap}>
                       <Text style={styles.menuLabel}>Thêm vào danh sách phát</Text>
-                      <Text style={styles.menuSubLabel}>Chọn playlist để lưu bài hát</Text>
+                      <Text style={styles.menuSubLabel}>Chọn playlist khác để lưu bài hát</Text>
                     </View>
                   </TouchableOpacity>
+
+                  {/* 1.1 Xóa khỏi danh sách phát hiện tại (nếu đang ở trang Playlist) */}
+                  {onRemoveFromPlaylist && (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        onClose();
+                        onRemoveFromPlaylist(song);
+                      }}
+                      style={styles.menuItem}
+                    >
+                      <View style={styles.menuIconWrap}>
+                        <Trash2 size={22} color={COLORS.accentPrimary} />
+                      </View>
+                      <View style={styles.menuTextWrap}>
+                        <Text style={[styles.menuLabel, { color: COLORS.accentPrimary }]}>
+                          Xóa khỏi danh sách phát
+                        </Text>
+                        <Text style={styles.menuSubLabel}>Gỡ bài hát khỏi danh sách phát này</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
 
                   {/* 2. Yêu thích (Heart) */}
                   <TouchableOpacity
@@ -214,24 +247,36 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
                   </View>
                 </TouchableOpacity>
 
-                {/* 5. Xóa khỏi danh sách đã tải về (Nằm trong 3 chấm) */}
-                {downloaded && (
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={handleDeleteDownload}
-                    style={styles.menuItem}
-                  >
-                    <View style={styles.menuIconWrap}>
+                {/* 5. Tải bài hát về máy / Xóa khỏi danh sách tải về */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (downloaded) {
+                      handleDeleteDownload();
+                    } else {
+                      const { useDownloadStore } = require('../store/downloadStore');
+                      useDownloadStore.getState().downloadSong(song);
+                      onClose();
+                    }
+                  }}
+                  style={styles.menuItem}
+                >
+                  <View style={styles.menuIconWrap}>
+                    {downloaded ? (
                       <Trash2 size={22} color={COLORS.accentPrimary} />
-                    </View>
-                    <View style={styles.menuTextWrap}>
-                      <Text style={[styles.menuLabel, { color: COLORS.accentPrimary }]}>
-                        Xóa khỏi danh sách tải về
-                      </Text>
-                      <Text style={styles.menuSubLabel}>Gỡ bài hát khỏi bộ nhớ ngoại tuyến</Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
+                    ) : (
+                      <Download size={22} color={COLORS.textPrimary} />
+                    )}
+                  </View>
+                  <View style={styles.menuTextWrap}>
+                    <Text style={[styles.menuLabel, downloaded && { color: COLORS.accentPrimary }]}>
+                      {downloaded ? 'Xóa khỏi bài hát đã tải' : 'Tải bài hát về máy'}
+                    </Text>
+                    <Text style={styles.menuSubLabel}>
+                      {downloaded ? 'Gỡ bài hát khỏi bộ nhớ ngoại tuyến' : 'Lưu để nghe offline khi không có mạng'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
           </TouchableWithoutFeedback>
@@ -242,7 +287,10 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
     {/* Add To Playlist Modal */}
     <AddToPlaylistModal
       visible={showAddToPlaylist}
-      onClose={() => setShowAddToPlaylist(false)}
+      onClose={() => {
+        setShowAddToPlaylist(false);
+        onClose();
+      }}
       song={song}
     />
   </>

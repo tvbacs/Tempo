@@ -154,7 +154,7 @@ export const FollowedArtistsScreen: React.FC<{ navigation: any }> = ({
                   onPress={() => toggleFollowArtist(artist)}
                   style={styles.followingIconBtn}
                 >
-                  <UserCheck size={20} color={COLORS.accentPrimary} />
+                  <UserCheck size={20} color="#1DB954" />
                 </TouchableOpacity>
               </TouchableOpacity>
             ))
@@ -195,8 +195,6 @@ const styles = StyleSheet.create({
   navCircleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -226,10 +224,12 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.bgSurfaceSecondary,
-    borderRadius: LAYOUT.radiusMd,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: LAYOUT.radiusFull,
     paddingHorizontal: SPACING.md,
-    height: 44,
+    height: 46,
     gap: SPACING.sm,
   },
   searchInput: {

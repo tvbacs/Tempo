@@ -112,6 +112,39 @@ const getLyrics = async (req, res) => {
   }
 };
 
+const ARTIST_SPELLING_MAP = {
+  'issac': 'Isaac',
+  'isac': 'Isaac',
+  'sontung': 'Sơn Tùng M-TP',
+  'son tung': 'Sơn Tùng M-TP',
+  'hieuthu2': 'HIEUTHUHAI',
+  'hieu thu hai': 'HIEUTHUHAI',
+  'bray': 'B Ray',
+  'den vau': 'Đen',
+  'mck': 'MCK',
+  'tlinh': 'tlinh',
+  'mono': 'MONO',
+  'soobin': 'SOOBIN',
+  'karik': 'Karik',
+  'erik': 'ERIK',
+  'eric': 'ERIK',
+  'duc phuc': 'Đức Phúc',
+  'miu le': 'Miu Lê',
+  'bich phuong': 'Bích Phương',
+  'truc nhan': 'Trúc Nhân',
+  'chidan': 'Chi Dân',
+  'chi dan': 'Chi Dân',
+  'jack': 'Jack - J97',
+  'j97': 'Jack - J97',
+  'khoi': 'Khói',
+  'vu': 'Vũ.',
+  'vu.': 'Vũ.',
+  'charlie puth': 'Charlie Puth',
+  'taylor': 'Taylor Swift',
+  'bts': 'BTS',
+  'blackpink': 'BLACKPINK',
+};
+
 const search = async (req, res) => {
   try {
     const { q } = req.query;
@@ -119,28 +152,82 @@ const search = async (req, res) => {
       return successResponse(res, { songs: [], artists: [], playlists: [] });
     }
 
+    const rawQuery = q.trim();
+    // 1. Tách và làm sạch các từ nối tiếng Việt / tiếng Anh (của, by, bởi, hát bởi, bài hát, ca sĩ, ...)
+    let cleanedQuery = rawQuery
+      .replace(/\b(của|bởi|hát bởi|bài hát|ca sĩ|by|feat\.?|ft\.?)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // 2. Tự động chuẩn hóa lỗi chính tả tên ca sĩ (VD: issac -> Isaac, sontung -> Sơn Tùng M-TP)
+    let correctedQuery = cleanedQuery;
+    for (const [misspell, correct] of Object.entries(ARTIST_SPELLING_MAP)) {
+      const regex = new RegExp(`\\b${misspell}\\b`, 'gi');
+      if (regex.test(correctedQuery)) {
+        correctedQuery = correctedQuery.replace(regex, correct);
+      }
+    }
+
+    // 3. Tìm kiếm song song trên Zing với query chuẩn hóa & query gốc
+    const searchQueries = Array.from(new Set([correctedQuery, cleanedQuery, rawQuery].filter(Boolean)));
+    const zingPromises = searchQueries.map((query) => zingService.search(query));
+    const audiusPromise = audiusService.search(correctedQuery || cleanedQuery || rawQuery, 10);
+
     const [zingResults, audiusResults] = await Promise.allSettled([
-      zingService.search(q),
-      audiusService.search(q, 10),
+      Promise.all(zingPromises),
+      audiusPromise,
     ]);
 
-    const zing = zingResults.status === 'fulfilled' ? zingResults.value : { songs: [], artists: [], playlists: [] };
+    const allZingData = zingResults.status === 'fulfilled' ? zingResults.value : [];
     const audiusSongs = audiusResults.status === 'fulfilled' ? audiusResults.value : [];
 
-    // Chỉ gộp Audius nếu bài hát thực sự khớp từ khóa tìm kiếm (tránh ghép bài ngẫu nhiên như Frank Sinatra khi tìm ca sĩ Việt)
-    const queryLower = q.toLowerCase().trim();
+    // Gộp kết quả bài hát Zing không trùng lặp
+    const mergedZingMap = new Map();
+    allZingData.forEach((zing) => {
+      (zing.songs || []).forEach((s) => {
+        if (!mergedZingMap.has(s.id)) mergedZingMap.set(s.id, s);
+      });
+    });
+
+    const mergedZingSongs = Array.from(mergedZingMap.values());
+
+    // Gộp nghệ sĩ & sắp xếp theo độ phổ biến / có avatar
+    const mergedArtistsMap = new Map();
+    allZingData.forEach((zing) => {
+      (zing.artists || []).forEach((a) => {
+        const key = (a.id || a.name || '').toLowerCase();
+        if (!mergedArtistsMap.has(key)) mergedArtistsMap.set(key, a);
+      });
+    });
+
+    const sortedArtists = Array.from(mergedArtistsMap.values()).sort((a, b) => {
+      const aFollow = a.totalFollow || (a.thumbnail ? 500 : 0);
+      const bFollow = b.totalFollow || (b.thumbnail ? 500 : 0);
+      return bFollow - aFollow;
+    });
+
+    // Gộp playlist
+    const mergedPlaylistsMap = new Map();
+    allZingData.forEach((zing) => {
+      (zing.playlists || []).forEach((p) => {
+        if (!mergedPlaylistsMap.has(p.id || p.title)) mergedPlaylistsMap.set(p.id || p.title, p);
+      });
+    });
+
+    // Lọc bài Audius phù hợp
+    const searchTerms = (correctedQuery || cleanedQuery || rawQuery).toLowerCase().split(' ').filter((w) => w.length > 1);
     const filteredAudius = audiusSongs.filter((song) => {
       const titleLower = (song.title || '').toLowerCase();
       const artistLower = (song.artistsNames || '').toLowerCase();
-      return titleLower.includes(queryLower) || artistLower.includes(queryLower);
+      return searchTerms.some((term) => titleLower.includes(term) || artistLower.includes(term));
     });
 
-    const mergedSongs = [...zing.songs, ...filteredAudius];
+    const allSongs = [...mergedZingSongs, ...filteredAudius];
 
     return successResponse(res, {
-      songs: mergedSongs,
-      artists: zing.artists,
-      playlists: zing.playlists,
+      songs: allSongs,
+      artists: sortedArtists,
+      playlists: Array.from(mergedPlaylistsMap.values()),
     });
   } catch (error) {
     console.error('search error:', error);

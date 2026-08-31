@@ -14,10 +14,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  TextInput,
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   ChevronLeft,
@@ -32,6 +33,8 @@ import {
   Square,
   Trash2,
   Heart,
+  Search,
+  X,
 } from "lucide-react-native";
 import { GradientPlayButton } from "../components/GradientButton";
 import { SongItem } from "../components/SongItem";
@@ -52,6 +55,7 @@ import { formatDuration } from "../utils/format";
 export const LikedSongsScreen: React.FC<{
   navigation: any;
 }> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDownloadSelector, setShowDownloadSelector] = useState(false);
   const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
@@ -59,15 +63,39 @@ export const LikedSongsScreen: React.FC<{
   // Multi-Select Mode
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const { playSong, isLoading, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
-  const { isPlaying, togglePlayPause } = useActivePlayback();
+  const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { likedSongs, fetchLikedSongs, toggleLike } = useLibraryStore();
-  const { downloadSong } = useDownloadStore();
+  const { downloadedSongs, downloadSong } = useDownloadStore();
   const { showToast } = useToastStore();
 
   useEffect(() => {
     fetchLikedSongs();
   }, [fetchLikedSongs]);
+
+  // Lọc chỉ hiển thị các bài hát có thể phát (loại bỏ bài offline đã bị xoá tệp)
+  const displaySongs = React.useMemo(() => {
+    return likedSongs.filter((s) => {
+      const isOfflineType = (s.source as any) === 'downloaded' || s.source === 'local' || s.isOffline === true;
+      const isLocalId = typeof s.id === 'string' && (s.id.startsWith('local_') || s.id.startsWith('download_'));
+      if (isOfflineType || isLocalId) {
+        return downloadedSongs.some((d) => d.id === s.id);
+      }
+      return true;
+    });
+  }, [likedSongs, downloadedSongs]);
+
+  // Lọc tìm kiếm theo từ khoá
+  const filteredSongs = React.useMemo(() => {
+    if (!searchQuery.trim()) return displaySongs;
+    const q = searchQuery.toLowerCase().trim();
+    return displaySongs.filter(
+      (s) =>
+        s.title?.toLowerCase().includes(q) ||
+        s.artistsNames?.toLowerCase().includes(q)
+    );
+  }, [displaySongs, searchQuery]);
 
   // Chỉ xem là đang phát danh sách này nếu đúng context 'liked'
   const isCurrentPlaylistPlaying =
@@ -75,7 +103,7 @@ export const LikedSongsScreen: React.FC<{
     playbackContext?.type === 'liked';
 
   const handlePlayAll = () => {
-    if (likedSongs.length === 0) return;
+    if (filteredSongs.length === 0) return;
 
     if (isCurrentPlaylistPlaying) {
       togglePlayPause();
@@ -83,8 +111,8 @@ export const LikedSongsScreen: React.FC<{
     }
 
     const songsToPlay = isShuffle
-      ? [...likedSongs].sort(() => Math.random() - 0.5)
-      : likedSongs;
+      ? [...filteredSongs].sort(() => Math.random() - 0.5)
+      : filteredSongs;
     playSong(songsToPlay[0], songsToPlay, { type: 'liked', title: 'Bài hát đã thích' });
   };
 
@@ -92,9 +120,9 @@ export const LikedSongsScreen: React.FC<{
     if (!isShuffle) {
       toggleShuffle();
     }
-    if (!isCurrentPlaylistPlaying && likedSongs.length > 0) {
-      const shuffled = [...likedSongs].sort(() => Math.random() - 0.5);
-      playSong(shuffled[0], likedSongs, { type: 'liked', title: 'Bài hát đã thích' });
+    if (!isCurrentPlaylistPlaying && filteredSongs.length > 0) {
+      const shuffled = [...filteredSongs].sort(() => Math.random() - 0.5);
+      playSong(shuffled[0], filteredSongs, { type: 'liked', title: 'Bài hát đã thích' });
     } else {
       toggleShuffle();
     }
@@ -109,10 +137,10 @@ export const LikedSongsScreen: React.FC<{
   };
 
   const handleToggleSelectAll = () => {
-    if (selectedIds.length === likedSongs.length) {
+    if (selectedIds.length === filteredSongs.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(likedSongs.map((s) => s.id));
+      setSelectedIds(filteredSongs.map((s) => s.id));
     }
   };
 
@@ -122,7 +150,7 @@ export const LikedSongsScreen: React.FC<{
       return;
     }
 
-    const songsToRemove = likedSongs.filter((s) => selectedIds.includes(s.id));
+    const songsToRemove = filteredSongs.filter((s) => selectedIds.includes(s.id));
     const count = songsToRemove.length;
     for (const song of songsToRemove) {
       await toggleLike(song);
@@ -139,8 +167,7 @@ export const LikedSongsScreen: React.FC<{
     }
 
     const songsToDownload = likedSongs.filter((s) => selectedIds.includes(s.id));
-    showToast(`Đang tải xuống ${songsToDownload.length} bài hát đã chọn...`, "info");
-    songsToDownload.forEach((song) => downloadSong(song));
+    useDownloadStore.getState().downloadMultiple(songsToDownload);
     setSelectedIds([]);
     setIsSelectMode(false);
   };
@@ -218,19 +245,19 @@ export const LikedSongsScreen: React.FC<{
         <View style={styles.headerSection}>
           <Text style={styles.mainTitle}>Bài hát ưa thích</Text>
           <Text style={styles.subtitle}>
-            {isSelectMode ? `Đã chọn ${selectedIds.length} / ${likedSongs.length} bài hát` : `${likedSongs.length} bài hát`}
+            {isSelectMode ? `Đã chọn ${selectedIds.length} / ${displaySongs.length} bài hát` : `${displaySongs.length} bài hát`}
           </Text>
 
-          {/* Action Row: Preview stack, Download, Shuffle & Large Play (Hidden in Select Mode) */}
+          {/* Action Row: Preview stack, Download, Add Song, Shuffle & Large Play (Hidden in Select Mode) */}
           {!isSelectMode && (
             <View style={styles.actionControlRow}>
               <View style={styles.leftActions}>
-                {previewCovers.length > 0 ? (
+                {displaySongs.length > 0 ? (
                   <View style={styles.coverStack}>
-                    {previewCovers.map((uri, i) => (
+                    {displaySongs.slice(0, 3).map((s, i) => (
                       <Image
                         key={i}
-                        source={{ uri }}
+                        source={{ uri: s.thumbnail }}
                         style={[
                           styles.coverStackItem,
                           { left: i * 14, zIndex: 10 - i },
@@ -244,9 +271,20 @@ export const LikedSongsScreen: React.FC<{
                   activeOpacity={0.75}
                   hitSlop={{ top: SPACING.sm, bottom: SPACING.sm, left: SPACING.sm, right: SPACING.sm }}
                   onPress={() => setShowDownloadSelector(true)}
-                  style={styles.downloadBtn}
+                  style={styles.actionCircleBtn}
+                  accessibilityLabel="Tải xuống tất cả"
                 >
-                  <Download size={22} color={COLORS.textSecondary} />
+                  <Download size={20} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  hitSlop={{ top: SPACING.sm, bottom: SPACING.sm, left: SPACING.sm, right: SPACING.sm }}
+                  onPress={() => setShowAddModal(true)}
+                  style={styles.actionCircleBtn}
+                  accessibilityLabel="Thêm bài hát"
+                >
+                  <Plus size={20} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -279,28 +317,39 @@ export const LikedSongsScreen: React.FC<{
             </View>
           )}
 
-          {/* Add Song Button (Opens Search & Add Modal) */}
-          {!isSelectMode && (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setShowAddModal(true)}
-              style={styles.addSongBtn}
-            >
-              <View style={styles.addSongIconBox}>
-                <Plus size={16} color={COLORS.textPrimary} />
-              </View>
-              <Text style={styles.addSongText}>Thêm bài hát</Text>
-            </TouchableOpacity>
+          {/* Inline Search Bar */}
+          {!isSelectMode && displaySongs.length > 0 && (
+            <View style={styles.searchBarWrap}>
+              <Search size={16} color={COLORS.textMuted} style={styles.searchIcon} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Tìm trong bài hát đã thích..."
+                placeholderTextColor={COLORS.textMuted}
+                style={styles.searchInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setSearchQuery("")}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <X size={16} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
           )}
         </View>
 
         {/* Songs List */}
         <View style={styles.songListContainer}>
-          {likedSongs.length === 0 ? (
+          {displaySongs.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>Chưa có bài hát ưa thích</Text>
               <Text style={styles.emptySubtitle}>
-                Chạm vào biểu tượng trái tim trên bất kỳ bài hát nào hoặc nhấn "Thêm bài hát" ở trên để lưu vào đây.
+                Chạm vào biểu tượng trái tim trên bất kỳ bài hát nào hoặc nhấn dấu "+" ở trên để thêm vào đây.
               </Text>
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -310,8 +359,15 @@ export const LikedSongsScreen: React.FC<{
                 <Text style={styles.discoverBtnText}>Thêm bài hát ngay</Text>
               </TouchableOpacity>
             </View>
+          ) : filteredSongs.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>Không tìm thấy bài hát</Text>
+              <Text style={styles.emptySubtitle}>
+                Không có bài hát nào khớp với từ khóa "{searchQuery}"
+              </Text>
+            </View>
           ) : (
-            likedSongs.map((song, index) => {
+            filteredSongs.map((song, index) => {
               const selected = selectedIds.includes(song.id);
 
               if (isSelectMode) {
@@ -353,7 +409,8 @@ export const LikedSongsScreen: React.FC<{
                   key={song.id}
                   song={song}
                   index={index + 1}
-                  onPress={() => playSong(song, likedSongs, { type: 'liked', title: 'Bài hát đã thích' })}
+                  hideSavedBadge
+                  onPress={() => playSong(song, filteredSongs, { type: 'liked', title: 'Bài hát đã thích' })}
                   onMorePress={() => setSelectedSongForOptions(song)}
                 />
               );
@@ -361,12 +418,12 @@ export const LikedSongsScreen: React.FC<{
           )}
         </View>
 
-        <View style={{ height: isSelectMode ? 100 : LAYOUT.miniPlayerHeight + SPACING.bottomPaddingOffset }} />
+        <View style={{ height: isSelectMode ? 130 : LAYOUT.miniPlayerHeight + SPACING.bottomPaddingOffset }} />
       </ScrollView>
 
       {/* Floating Bottom Action Toolbar for Multi-Select Mode */}
       {isSelectMode && (
-        <View style={styles.floatingActionToolbar}>
+        <View style={[styles.floatingActionToolbar, { bottom: currentSong ? LAYOUT.miniPlayerHeight + insets.bottom + SPACING.sm : insets.bottom + SPACING.md }]}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={handleRemoveSelected}
@@ -448,8 +505,6 @@ const styles = StyleSheet.create({
   navCircleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -463,13 +518,11 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   selectToggleBtn: {
-    backgroundColor: COLORS.bgSurfaceSecondary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 8,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
     minHeight: 36,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: LAYOUT.radiusFull,
   },
   selectToggleBtnText: {
     fontSize: TYPOGRAPHY.sizeBodySmall,
@@ -523,13 +576,33 @@ const styles = StyleSheet.create({
     borderRadius: LAYOUT.radiusSm,
     backgroundColor: COLORS.bgSurfaceSecondary,
   },
-  downloadBtn: {
+  actionCircleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
+  },
+  searchBarWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: LAYOUT.radiusFull,
+    paddingHorizontal: SPACING.md,
+    height: 46,
+    marginTop: 2,
+    marginBottom: SPACING.sm,
+    gap: SPACING.xs + 2,
+  },
+  searchIcon: {
+    marginRight: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.sizeBodySmall,
+    color: COLORS.textPrimary,
+    paddingVertical: 0,
   },
   rightActions: {
     flexDirection: "row",
@@ -539,33 +612,8 @@ const styles = StyleSheet.create({
   shuffleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
-  },
-  addSongBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.bgSurfaceSecondary,
-    paddingVertical: SPACING.sm + 2,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: LAYOUT.radiusFull,
-    alignSelf: "flex-start",
-    gap: SPACING.xs + 2,
-  },
-  addSongIconBox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: COLORS.bgSurface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addSongText: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    fontWeight: "700",
-    color: COLORS.textPrimary,
   },
   songListContainer: {
     paddingHorizontal: SPACING.screenPadding,
@@ -658,20 +706,13 @@ const styles = StyleSheet.create({
   },
   floatingActionToolbar: {
     position: "absolute",
-    bottom: SPACING.xl,
     left: SPACING.screenPadding,
     right: SPACING.screenPadding,
-    backgroundColor: COLORS.bgSurface,
-    borderRadius: LAYOUT.radiusFull,
-    padding: SPACING.xs + 2,
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.sm,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    justifyContent: "space-between",
+    gap: SPACING.md,
+    zIndex: 99,
   },
   toolbarActionBtn: {
     flex: 1,
@@ -679,25 +720,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: SPACING.xs + 2,
-    paddingVertical: SPACING.sm + 2,
+    paddingVertical: SPACING.sm + 3,
     borderRadius: LAYOUT.radiusFull,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
   },
   toolbarDeleteBtn: {
-    backgroundColor: COLORS.tileOrange,
+    backgroundColor: '#26161A',
   },
   toolbarDownloadBtn: {
     backgroundColor: COLORS.accentPrimary,
   },
   toolbarBtnDisabled: {
-    opacity: 0.4,
+    opacity: 0.45,
   },
   toolbarDeleteText: {
-    fontSize: TYPOGRAPHY.sizeCaption,
+    fontSize: TYPOGRAPHY.sizeBodySmall,
     fontWeight: "700",
     color: COLORS.accentPrimary,
   },
   toolbarDownloadText: {
-    fontSize: TYPOGRAPHY.sizeCaption,
+    fontSize: TYPOGRAPHY.sizeBodySmall,
     fontWeight: "700",
     color: COLORS.white,
   },

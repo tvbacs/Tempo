@@ -1,8 +1,3 @@
-/**
- * AddToPlaylistModal - Hộp thoại chọn Danh Sách Phát để thêm bài hát
- * Cho phép chọn danh sách phát có sẵn hoặc tạo danh sách phát mới ngay tại chỗ
- * Strictly follows STANDARDS.md
- */
 import React, { useState } from 'react';
 import {
   View,
@@ -10,17 +5,19 @@ import {
   Modal,
   Image,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
   TextInput,
   StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   ListPlus,
   Plus,
-  Check,
+  CheckCircle2,
   X,
+  Heart,
   ListMusic,
 } from 'lucide-react-native';
 import { UnifiedSong } from '../types/music';
@@ -39,7 +36,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
   onClose,
   song,
 }) => {
-  const { playlists, addSongToPlaylist, isSongInPlaylist, createPlaylist } = useLibraryStore();
+  const { playlists, likedSongs, isLiked, toggleLike, addSongToPlaylist, isSongInPlaylist, createPlaylist } = useLibraryStore();
   const { showToast } = useToastStore();
 
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -47,6 +44,12 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!visible || !song) return null;
+
+  const isSongLiked = isLiked(song.id);
+
+  const handleToggleLiked = async () => {
+    await toggleLike(song);
+  };
 
   // Lọc ra các playlist của người dùng
   const userPlaylists = playlists.filter(
@@ -62,6 +65,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
     setIsSubmitting(true);
     try {
       await addSongToPlaylist(playlistId, song);
+      showToast(`Đã thêm vào "${playlistName}"`, 'success');
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -83,6 +87,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
       const created = updatedList.find((p) => p.name === name) || updatedList[0];
       if (created) {
         await addSongToPlaylist(created.id, song);
+        showToast(`Đã tạo và thêm vào "${name}"`, 'success');
       }
       setNewPlaylistName('');
       setIsCreatingNew(false);
@@ -94,56 +99,89 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.sheetContainer}>
-              {/* Header */}
-              <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                  <ListPlus size={20} color={COLORS.textPrimary} />
-                  <Text style={styles.title}>Thêm vào danh sách phát</Text>
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={onClose}
-                  hitSlop={{ top: SPACING.md, bottom: SPACING.md, left: SPACING.md, right: SPACING.md }}
-                  style={styles.closeBtn}
-                >
-                  <X size={20} color={COLORS.textSecondary} />
-                </TouchableOpacity>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.overlay}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={StyleSheet.absoluteFillObject}
+          onPress={onClose}
+        />
+        <View style={styles.sheetContainer}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <ListPlus size={20} color={COLORS.textPrimary} />
+              <Text style={styles.title}>Thêm vào danh sách phát</Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={onClose}
+              hitSlop={{ top: SPACING.md, bottom: SPACING.md, left: SPACING.md, right: SPACING.md }}
+              style={styles.closeBtn}
+            >
+              <X size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Target Song Info Card */}
+          <View style={styles.songCard}>
+            <Image
+              source={{
+                uri:
+                  song.thumbnail ||
+                  'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300',
+              }}
+              style={styles.songThumb}
+            />
+            <View style={styles.songInfo}>
+              <Text numberOfLines={1} style={styles.songTitle}>
+                {song.title}
+              </Text>
+              <Text numberOfLines={1} style={styles.songArtist}>
+                {song.artistsNames}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <ScrollView
+            style={styles.playlistScroll}
+            contentContainerStyle={styles.playlistScrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* 0. Mục Bài hát ưa thích */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={handleToggleLiked}
+              style={[styles.playlistRow, isSongLiked && styles.playlistRowAdded]}
+            >
+              <View style={[styles.playlistThumb, { backgroundColor: 'rgba(252, 71, 92, 0.15)', alignItems: 'center', justifyContent: 'center' }]}>
+                <Heart size={22} color="#FC475C" fill={isSongLiked ? "#FC475C" : "transparent"} />
               </View>
-
-              {/* Target Song Info Card */}
-              <View style={styles.songCard}>
-                <Image
-                  source={{
-                    uri:
-                      song.thumbnail ||
-                      'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300',
-                  }}
-                  style={styles.songThumb}
-                />
-                <View style={styles.songInfo}>
-                  <Text numberOfLines={1} style={styles.songTitle}>
-                    {song.title}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.songArtist}>
-                    {song.artistsNames}
-                  </Text>
-                </View>
+              <View style={styles.playlistInfo}>
+                <Text numberOfLines={1} style={styles.playlistName}>
+                  Bài hát ưa thích
+                </Text>
+                <Text style={styles.playlistCount}>{likedSongs.length} bài hát</Text>
               </View>
+              <View style={styles.actionIconSlot}>
+                {isSongLiked ? (
+                  <View style={styles.addedBadge}>
+                    <CheckCircle2 size={14} color="#1DB954" />
+                    <Text style={styles.addedText}>Đã thích</Text>
+                  </View>
+                ) : (
+                  <Plus size={18} color={COLORS.textSecondary} />
+                )}
+              </View>
+            </TouchableOpacity>
 
-              <View style={styles.divider} />
-
-              <ScrollView
-                style={styles.playlistScroll}
-                contentContainerStyle={styles.playlistScrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-              >
-                {/* 1. Nút Tạo danh sách phát mới */}
-                {isCreatingNew ? (
+            {/* 1. Nút Tạo danh sách phát mới */}
+            {isCreatingNew ? (
                   <View style={styles.createBox}>
                     <Text style={styles.createLabel}>Tên danh sách phát mới</Text>
                     <View style={styles.inputRow}>
@@ -227,7 +265,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
                           <View style={styles.actionIconSlot}>
                             {alreadyIn ? (
                               <View style={styles.addedBadge}>
-                                <Check size={14} color="#1DB954" />
+                                <CheckCircle2 size={14} color="#1DB954" />
                                 <Text style={styles.addedText}>Đã có</Text>
                               </View>
                             ) : (
@@ -251,10 +289,8 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
                 )}
               </ScrollView>
             </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+          </KeyboardAvoidingView>
+        </Modal>
   );
 };
 
@@ -378,17 +414,19 @@ const styles = StyleSheet.create({
   inputField: {
     flex: 1,
     height: 44,
-    backgroundColor: COLORS.bgSurface,
-    borderRadius: LAYOUT.radiusSm,
-    paddingHorizontal: SPACING.sm + 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: LAYOUT.radiusFull,
+    paddingHorizontal: SPACING.lg,
     color: COLORS.white,
     fontSize: TYPOGRAPHY.sizeBodySmall,
   },
   saveNewBtn: {
     backgroundColor: COLORS.accentPrimary,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     height: 44,
-    borderRadius: LAYOUT.radiusSm,
+    borderRadius: LAYOUT.radiusFull,
     alignItems: 'center',
     justifyContent: 'center',
   },

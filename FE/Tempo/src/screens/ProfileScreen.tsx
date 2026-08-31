@@ -162,6 +162,38 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           </View>
         </View>
 
+        {/* Section: Storage & Downloads */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>LƯU TRỮ & TỆP NGOẠI TUYẾN</Text>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Chia sẻ tệp trong Ứng dụng Tệp iOS</Text>
+              <Text style={styles.settingSubLabel}>Nhạc tải về luôn hiển thị trong thư mục Tệp để nghe và sao chép</Text>
+            </View>
+            <Switch
+              value={true}
+              disabled={true}
+              trackColor={{ false: COLORS.bgPill, true: COLORS.accentPrimary }}
+              thumbColor={COLORS.white}
+            />
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('DownloadedSongs')}
+            style={styles.settingRow}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Quản lý bài hát đã tải về</Text>
+              <Text style={styles.settingSubLabel}>Xem danh sách và chọn bài hát cần xóa</Text>
+            </View>
+            <View style={styles.pillActionBtn}>
+              <Text style={styles.pillActionText}>Quản lý</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Section: Account Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>TÀI KHOẢN</Text>

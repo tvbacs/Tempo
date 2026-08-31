@@ -45,9 +45,12 @@ import {
   Radio,
   VolumeX,
   Volume2,
+  Download,
+  CheckCircle,
 } from "lucide-react-native";
 import { usePlayerStore } from "../store/playerStore";
 import { useLibraryStore } from "../store/libraryStore";
+import { useDownloadStore } from "../store/downloadStore";
 import { useSleepTimerStore } from "../store/sleepTimerStore";
 import { useToastStore } from "../store/toastStore";
 import { navigate } from "../navigation/AppNavigator";
@@ -80,7 +83,7 @@ export const PlayerModalScreen: React.FC = () => {
     playNext,
     playPrev,
     seekTo,
-  } = useActivePlayback();
+  } = useActivePlayback(true);
 
   const {
     isShuffle,
@@ -91,10 +94,12 @@ export const PlayerModalScreen: React.FC = () => {
     closeFullPlayer,
     playSong,
     playbackContext,
+    getNextTrack,
   } = usePlayerStore();
 
   const { volume: remoteVolume, setVolume: setRemoteVolume } = useConnectStore();
   const { isLiked, toggleLike, toggleFollowArtist, isArtistFollowed } = useLibraryStore();
+  const { downloadSong, isDownloaded, isDownloading } = useDownloadStore();
   const { showToast } = useToastStore();
 
   const [showLyrics, setShowLyrics] = useState(false);
@@ -354,70 +359,7 @@ export const PlayerModalScreen: React.FC = () => {
   if (!currentSong) return null;
 
   const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
-  
-  // Tính toán chính xác bài tiếp theo dựa trên chế độ phát thực tế (Lặp lại 1 bài, Trộn bài, Lặp lại danh sách, Tuần tự)
-  const getNextTrackInfo = (): { song: UnifiedSong; label: string } | null => {
-    if (!currentSong || queue.length === 0) return null;
-
-    // 1. Chế độ lặp lại 1 bài duy nhất
-    if (repeatMode === 'one') {
-      return {
-        song: currentSong,
-        label: 'BÀI TIẾP THEO (LẶP LẠI BÀI NÀY)',
-      };
-    }
-
-    // 2. Chế độ Trộn bài (Shuffle)
-    if (isShuffle) {
-      const { shuffleHistory, currentIndex } = usePlayerStore.getState();
-      const unplayed = queue.filter((s: UnifiedSong) => !shuffleHistory.includes(s.id));
-      if (unplayed.length > 0) {
-        // Chọn bài ngẫu nhiên khác với bài tuần tự nếu có nhiều hơn 1 bài chưa nghe
-        const sequentialNextId = queue[currentIndex + 1]?.id;
-        const candidates = unplayed.length > 1 && sequentialNextId 
-          ? unplayed.filter((s: UnifiedSong) => s.id !== sequentialNextId)
-          : unplayed;
-        const targetList = candidates.length > 0 ? candidates : unplayed;
-        const pseudoRandIdx = Math.floor(Math.abs(Math.sin((currentSong.title.length + unplayed.length) * 11)) * targetList.length);
-        const nextShuffleSong = targetList[pseudoRandIdx] || targetList[0];
-
-        return {
-          song: nextShuffleSong,
-          label: 'BÀI TIẾP THEO (TRỘN NGẪU NHIÊN)',
-        };
-      }
-      if (repeatMode === 'all') {
-        const otherSongs = queue.filter((s: UnifiedSong) => s.id !== currentSong.id);
-        const nextInLoop = otherSongs[otherSongs.length - 1] || currentSong;
-        return {
-          song: nextInLoop,
-          label: 'BÀI TIẾP THEO (LẶP LẠI DANH SÁCH)',
-        };
-      }
-      return null;
-    }
-
-    // 3. Chế độ phát tuần tự (Sequential)
-    const { currentIndex } = usePlayerStore.getState();
-    const nextIdx = currentIndex + 1;
-    if (nextIdx < queue.length) {
-      return {
-        song: queue[nextIdx],
-        label: 'BÀI TIẾP THEO',
-      };
-    }
-
-    if (repeatMode === 'all') {
-      return {
-        song: queue[0],
-        label: 'BÀI TIẾP THEO (LẶP LẠI TỪ ĐẦU)',
-      };
-    }
-
-    return null;
-  };
-
-  const nextTrackInfo = getNextTrackInfo();
+  const nextTrackInfo = getNextTrack();
   const safeTopPadding = insets.top > 0 ? insets.top + SPACING.xs : SPACING.lg;
   const safeBottomPadding = insets.bottom > 0 ? insets.bottom + SPACING.md : SPACING.xxxl;
 
@@ -516,7 +458,7 @@ export const PlayerModalScreen: React.FC = () => {
             <View style={styles.trackHeaderRow}>
               <View style={styles.titleInfo}>
                 <View style={styles.titleRow}>
-                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.titleText}>
+                  <Text numberOfLines={2} style={styles.titleText}>
                     {currentSong.title}
                   </Text>
                   {currentSong.source === "audius" && (
@@ -530,18 +472,36 @@ export const PlayerModalScreen: React.FC = () => {
                 </Text>
               </View>
 
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={handleToggleLike}
-                hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
-                style={styles.heartButton}
-              >
-                <Heart
-                  size={26}
-                  color={liked ? COLORS.accentPrimary : COLORS.textSecondary}
-                  fill={liked ? COLORS.accentPrimary : COLORS.transparent}
-                />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                {/* Chỉ hiện nút tải xuống nếu bài hát CHƯA được tải về máy */}
+                {!isDownloaded(currentSong.id) && !currentSong.isOffline && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => downloadSong(currentSong)}
+                    hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
+                    style={styles.heartButton}
+                  >
+                    {isDownloading(currentSong.id) ? (
+                      <ActivityIndicator size="small" color="#1DB954" />
+                    ) : (
+                      <Download size={24} color={COLORS.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleToggleLike}
+                  hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
+                  style={styles.heartButton}
+                >
+                  <Heart
+                    size={26}
+                    color={liked ? COLORS.accentPrimary : COLORS.textSecondary}
+                    fill={liked ? COLORS.accentPrimary : COLORS.transparent}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Scrub Bar / Timeline */}
@@ -922,8 +882,6 @@ const styles = StyleSheet.create({
   navCircleBtn: {
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
-    borderRadius: 18,
-    backgroundColor: COLORS.bgNavCircle,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -985,6 +943,7 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: SPACING.sm,
     marginBottom: SPACING.xs,
   },
@@ -993,7 +952,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: COLORS.textPrimary,
     lineHeight: TYPOGRAPHY.lineHeightTitle,
-    flexShrink: 1,
   },
   badgeBox: {
     backgroundColor: COLORS.bgSurfaceSecondary,

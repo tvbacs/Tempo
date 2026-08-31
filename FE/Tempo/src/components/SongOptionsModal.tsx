@@ -126,7 +126,7 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
                     style={styles.menuItem}
                   >
                     <View style={styles.menuIconWrap}>
-                      <ListPlus size={22} color={COLORS.accentPrimary} />
+                      <ListPlus size={22} color={COLORS.textPrimary} />
                     </View>
                     <View style={styles.menuTextWrap}>
                       <Text style={styles.menuLabel}>Thêm vào danh sách phát</Text>

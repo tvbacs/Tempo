@@ -101,7 +101,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
               {/* Header */}
               <View style={styles.header}>
                 <View style={styles.headerLeft}>
-                  <ListPlus size={22} color={COLORS.accentPrimary} />
+                  <ListPlus size={20} color={COLORS.textPrimary} />
                   <Text style={styles.title}>Thêm vào danh sách phát</Text>
                 </View>
                 <TouchableOpacity
@@ -285,8 +285,8 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   title: {
-    fontSize: TYPOGRAPHY.sizeTitle,
-    fontWeight: '800',
+    fontSize: TYPOGRAPHY.sizeSubheading,
+    fontWeight: '700',
     color: COLORS.textPrimary,
   },
   closeBtn: {

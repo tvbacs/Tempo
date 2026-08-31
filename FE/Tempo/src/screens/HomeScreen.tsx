@@ -7,7 +7,7 @@
  * - 100% Tokenized variables from theme.ts
  * - Accent Gradient #FC475C -> #FC655A
  */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -164,82 +164,180 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     .slice(0, 8);
   const displayArtists = apiArtists.length > 0 ? apiArtists : chartArtists;
 
-  // 1. Tuyển tập Daily Mix cá nhân hóa (Made For You)
-  const dailyMixes = [
-    {
+  // 1. Nhận biết khung giờ thực tế (Time-Aware Context & Mood)
+  const currentHour = new Date().getHours();
+  const timeGreeting = useMemo(() => {
+    if (currentHour >= 5 && currentHour < 12) {
+      return { greeting: "CHÀO BUỔI SÁNG", moodTitle: "Khởi Đầu Ngày Mới", timeSlot: "morning" };
+    }
+    if (currentHour >= 12 && currentHour < 18) {
+      return { greeting: "CHÀO BUỔI CHIỀU", moodTitle: "Tập Trung Làm Việc", timeSlot: "afternoon" };
+    }
+    if (currentHour >= 18 && currentHour < 22) {
+      return { greeting: "CHÀO BUỔI TỐI", moodTitle: "Thư Giãn Cuối Ngày", timeSlot: "evening" };
+    }
+    return { greeting: "ĐÊM KHUYA", moodTitle: "Giai Điệu Dễ Ngủ", timeSlot: "night" };
+  }, [currentHour]);
+
+  // 2. Tuyển tập Daily Mix cá nhân hóa từ Lịch sử nghe & Bài hát yêu thích
+  const dailyMixes = useMemo(() => {
+    const artistStats: Record<string, { name: string; count: number; songs: UnifiedSong[]; thumbnail: string }> = {};
+
+    // Gom bài hát từ cả lịch sử và bài hát đã thích
+    const allUserSongs = [
+      ...history.map((h) => h.song),
+      ...likedSongs,
+    ].filter(Boolean);
+
+    allUserSongs.forEach((song) => {
+      if (!song?.artistsNames) return;
+      const primaryArtist = song.artistsNames.split(",")[0].trim();
+      if (!primaryArtist) return;
+
+      if (!artistStats[primaryArtist]) {
+        artistStats[primaryArtist] = {
+          name: primaryArtist,
+          count: 0,
+          songs: [],
+          thumbnail: song.thumbnail,
+        };
+      }
+      artistStats[primaryArtist].count += 1;
+      if (!artistStats[primaryArtist].songs.some((s) => s.id === song.id)) {
+        artistStats[primaryArtist].songs.push(song);
+      }
+    });
+
+    const sortedArtists = Object.values(artistStats).sort((a, b) => b.count - a.count);
+    const topArtist1 = sortedArtists[0];
+    const topArtist2 = sortedArtists[1];
+
+    // Daily Mix 1: Top Nghệ sĩ nghe nhiều nhất #1
+    const mix1Songs = topArtist1
+      ? [
+          ...topArtist1.songs,
+          ...topChartSongs.filter((s) => s.artistsNames?.includes(topArtist1.name) && !topArtist1.songs.some((t) => t.id === s.id)),
+          ...topChartSongs.slice(0, 10),
+        ].slice(0, 15)
+      : topChartSongs.slice(0, 15);
+
+    const mix1 = {
       id: "daily_mix_1",
-      title: "Daily Mix 1",
-      tag: "V-POP & R&B",
-      subtitle: "Tuyển tập các bản hit V-Pop thịnh hành nhất",
+      title: topArtist1 ? `Daily Mix 1 · ${topArtist1.name}` : "Daily Mix 1",
+      tag: topArtist1 ? "NGHỆ SĨ YÊU THÍCH" : "V-POP & R&B",
+      subtitle: topArtist1
+        ? `Tuyển tập hay nhất của ${topArtist1.name} & nghệ sĩ tương tự`
+        : "Tuyển tập các bản hit V-Pop thịnh hành nhất",
       gradient: ["#EC4899", "#8B5CF6"] as [string, string],
       thumbnail:
+        topArtist1?.thumbnail ||
         topChartSongs[0]?.thumbnail ||
         "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80",
-      songs: topChartSongs.slice(0, 15),
-    },
-    {
+      songs: mix1Songs,
+    };
+
+    // Daily Mix 2: Top Nghệ sĩ #2 HOẶC Mix theo Mood khung giờ (Lofi Chiều/Đêm, Acoustic Sáng)
+    const isLateNightOrAfternoon = timeGreeting.timeSlot === "night" || timeGreeting.timeSlot === "afternoon";
+    const mix2Songs = topArtist2
+      ? [
+          ...topArtist2.songs,
+          ...focusSongs.filter((s) => !topArtist2.songs.some((t) => t.id === s.id)),
+          ...topChartSongs.slice(2, 10),
+        ].slice(0, 15)
+      : focusSongs.length > 0
+      ? focusSongs
+      : topChartSongs.slice(3, 15);
+
+    const mix2 = {
       id: "daily_mix_2",
-      title: "Mix Đêm Khuya",
-      tag: "LOFI & CHILL",
-      subtitle: "Giai điệu nhẹ nhàng thư giãn đêm muộn",
+      title: topArtist2
+        ? `Daily Mix 2 · ${topArtist2.name}`
+        : isLateNightOrAfternoon
+        ? "Mix Đêm Khuya & Lofi"
+        : "Mix Năng Lượng Tươi Sáng",
+      tag: topArtist2 ? "DÀNH CHO BẠN" : isLateNightOrAfternoon ? "LOFI & CHILL" : "ACOUSTIC & POP",
+      subtitle: topArtist2
+        ? `Giai điệu từ ${topArtist2.name} và các nghệ sĩ cùng gu âm nhạc`
+        : isLateNightOrAfternoon
+        ? "Giai điệu nhẹ nhàng êm dịu thư giãn tâm trí"
+        : "Khởi đầu ngày mới tràn đầy hứng khởi và năng lượng",
       gradient: ["#06B6D4", "#3B82F6"] as [string, string],
       thumbnail:
+        topArtist2?.thumbnail ||
         focusSongs[0]?.thumbnail ||
         "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=400&q=80",
-      songs: focusSongs.length > 0 ? focusSongs : topChartSongs.slice(3, 15),
-    },
-    {
+      songs: mix2Songs,
+    };
+
+    // Daily Mix 3: Xu hướng mới & Khám phá
+    const mix3Songs =
+      globalTrendingSongs.length > 0 ? globalTrendingSongs.slice(0, 15) : topChartSongs.slice(5, 18);
+    const mix3 = {
       id: "daily_mix_3",
-      title: "Mix Năng Lượng",
-      tag: "EDM & DANCE",
-      subtitle: "Âm nhạc sôi động bùng nổ năng lượng",
+      title: "Daily Mix 3 · Khám Phá",
+      tag: "XU HƯỚNG MỚI",
+      subtitle: "Giai điệu mới mẻ và thịnh hành có thể bạn sẽ thích",
       gradient: ["#F59E0B", "#EF4444"] as [string, string],
       thumbnail:
         globalTrendingSongs[0]?.thumbnail ||
         "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
-      songs: globalTrendingSongs.slice(0, 15),
-    },
-  ];
+      songs: mix3Songs,
+    };
 
-  // 2. Khám phá theo Chủ đề & Không gian (Ambient & Activities)
-  const activityThemes = [
-    {
-      id: "theme_coffee",
-      title: "Cà phê sáng",
-      subtitle: "Acoustic, Indie & Jazz nhẹ nhàng khởi đầu ngày mới",
-      badge: "ACOUSTIC",
-      image: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500&q=80",
-      accent: "#F59E0B",
-      songs: coffeeSongs.length > 0 ? coffeeSongs : topChartSongs.slice(0, 12),
-    },
-    {
-      id: "theme_focus",
-      title: "Góc làm việc tập trung",
-      subtitle: "Deep Focus, Lofi Beats & Ambient nâng cao hiệu suất",
-      badge: "DEEP FOCUS",
-      image: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=500&q=80",
-      accent: "#8B5CF6",
-      songs: focusSongs.length > 0 ? focusSongs : topChartSongs.slice(2, 14),
-    },
-    {
-      id: "theme_drive",
-      title: "Lái xe thư giãn",
-      subtitle: "City Pop, Indie Rock & Night Drive phiêu theo giai điệu",
-      badge: "ROAD TRIP",
-      image: "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=500&q=80",
-      accent: "#EC4899",
-      songs: driveSongs.length > 0 ? driveSongs : globalTrendingSongs.slice(0, 12),
-    },
-    {
-      id: "theme_rain",
-      title: "Nhạc mưa chill",
-      subtitle: "Rainy Lofi, Piano & Sleep R&B sâu lắng và êm dịu",
-      badge: "RAINY CHILL",
-      image: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=500&q=80",
-      accent: "#06B6D4",
-      songs: rainSongs.length > 0 ? rainSongs : topChartSongs.slice(4, 16),
-    },
-  ];
+    return [mix1, mix2, mix3];
+  }, [history, likedSongs, topChartSongs, focusSongs, globalTrendingSongs, timeGreeting.timeSlot]);
+
+  // 3. Khám phá theo Chủ đề & Không gian (Tự động ưu tiên đưa chủ đề phù hợp giờ lên đầu)
+  const activityThemes = useMemo(() => {
+    const rawThemes = [
+      {
+        id: "theme_coffee",
+        title: "Cà phê sáng",
+        subtitle: "Acoustic, Indie & Jazz nhẹ nhàng khởi đầu ngày mới",
+        badge: "ACOUSTIC",
+        image: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500&q=80",
+        accent: "#F59E0B",
+        preferredSlot: "morning",
+        songs: coffeeSongs.length > 0 ? coffeeSongs : topChartSongs.slice(0, 12),
+      },
+      {
+        id: "theme_focus",
+        title: "Góc làm việc tập trung",
+        subtitle: "Deep Focus, Lofi Beats & Ambient nâng cao hiệu suất",
+        badge: "DEEP FOCUS",
+        image: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=500&q=80",
+        accent: "#8B5CF6",
+        preferredSlot: "afternoon",
+        songs: focusSongs.length > 0 ? focusSongs : topChartSongs.slice(2, 14),
+      },
+      {
+        id: "theme_drive",
+        title: "Lái xe thư giãn",
+        subtitle: "City Pop, Indie Rock & Night Drive phiêu theo giai điệu",
+        badge: "ROAD TRIP",
+        image: "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=500&q=80",
+        accent: "#EC4899",
+        preferredSlot: "evening",
+        songs: driveSongs.length > 0 ? driveSongs : globalTrendingSongs.slice(0, 12),
+      },
+      {
+        id: "theme_rain",
+        title: "Nhạc mưa chill",
+        subtitle: "Rainy Lofi, Piano & Sleep R&B sâu lắng và êm dịu",
+        badge: "RAINY CHILL",
+        image: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=500&q=80",
+        accent: "#06B6D4",
+        preferredSlot: "night",
+        songs: rainSongs.length > 0 ? rainSongs : topChartSongs.slice(4, 16),
+      },
+    ];
+
+    return [...rawThemes].sort((a, b) => {
+      if (a.preferredSlot === timeGreeting.timeSlot) return -1;
+      if (b.preferredSlot === timeGreeting.timeSlot) return 1;
+      return 0;
+    });
+  }, [coffeeSongs, focusSongs, driveSongs, rainSongs, topChartSongs, globalTrendingSongs, timeGreeting.timeSlot]);
 
   return (
     <View style={styles.safeArea}>
@@ -322,9 +420,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             >
               <AppAvatarBadge size={38} />
               <View style={styles.headerTextCol}>
-                <Text style={styles.headerSubtitle}>KHÁM PHÁ ÂM NHẠC</Text>
+                <Text style={styles.headerSubtitle}>{timeGreeting.greeting}</Text>
                 <Text numberOfLines={1} style={styles.headerTitle}>
-                  Dành Cho Bạn
+                  {timeGreeting.moodTitle}
                 </Text>
               </View>
             </TouchableOpacity>

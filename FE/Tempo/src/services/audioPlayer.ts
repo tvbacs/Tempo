@@ -139,12 +139,14 @@ class AudioEngine {
       try {
         newPlayer = createAudioPlayer(streamUrl, {
           updateInterval: 300,
+          keepAudioSessionActive: true,
         });
       } catch (directError: any) {
         console.warn('[AudioEngine] Direct player creation failed, trying stream-proxy:', directError?.message);
         const proxyUrl = `${API_BASE_URL}/music/stream-proxy?url=${encodeURIComponent(streamUrl)}`;
         newPlayer = createAudioPlayer(proxyUrl, {
           updateInterval: 300,
+          keepAudioSessionActive: true,
         });
       }
 

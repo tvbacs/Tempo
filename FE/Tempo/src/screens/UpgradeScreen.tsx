@@ -102,15 +102,18 @@ export const UpgradeScreen: React.FC = () => {
     setProcessingId(null);
   };
 
+  const topSafePadding = insets.top > 0 ? insets.top : 24;
+
   return (
     <View style={styles.safeArea}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="never"
       >
         {/* Top Hero with Full Notch Bleed & Alternating Mosaic Grid Background */}
-        <View style={[styles.heroWrapper, { paddingTop: Math.max(insets.top, 24) + SPACING.md }]}>
+        <View style={[styles.heroWrapper, { paddingTop: topSafePadding + SPACING.lg }]}>
           {/* Alternating Mosaic Rows */}
           <View style={styles.mosaicContainer} pointerEvents="none">
             <View style={styles.mosaicRow1}>
@@ -128,11 +131,12 @@ export const UpgradeScreen: React.FC = () => {
           {/* Deep Dark & Primary Gradient Overlay */}
           <LinearGradient
             colors={[
-              'rgba(10, 10, 14, 0.12)',
-              'rgba(10, 10, 14, 0.65)',
+              'rgba(10, 10, 14, 0.05)',
+              'rgba(10, 10, 14, 0.45)',
+              'rgba(10, 10, 14, 0.92)',
               COLORS.bgPrimary,
             ]}
-            locations={[0, 0.5, 1]}
+            locations={[0, 0.4, 0.75, 1]}
             style={StyleSheet.absoluteFillObject}
             pointerEvents="none"
           />
@@ -303,17 +307,21 @@ const styles = StyleSheet.create({
   },
   heroWrapper: {
     position: 'relative',
-    minHeight: 350,
+    minHeight: 380,
     justifyContent: 'flex-end',
     paddingHorizontal: SPACING.screenPadding,
-    paddingBottom: SPACING.lg,
+    paddingBottom: SPACING.xl,
     overflow: 'hidden',
   },
   mosaicContainer: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: -50,
+    left: -20,
+    right: -20,
+    bottom: 0,
     justifyContent: 'center',
-    gap: 10,
-    opacity: 0.85,
+    gap: 12,
+    opacity: 0.88,
   },
   mosaicRow1: {
     flexDirection: 'row',

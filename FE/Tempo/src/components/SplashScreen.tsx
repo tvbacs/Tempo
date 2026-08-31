@@ -1,4 +1,4 @@
-﻿/**
+/**
  * In-App Animated Splash Screen
  * Black Background #000000 + Centered Logo
  * Strictly follows STANDARDS.md - Accent #FF5800, NO EMOJIS, NO BORDERS, 100% Tokenized
@@ -73,7 +73,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.bgPrimary,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 99999,

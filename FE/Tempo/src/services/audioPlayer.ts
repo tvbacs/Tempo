@@ -159,14 +159,21 @@ class AudioEngine {
 
       // 3. Cấu hình Lock Screen / Now Playing Metadata (Màn hình khóa & Trung tâm điều khiển)
       try {
-        newPlayer.setActiveForLockScreen(true, {
-          title: song.title || 'Tempo Track',
-          artist: song.artistsNames || 'Nghệ sĩ',
-          albumTitle: song.album?.title || 'Tempo Music',
-          artworkUrl:
-            song.thumbnail ||
-            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500',
-        });
+        newPlayer.setActiveForLockScreen(
+          true,
+          {
+            title: song.title || 'Tempo Track',
+            artist: song.artistsNames || 'Nghệ sĩ',
+            albumTitle: song.album?.title || 'Tempo Music',
+            artworkUrl:
+              song.thumbnail ||
+              'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500',
+          },
+          {
+            showSeekForward: true,
+            showSeekBackward: true,
+          }
+        );
       } catch (lockScreenErr) {
         console.warn('[AudioEngine] Lock screen metadata error:', lockScreenErr);
       }

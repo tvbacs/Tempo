@@ -44,6 +44,7 @@ import { HomeScreenSkeleton } from "../components/SkeletonLoader";
 import { usePlayerStore } from "../store/playerStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { useDownloadStore } from "../store/downloadStore";
+import { useNotificationStore } from "../store/notificationStore";
 import { AppAvatarBadge } from "../components/AppAvatarBadge";
 import { formatDuration } from "../utils/format";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
@@ -78,11 +79,18 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   } = useLibraryStore();
 
   const { downloadedSongs, fetchDownloads } = useDownloadStore();
+  const { unreadCount, fetchNotifications } = useNotificationStore();
 
   const loadData = useCallback(async () => {
     setHasError(false);
-    // Luôn load local data trước (lịch sử, yêu thích, tải xuống)
-    await Promise.all([fetchHistory(), fetchLikedSongs(), fetchLastPlayedContext(), fetchDownloads()]);
+    // Luôn load local data trước (lịch sử, yêu thích, tải xuống, thông báo)
+    await Promise.all([
+      fetchHistory(),
+      fetchLikedSongs(),
+      fetchLastPlayedContext(),
+      fetchDownloads(),
+      fetchNotifications(),
+    ]);
     try {
       // 1. Tải feed chính & chart trước - phát hiện offline ngay lập tức
       const [feedData, chartData] = await Promise.all([
@@ -474,9 +482,14 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <TouchableOpacity
               activeOpacity={0.8}
               hitSlop={{ top: SPACING.md, bottom: SPACING.md, left: SPACING.md, right: SPACING.md }}
+              onPress={() => navigation.navigate("Notifications")}
               style={styles.headerIconBtn}
+              accessibilityLabel="Thông báo"
             >
               <Bell size={20} color={COLORS.white} />
+              {unreadCount > 0 && (
+                <View style={styles.unreadBadgeDot} />
+              )}
             </TouchableOpacity>
           </View>
 
@@ -1324,6 +1337,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+  },
+  unreadBadgeDot: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.accentPrimary,
   },
 
   // Quick Shelf Container

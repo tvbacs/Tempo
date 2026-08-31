@@ -126,6 +126,7 @@ const MainTabs: React.FC = () => {
 
 import { View, ActivityIndicator } from "react-native";
 import { SavedAlbumsScreen } from "../screens/SavedAlbumsScreen";
+import { NotificationScreen } from "../screens/NotificationScreen";
 
 export const AppNavigator: React.FC = () => {
   const { isAuthenticated, isLoading, initSession } = useAuthStore();
@@ -190,6 +191,7 @@ export const AppNavigator: React.FC = () => {
         <Stack.Screen name="Downloader" component={DownloaderScreen} />
         <Stack.Screen name="YouTubeDownloader" component={DownloaderScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Notifications" component={NotificationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

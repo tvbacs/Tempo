@@ -4,28 +4,116 @@ const NodeCache = require("node-cache");
 const axios = require("axios");
 
 const execFileAsync = promisify(execFile);
-// Cache audio stream URLs for 1 hour (3600s)
-const ytCache = new NodeCache({ stdTTL: 3600, checkperiod: 300 });
+
+// TTL ngắn 5 phút (300s) cho signed streaming URLs của YouTube/TikTok (ngăn ngừa lỗi hết hạn token)
+const ytCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
 /**
- * Mở rộng link rút gọn (vt.tiktok.com, vm.tiktok.com, on.soundcloud.com, youtu.be...) bằng cách follow redirects
+ * Hàm chung: Lựa chọn định dạng audio tối ưu nhất từ danh sách formats của yt-dlp
+ */
+function findBestAudio(formats) {
+  if (!formats || !Array.isArray(formats) || formats.length === 0) return null;
+
+  // 1. Ưu tiên codec âm thanh m4a (AAC chất lượng cao, dung lượng nhẹ)
+  const m4a = formats.find((f) => f.ext === "m4a" && f.url && f.acodec && f.acodec !== "none");
+  if (m4a) return m4a.url;
+
+  // 2. Fallback sang MP3 hoặc MP4 audio
+  const mp3OrMp4 = formats.find(
+    (f) => (f.ext === "mp3" || f.ext === "mp4") && f.url && f.acodec && f.acodec !== "none"
+  );
+  if (mp3OrMp4) return mp3OrMp4.url;
+
+  // 3. Fallback sang bất kỳ luồng nào có audio
+  const anyAudio = formats.find((f) => f.acodec && f.acodec !== "none" && f.url);
+  return anyAudio?.url || null;
+}
+
+/**
+ * Chuẩn hóa chuỗi tìm kiếm / cache key loại bỏ các tag rác
+ */
+function normalizeSongKey(str) {
+  if (!str) return "";
+  return str
+    .toLowerCase()
+    .replace(/\(official.*?\)/gi, "")
+    .replace(/\[official.*?\]/gi, "")
+    .replace(/\(mv.*?\)/gi, "")
+    .replace(/\[mv.*?\]/gi, "")
+    .replace(/\(lyrics.*?\)/gi, "")
+    .replace(/\[lyrics.*?\]/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Nhận diện nền tảng từ URL dựa trên hostname chuẩn xác
+ */
+function detectPlatform(urlStr) {
+  try {
+    const parsed = new URL(urlStr.trim());
+    const host = parsed.hostname.toLowerCase();
+
+    if (
+      host === "youtube.com" ||
+      host === "www.youtube.com" ||
+      host === "m.youtube.com" ||
+      host === "music.youtube.com" ||
+      host === "youtu.be"
+    ) {
+      return "youtube";
+    }
+
+    if (
+      host === "soundcloud.com" ||
+      host === "www.soundcloud.com" ||
+      host === "m.soundcloud.com" ||
+      host === "on.soundcloud.com"
+    ) {
+      return "soundcloud";
+    }
+
+    if (
+      host === "tiktok.com" ||
+      host === "www.tiktok.com" ||
+      host === "vt.tiktok.com" ||
+      host === "vm.tiktok.com" ||
+      host === "m.tiktok.com"
+    ) {
+      return "tiktok";
+    }
+  } catch (_) {}
+
+  return null;
+}
+
+/**
+ * Mở rộng link rút gọn an toàn dựa trên hostname
  */
 async function unshortenUrl(url) {
   const trimmed = url.trim();
-  const isShort =
-    trimmed.includes("on.soundcloud.com") ||
-    trimmed.includes("vt.tiktok.com") ||
-    trimmed.includes("vm.tiktok.com") ||
-    trimmed.includes("youtu.be") ||
-    trimmed.includes("bit.ly") ||
-    trimmed.includes("tinyurl.com");
+  let hostname = "";
+  try {
+    const parsed = new URL(trimmed);
+    hostname = parsed.hostname.toLowerCase();
+  } catch (_) {
+    return trimmed;
+  }
 
-  if (!isShort) return trimmed;
+  const isShortDomain =
+    hostname === "youtu.be" ||
+    hostname === "vt.tiktok.com" ||
+    hostname === "vm.tiktok.com" ||
+    hostname === "on.soundcloud.com" ||
+    hostname === "bit.ly" ||
+    hostname === "tinyurl.com";
+
+  if (!isShortDomain) return trimmed;
 
   try {
     const res = await axios.get(trimmed, {
       maxRedirects: 5,
-      timeout: 5000,
+      timeout: 6000,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
@@ -60,11 +148,11 @@ async function extractSoundCloudViaNoembed(url) {
   );
 
   const d = res.data;
-  if (!d || !d.title) throw new Error("noembed không trả về metadata hợp lệ");
+  if (!d || !d.title) throw new Error("noembed không trả về metadata SoundCloud hợp lệ");
 
   const title = (d.title || "SoundCloud Track").trim();
   const artist = (d.author_name || "SoundCloud Artist").trim();
-  const thumbnail = d.thumbnail_url || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400";
+  const thumbnail = d.thumbnail_url || null;
 
   const directArgs = [
     "--no-playlist",
@@ -94,7 +182,7 @@ async function extractSoundCloudViaNoembed(url) {
       });
 
       const data = JSON.parse(result.stdout);
-      const audioUrl = data.url || data.requested_downloads?.[0]?.url;
+      const audioUrl = findBestAudio(data.formats) || data.url || data.requested_downloads?.[0]?.url;
 
       if (audioUrl && audioUrl.startsWith("http")) {
         return {
@@ -128,7 +216,7 @@ async function extractSoundCloudViaNoembed(url) {
  * Trích xuất TikTok qua TikWM API & Fallback với độ chuẩn xác từng video riêng biệt
  */
 async function extractTikTok(url) {
-  // 1. Thử qua TikWM API
+  // 1. Thử qua TikWM API (chính xác và nhanh)
   try {
     const res = await axios.post(
       "https://www.tikwm.com/api/",
@@ -143,17 +231,14 @@ async function extractTikTok(url) {
       const d = res.data.data;
       const musicInfo = d.music_info || {};
 
-      // Ưu tiên luồng audio thực tế của video đó
+      // Ưu tiên luồng audio chuẩn của video
       const audioUrl = d.music || musicInfo.play || d.play || d.wmplay;
       if (audioUrl && audioUrl.startsWith("http")) {
-        // Tách tiêu đề chuẩn: ưu tiên caption của video để phân biệt các video khác nhau
         const cleanCaption = (d.title || "").replace(/#\S+/g, "").trim();
         const finalTitle = cleanCaption || musicInfo.title || "TikTok Audio";
         const finalArtist = d.author?.nickname || d.author?.unique_id || musicInfo.author || "TikTok Creator";
-        // Ảnh bìa chuẩn của chính video đó
-        const finalThumb = d.cover || d.origin_cover || d.ai_dynamic_cover || musicInfo.cover || "";
+        const finalThumb = d.cover || d.origin_cover || d.ai_dynamic_cover || musicInfo.cover || null;
 
-        // Tính duration chuẩn xác của video TikTok
         let exactDuration = 30;
         if (typeof d.duration === "number" && d.duration > 0) {
           exactDuration = d.duration > 1000 ? Math.round(d.duration / 1000) : Math.round(d.duration);
@@ -190,7 +275,7 @@ async function extractTikTok(url) {
       const data = res.data;
       const title = (data.title || "TikTok Audio").replace(/#\S+/g, "").trim() || "TikTok Audio";
       const artist = data.author?.name || "TikTok Creator";
-      const thumb = data.cover || data.images?.[0] || "";
+      const thumb = data.cover || data.images?.[0] || null;
 
       return {
         id: `tk_${data.id || Date.now()}`,
@@ -215,12 +300,12 @@ async function extractTikTok(url) {
 }
 
 /**
- * Lấy URL audio stream từ YouTube bằng yt-dlp (Bản gốc chính xác kèm duration)
+ * Lấy URL audio stream từ YouTube bằng yt-dlp (Bản gốc chính thức của ca sĩ cho bài VIP)
  */
 const resolveYouTubeStream = async (title, artist = "") => {
   const cleanTitle = (title || "").trim();
   const mainArtist = (artist || "").split(",")[0].trim();
-  const cacheKey = `yt_stream_${cleanTitle}_${mainArtist}`.toLowerCase();
+  const cacheKey = `yt_stream_${normalizeSongKey(cleanTitle)}_${normalizeSongKey(mainArtist)}`;
 
   const cachedData = ytCache.get(cacheKey);
   if (cachedData && cachedData.audioUrl) {
@@ -282,22 +367,12 @@ const resolveYouTubeStream = async (title, artist = "") => {
         for (const item of entries) {
           if (!item) continue;
           const itemTitleLower = (item.title || "").toLowerCase();
-          
+
           // Lọc bỏ bản remix/cover nếu bài gốc không phải remix/cover
           const isUnwanted = unwantedKeywords.some(kw => !origHasKeyword(kw) && itemTitleLower.includes(kw));
           if (isUnwanted && entries.length > 1) {
             continue;
           }
-
-          const findBestAudio = (formats) => {
-            if (!formats || !formats.length) return null;
-            const m4a = formats.find((f) => f.ext === "m4a" && f.url && f.acodec !== "none");
-            if (m4a) return m4a.url;
-            const mp4 = formats.find((f) => (f.ext === "mp3" || f.ext === "mp4") && f.url && f.acodec !== "none");
-            if (mp4) return mp4.url;
-            const anyAudio = formats.find((f) => f.acodec !== "none" && f.url);
-            return anyAudio?.url || null;
-          };
 
           const audioUrl = findBestAudio(item.formats) || item.url || item.requested_downloads?.[0]?.url;
 
@@ -338,25 +413,21 @@ const extractYouTubeMetadata = async (rawUrl) => {
   }
 
   const cleanUrl = await unshortenUrl(rawUrl.trim());
+  const platform = detectPlatform(cleanUrl) || detectPlatform(rawUrl);
+
+  if (!platform) {
+    throw new Error("Đường dẫn không hợp lệ. Vui lòng cung cấp link từ YouTube, SoundCloud hoặc TikTok.");
+  }
+
   const cacheKey = `media_ext_${encodeURIComponent(cleanUrl)}`;
   const cached = ytCache.get(cacheKey);
-  if (cached) {
+  if (cached && cached.audioUrl) {
     console.log(`[media extract] Cache hit for: ${cleanUrl}`);
     return cached;
   }
 
-  const isSoundCloud =
-    cleanUrl.includes("soundcloud.com") ||
-    rawUrl.includes("soundcloud.com") ||
-    rawUrl.includes("on.soundcloud.com");
-  const isTikTok =
-    cleanUrl.includes("tiktok.com") ||
-    rawUrl.includes("tiktok.com") ||
-    rawUrl.includes("vt.tiktok.com") ||
-    rawUrl.includes("vm.tiktok.com");
-
-  // ─── SoundCloud: noembed.com + direct yt-dlp ───
-  if (isSoundCloud) {
+  // ─── 1. SoundCloud ───
+  if (platform === "soundcloud") {
     try {
       console.log(`[SoundCloud] Extracting: ${cleanUrl}`);
       const songData = await extractSoundCloudViaNoembed(cleanUrl);
@@ -364,11 +435,12 @@ const extractYouTubeMetadata = async (rawUrl) => {
       return songData;
     } catch (scErr) {
       console.warn("[SoundCloud] Error:", scErr.message);
+      throw scErr;
     }
   }
 
-  // ─── TikTok: TikWM & TiklyDown (chính xác 100% từng video) ───
-  if (isTikTok) {
+  // ─── 2. TikTok ───
+  if (platform === "tiktok") {
     try {
       console.log(`[TikTok] Extracting: ${cleanUrl}`);
       const songData = await extractTikTok(cleanUrl);
@@ -380,7 +452,7 @@ const extractYouTubeMetadata = async (rawUrl) => {
     }
   }
 
-  // ─── YouTube: Direct yt-dlp ───
+  // ─── 3. YouTube ───
   const baseArgs = [
     "--no-playlist",
     "--js-runtimes",
@@ -412,17 +484,6 @@ const extractYouTubeMetadata = async (rawUrl) => {
       });
 
       const data = JSON.parse(result.stdout);
-      
-      const findBestAudio = (formats) => {
-        if (!formats || !formats.length) return null;
-        const m4a = formats.find((f) => f.ext === "m4a" && f.url && f.acodec !== "none");
-        if (m4a) return m4a.url;
-        const mp4 = formats.find((f) => (f.ext === "mp3" || f.ext === "mp4") && f.url && f.acodec !== "none");
-        if (mp4) return mp4.url;
-        const anyAudio = formats.find((f) => f.acodec !== "none" && f.url);
-        return anyAudio?.url || null;
-      };
-
       const audioUrl =
         findBestAudio(data.formats) ||
         data.url ||
@@ -462,4 +523,4 @@ const extractYouTubeMetadata = async (rawUrl) => {
   throw new Error("Không thể trích xuất nhạc từ liên kết này. Vui lòng kiểm tra lại đường dẫn.");
 };
 
-module.exports = { resolveYouTubeStream, extractYouTubeMetadata };
+module.exports = { resolveYouTubeStream, extractYouTubeMetadata, findBestAudio, normalizeSongKey, detectPlatform };

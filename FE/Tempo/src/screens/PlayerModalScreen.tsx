@@ -161,6 +161,12 @@ export const PlayerModalScreen: React.FC = () => {
 
   const handleToggleShuffle = () => {
     toggleShuffle();
+    if (queue.length <= 1) {
+      showToast(
+        "Đang phát 1 bài. Thêm bài hát vào Thư viện hoặc Playlist để dùng tính năng Trộn bài!",
+        "info"
+      );
+    }
   };
 
   const handleCycleRepeat = () => {
@@ -168,16 +174,36 @@ export const PlayerModalScreen: React.FC = () => {
   };
 
   const handlePlayNext = () => {
-    if (queue.length <= 1 && recommendedSongs.length > 0) {
-      playSong(recommendedSongs[0], [...queue, ...recommendedSongs]);
-      showToast(`Đang phát: ${recommendedSongs[0].title}`, "info");
+    if (queue.length <= 1) {
+      showToast(
+        "Danh sách chỉ có 1 bài hát. Hãy thêm vào Thư viện hoặc Danh sách phát để chuyển bài!",
+        "info"
+      );
     } else {
       playNext();
     }
   };
 
   const handlePlayPrev = () => {
-    playPrev();
+    if (queue.length <= 1) {
+      showToast(
+        "Danh sách chỉ có 1 bài hát. Hãy thêm vào Thư viện hoặc Danh sách phát để chuyển bài!",
+        "info"
+      );
+    } else {
+      playPrev();
+    }
+  };
+
+  const handleHeaderPress = () => {
+    if (playbackContext?.type === 'extracted' || playbackContext?.type === 'single' || queue.length <= 1) {
+      showToast(
+        "Đang phát từ trích xuất (1 bài). Hãy thêm bài hát vào Thư viện hoặc Playlist để dùng đầy đủ tính năng!",
+        "info"
+      );
+    } else {
+      closeFullPlayer();
+    }
   };
 
   const handleCast = () => {
@@ -379,8 +405,8 @@ export const PlayerModalScreen: React.FC = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={closeFullPlayer}
+            activeOpacity={0.7}
+            onPress={handleHeaderPress}
             style={styles.headerTitleCenter}
           >
             <View style={styles.dragBar} />

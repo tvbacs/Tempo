@@ -541,7 +541,11 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   style={styles.horizontalCard}
                 >
                   <Image
-                    source={{ uri: currentAlbum.thumbnail }}
+                    source={{
+                      uri:
+                        currentAlbum.thumbnail ||
+                        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300",
+                    }}
                     style={styles.horizontalCardImg}
                     resizeMode="cover"
                   />
@@ -592,7 +596,11 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   style={styles.horizontalCard}
                 >
                   <Image
-                    source={{ uri: currentPlaylist.thumbnail }}
+                    source={{
+                      uri:
+                        currentPlaylist.thumbnail ||
+                        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300",
+                    }}
                     style={styles.horizontalCardImg}
                     resizeMode="cover"
                   />

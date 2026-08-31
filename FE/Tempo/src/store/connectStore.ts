@@ -76,9 +76,28 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
       realtimeChannel
         .on('broadcast', { event: 'device_presence' }, ({ payload }: { payload: ConnectedDevice }) => {
           if (!payload?.deviceId || payload.deviceId === 'mobile-app') return;
+          const isNewlyOnline = !get().availableDevices.some((d) => d.deviceId === payload.deviceId);
           const currentList = get().availableDevices.filter((d) => d.deviceId !== payload.deviceId);
           const updated = [...currentList, { ...payload, isOnline: true, lastSeen: Date.now() }];
           set({ availableDevices: updated });
+
+          // Khi Web Player vừa vào online: Bắn thông báo ngay cho điện thoại
+          if (isNewlyOnline) {
+            useToastStore.getState().showToast(`Đã kết nối với ${payload.deviceName || 'Web Player (PC)'}`, 'info');
+          }
+
+          // Yêu cầu lấy ngay bài hát và trạng thái từ Web Player
+          safeBroadcast('playback_state_query', {});
+        })
+        .on('broadcast', { event: 'device_presence_query' }, () => {
+          safeBroadcast('device_presence', THIS_DEVICE);
+        })
+        .on('broadcast', { event: 'playback_state_query' }, () => {
+          const { usePlayerStore } = require('./playerStore');
+          const ps = usePlayerStore.getState();
+          if (get().activeDevice.deviceId === 'mobile-app' && ps.currentSong) {
+            get().broadcastLocalState(ps.currentSong, ps.isPlaying, ps.positionMs, ps.durationMs);
+          }
         })
         .on('broadcast', { event: 'playback_state' }, ({ payload }: { payload: any }) => {
           if (!payload) return;
@@ -94,7 +113,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
             };
             set({ activeDevice: dev });
 
-            // Cập nhật trạng thái phát nhạc từ máy tính về điện thoại
+            // Cập nhật trạng thái phát nhạc từ máy tính về điện thoại ngay lập tức
             const { usePlayerStore } = require('./playerStore');
             if (payload.currentSong) {
               usePlayerStore.setState({
@@ -118,8 +137,10 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         .subscribe((status: string) => {
           if (status === 'SUBSCRIBED') {
             set({ isInitialized: true, isSubscribed: true });
-            // Hỏi thăm các thiết bị đang online qua WebSocket an toàn
+            // Gửi sự hiện diện và hỏi thăm các thiết bị đang online qua WebSocket
+            safeBroadcast('device_presence', THIS_DEVICE);
             safeBroadcast('device_presence_query', {});
+            safeBroadcast('playback_state_query', {});
 
             // Tự động broadcast state mỗi khi playerStore thay đổi (dùng subscribe)
             setTimeout(() => {

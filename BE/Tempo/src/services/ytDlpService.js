@@ -153,6 +153,14 @@ async function extractTikTok(url) {
         // Ảnh bìa chuẩn của chính video đó
         const finalThumb = d.cover || d.origin_cover || d.ai_dynamic_cover || musicInfo.cover || "";
 
+        // Tính duration chuẩn xác của video TikTok
+        let exactDuration = 30;
+        if (typeof d.duration === "number" && d.duration > 0) {
+          exactDuration = d.duration > 1000 ? Math.round(d.duration / 1000) : Math.round(d.duration);
+        } else if (typeof musicInfo.duration === "number" && musicInfo.duration > 0) {
+          exactDuration = musicInfo.duration > 1000 ? Math.round(musicInfo.duration / 1000) : Math.round(musicInfo.duration);
+        }
+
         return {
           id: `tk_${d.id || Date.now()}`,
           rawId: d.id || "",
@@ -160,7 +168,7 @@ async function extractTikTok(url) {
           fullTitle: `${finalTitle} - ${finalArtist}`,
           artistsNames: finalArtist,
           thumbnail: finalThumb,
-          duration: Math.round(d.duration || musicInfo.duration || 30),
+          duration: exactDuration,
           source: "tiktok",
           audioUrl,
           quality: "MP3 HQ",

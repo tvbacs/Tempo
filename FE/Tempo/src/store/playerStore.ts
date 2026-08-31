@@ -88,13 +88,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
   // Listen to engine playback updates
   audioEngine.setStatusCallback((status) => {
     if (status.isLoaded) {
-      // Ưu tiên duration thực từ audio engine — metadata thường lệch vài giây
+      // Ưu tiên duration chuẩn xác từ metadata
       const engineDurationMs = status.durationMillis || 0;
       const song = get().currentSong;
       const metaDurationMs = song?.duration ? song.duration * 1000 : 0;
 
-      // Dùng engine duration nếu hợp lệ (> 1s), fallback sang metadata
-      const accurateDurationMs = engineDurationMs > 1000 ? engineDurationMs : metaDurationMs;
+      // Ưu tiên metaDurationMs để tránh AVPlayer ước lượng bitrate sai (bị x2 thời lượng), chỉ dùng engine nếu không có meta hoặc lệch dưới 6s
+      let accurateDurationMs = metaDurationMs;
+      if (!accurateDurationMs || accurateDurationMs <= 0) {
+        accurateDurationMs = engineDurationMs;
+      } else if (engineDurationMs > 1000 && Math.abs(engineDurationMs - metaDurationMs) < 6000) {
+        accurateDurationMs = engineDurationMs;
+      }
 
       // Clamp position — không bao giờ để position > duration
       const rawPosition = status.positionMillis || 0;

@@ -57,7 +57,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     audio.volume = get().volume;
 
     audio.addEventListener('timeupdate', () => {
-      set({ positionSec: audio.currentTime, durationSec: audio.duration || 0 });
+      const current = audio.currentTime;
+      const song = get().currentSong;
+      const metaDurationSec = song?.duration || 0;
+      const audioDuration = audio.duration;
+      let validDuration = metaDurationSec;
+      if (!validDuration || validDuration <= 0) {
+        validDuration = (audioDuration && !isNaN(audioDuration) && isFinite(audioDuration)) ? audioDuration : 0;
+      } else if (audioDuration && !isNaN(audioDuration) && isFinite(audioDuration) && Math.abs(audioDuration - metaDurationSec) < 6) {
+        validDuration = audioDuration;
+      }
+      set({ positionSec: current, durationSec: validDuration });
     });
 
     audio.addEventListener('play', () => {

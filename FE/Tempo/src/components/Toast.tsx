@@ -67,27 +67,27 @@ export const Toast: React.FC = () => {
             onPress={() => setIsMinimized(false)}
             style={[styles.minimizedPill, { top: downloadTopOffset }]}
           >
-            <Download size={13} color={COLORS.accentPrimary} />
+            <Download size={16} color={COLORS.accentPrimary} />
             <Text style={styles.minimizedPct}>
               {Math.round(downloadToast.progress * 100)}%
             </Text>
-            <Maximize2 size={11} color={COLORS.textSecondary} style={{ marginLeft: 2 }} />
+            <Maximize2 size={15} color={COLORS.textSecondary} style={{ marginLeft: 2 }} />
             <TouchableOpacity
-              hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
+              hitSlop={{ top: 12, bottom: 12, left: 10, right: 12 }}
               onPress={(e) => {
                 e.stopPropagation();
                 hideDownloadToast();
               }}
               style={styles.minimizedCloseBtn}
             >
-              <X size={11} color={COLORS.textMuted} />
+              <X size={15} color={COLORS.textMuted} />
             </TouchableOpacity>
           </TouchableOpacity>
         ) : (
           /* Dạng Đầy Đủ (Thanh tiến trình chi tiết) */
           <View style={[styles.downloadContainer, { top: downloadTopOffset }]}>
             <View style={styles.downloadHeader}>
-              <Download size={14} color={COLORS.accentPrimary} />
+              <Download size={16} color={COLORS.accentPrimary} />
               <Text style={styles.downloadTitle} numberOfLines={1}>
                 {downloadToast.title}
               </Text>
@@ -98,23 +98,23 @@ export const Toast: React.FC = () => {
               {/* Nút Thu Nhỏ */}
               <TouchableOpacity
                 activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
                 onPress={() => setIsMinimized(true)}
                 style={styles.actionIconBtn}
                 accessibilityLabel="Thu nhỏ"
               >
-                <Minimize2 size={13} color={COLORS.textSecondary} />
+                <Minimize2 size={16} color={COLORS.textSecondary} />
               </TouchableOpacity>
 
               {/* Nút Đóng */}
               <TouchableOpacity
                 activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 12 }}
                 onPress={() => hideDownloadToast()}
                 style={styles.actionIconBtn}
                 accessibilityLabel="Đóng"
               >
-                <X size={13} color={COLORS.textSecondary} />
+                <X size={17} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -198,12 +198,14 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizeCaption,
     fontWeight: '800',
     color: COLORS.accentPrimary,
-    minWidth: 32,
+    minWidth: 36,
     textAlign: 'right',
   },
   actionIconBtn: {
-    padding: 3,
-    marginLeft: 2,
+    padding: 6,
+    marginLeft: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   progressTrack: {
     height: 3.5,
@@ -223,24 +225,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1E1E24',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 24,
     zIndex: 9998,
     elevation: 18,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
-    gap: 5,
+    gap: 8,
   },
   minimizedPct: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '800',
     color: COLORS.white,
   },
   minimizedCloseBtn: {
-    padding: 2,
+    padding: 4,
     marginLeft: 2,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
 });

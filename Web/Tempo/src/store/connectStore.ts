@@ -65,16 +65,19 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
 
         if (command === 'toggle_play_pause') {
           ps.togglePlayPause();
+          get().broadcastState();
           return;
         }
 
         if (command === 'next') {
           ps.playNext();
+          get().broadcastState();
           return;
         }
 
         if (command === 'prev') {
           ps.playPrev();
+          get().broadcastState();
           return;
         }
 
@@ -82,31 +85,37 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           ps.audioElement?.pause();
           usePlayerStore.setState({ isPlaying: false });
           set({ activeDeviceId: 'mobile-app', activeDeviceName: 'Điện thoại' });
+          get().broadcastState();
           return;
         }
 
         if (command === 'set_shuffle' && typeof data?.isShuffle === 'boolean') {
           ps.setShuffle(data.isShuffle);
+          get().broadcastState();
           return;
         }
 
         if (command === 'set_repeat') {
           ps.setRepeat(data?.repeatMode === 'all' || data?.repeatMode === 'one' || data?.isRepeat === true);
+          get().broadcastState();
           return;
         }
 
         if (command === 'resume') {
           ps.audioElement?.play().catch(() => {});
+          get().broadcastState();
           return;
         }
 
         if (command === 'seek' && typeof data?.positionMs === 'number') {
           ps.seekTo(data.positionMs / 1000);
+          get().broadcastState();
           return;
         }
 
         if (command === 'set_volume' && typeof data?.volume === 'number') {
           ps.setVolume(data.volume);
+          get().broadcastState();
           return;
         }
       })

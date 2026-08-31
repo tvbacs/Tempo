@@ -61,6 +61,9 @@ export const THIS_DEVICE: ConnectedDevice = {
 let realtimeChannel: any = null;
 let lastResumeTime = Date.now();
 let isAppStateListenerAttached = false;
+let lastUserVolumeChangeTime = 0;
+let lastUserPlayPauseChangeTime = 0;
+let lastUserSeekChangeTime = 0;
 
 const safeBroadcast = (event: string, payload: any) => {
   if (realtimeChannel && realtimeChannel.state === 'joined') {
@@ -150,16 +153,22 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
             lastSeen: Date.now(),
           };
 
+          const now = Date.now();
+          const shouldUpdateVolume = typeof payload.volume === 'number' && (now - lastUserVolumeChangeTime > 3000);
+          const shouldUpdateIsPlaying = (now - lastUserPlayPauseChangeTime > 2500);
+          const shouldUpdatePosition = (now - lastUserSeekChangeTime > 2500);
+          const currentRemote = get().remotePlayback;
+
           // Lưu riêng biệt vào remotePlayback — TUYỆT ĐỐI KHÔNG GHI ĐÈ playerStore CỦA MOBILE
           set({
-            ...(typeof payload.volume === 'number' ? { volume: payload.volume } : {}),
+            ...(shouldUpdateVolume ? { volume: payload.volume } : {}),
             remotePlayback: {
               deviceId: payload.activeDeviceId,
               deviceName: payload.activeDeviceName || 'Web Player (PC)',
               currentSong: payload.currentSong || null,
               queue: payload.queue || [],
-              isPlaying: Boolean(payload.isPlaying),
-              positionMs: payload.positionMs || 0,
+              isPlaying: shouldUpdateIsPlaying ? Boolean(payload.isPlaying) : (currentRemote?.isPlaying ?? Boolean(payload.isPlaying)),
+              positionMs: shouldUpdatePosition ? (payload.positionMs || 0) : (currentRemote?.positionMs ?? 0),
               durationMs: payload.durationMs || (payload.currentSong?.duration ? payload.currentSong.duration * 1000 : 0),
             },
           });
@@ -405,6 +414,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
   },
 
   setVolume: (volume: number) => {
+    lastUserVolumeChangeTime = Date.now();
     set({ volume });
     get().sendRemoteCommand('set_volume', { volume });
   },
@@ -491,6 +501,17 @@ export const useActivePlayback = () => {
     if (isRemote) {
       const isStillRemote = await useConnectStore.getState().ensureActiveDeviceOrFallback();
       if (isStillRemote) {
+        // Cập nhật Optimistic tức thì 0ms trên Mobile
+        const curRemote = useConnectStore.getState().remotePlayback;
+        if (curRemote) {
+          useConnectStore.setState({
+            remotePlayback: {
+              ...curRemote,
+              isPlaying: !curRemote.isPlaying,
+            },
+          });
+        }
+        lastUserPlayPauseChangeTime = Date.now();
         useConnectStore.getState().sendRemoteCommand('toggle_play_pause');
         return;
       }
@@ -524,6 +545,16 @@ export const useActivePlayback = () => {
     if (isRemote) {
       const isStillRemote = await useConnectStore.getState().ensureActiveDeviceOrFallback();
       if (isStillRemote) {
+        const curRemote = useConnectStore.getState().remotePlayback;
+        if (curRemote) {
+          useConnectStore.setState({
+            remotePlayback: {
+              ...curRemote,
+              positionMs: posMs,
+            },
+          });
+        }
+        lastUserSeekChangeTime = Date.now();
         useConnectStore.getState().sendRemoteCommand('seek', { positionMs: posMs });
         return;
       }

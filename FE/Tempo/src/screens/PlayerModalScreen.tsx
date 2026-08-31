@@ -50,7 +50,6 @@ import { navigate } from "../navigation/AppNavigator";
 import { apiClient } from "../api/client";
 import { LyricData, UnifiedSong } from "../types/music";
 import { SleepTimerModal } from "../components/SleepTimerModal";
-import { DimScreenOverlay } from "../components/DimScreenOverlay";
 import { SongOptionsModal } from "../components/SongOptionsModal";
 import { Toast } from "../components/Toast";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";

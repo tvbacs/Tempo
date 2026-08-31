@@ -15,9 +15,8 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from 'react-native';
-import { Moon, Check, X, Clock, MonitorOff } from 'lucide-react-native';
+import { Moon, Check, X, Clock } from 'lucide-react-native';
 import { useSleepTimerStore, SleepTimerOption } from '../store/sleepTimerStore';
-import { useDimScreenStore } from '../store/dimScreenStore';
 import { usePlayerStore } from '../store/playerStore';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
@@ -42,8 +41,7 @@ export const SleepTimerModal: React.FC = () => {
     cancelTimer,
   } = useSleepTimerStore();
 
-  const { show: showDimScreen } = useDimScreenStore();
-  const { currentSong, closeFullPlayer } = usePlayerStore();
+  const { currentSong } = usePlayerStore();
 
   if (!isModalVisible) return null;
 
@@ -146,26 +144,6 @@ export const SleepTimerModal: React.FC = () => {
                     </TouchableOpacity>
                   );
                 })}
-
-                {/* Divider */}
-                <View style={styles.divider} />
-
-                {/* Nút Tối màn hình ngay */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    closeModal();
-                    closeFullPlayer();
-                    showDimScreen();
-                  }}
-                  style={styles.dimScreenBtn}
-                >
-                  <MonitorOff size={18} color={COLORS.textSecondary} />
-                  <View style={styles.dimScreenTextWrap}>
-                    <Text style={styles.dimScreenLabel}>Tối màn hình ngay</Text>
-                    <Text style={styles.dimScreenHint}>Chạm nhẹ để tắt — iPhone tự khóa sau đó</Text>
-                  </View>
-                </TouchableOpacity>
 
                 {/* Tắt hẹn giờ button */}
                 {isTimerActive && (
@@ -297,33 +275,5 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizeBodyLarge,
     color: COLORS.textMuted,
     fontWeight: '500',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    marginVertical: SPACING.sm,
-    marginHorizontal: SPACING.xs,
-  },
-  dimScreenBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.md + 2,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: LAYOUT.radiusMd,
-    gap: SPACING.md,
-  },
-  dimScreenTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  dimScreenLabel: {
-    fontSize: TYPOGRAPHY.sizeBodyLarge,
-    color: COLORS.textPrimary,
-    fontWeight: '600',
-  },
-  dimScreenHint: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    color: COLORS.textMuted,
-    fontWeight: '400',
   },
 });

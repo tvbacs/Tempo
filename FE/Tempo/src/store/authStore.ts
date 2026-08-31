@@ -137,9 +137,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const user = await fetchProfile(session.user.id, session.user.email ?? '');
         set({ user, isAuthenticated: true });
         await saveLocalUser(user);
+        try {
+          const { useLibraryStore } = require('./libraryStore');
+          const lib = useLibraryStore.getState();
+          lib.fetchLikedSongs();
+          lib.fetchPlaylists();
+          lib.fetchFollowedArtists();
+          lib.fetchSavedAlbums();
+          lib.fetchHistory();
+        } catch (_) {}
       } else if (event === 'SIGNED_OUT') {
         set({ user: null, isAuthenticated: false });
         await saveLocalUser(null);
+        try {
+          const { useLibraryStore } = require('./libraryStore');
+          useLibraryStore.getState().resetForUser();
+        } catch (_) {}
       }
     });
   },

@@ -209,26 +209,47 @@ const getArtistInfo = async (alias) => {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  const res = await ZingMp3.getArtist(alias);
-  if (res.err !== 0 || !res.data) throw new Error(res.msg || 'Artist not found');
+  try {
+    const res = await ZingMp3.getArtist(alias);
+    if (res && res.err === 0 && res.data) {
+      const d = res.data;
+      const payload = {
+        id: d.id || alias,
+        name: d.name || alias.replace(/-/g, ' '),
+        alias: d.alias || alias,
+        thumbnail: d.thumbnailM || d.thumbnail || '',
+        cover: d.cover || '',
+        biography: (d.biography || '').replace(/<br>/gi, '\n').replace(/<[^>]+>/g, '').trim(),
+        sortBiography: (d.sortBiography || '').replace(/<[^>]+>/g, '').trim(),
+        totalFollow: d.totalFollow || 0,
+        national: d.national || '',
+        realname: d.realname || d.name,
+      };
+      cache.set(cacheKey, payload, 1800); // 30 min cache
+      return payload;
+    }
+  } catch (err) {
+    // Zing API can fail for non-Zing artists
+  }
 
-  const d = res.data;
-  const payload = {
-    id: d.id,
-    name: d.name,
-    alias: d.alias,
-    thumbnail: d.thumbnailM || d.thumbnail || '',
-    cover: d.cover || '',
-    biography: (d.biography || '').replace(/<br>/gi, '\n').replace(/<[^>]+>/g, '').trim(),
-    sortBiography: (d.sortBiography || '').replace(/<[^>]+>/g, '').trim(),
-    totalFollow: d.totalFollow || 0,
-    national: d.national || '',
-    realname: d.realname || d.name,
+  // Graceful fallback for non-Zing / Audius / custom artists
+  const cleanName = decodeURIComponent(alias).replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  const fallbackPayload = {
+    id: alias,
+    name: cleanName,
+    alias: alias,
+    thumbnail: '',
+    cover: '',
+    biography: `Nghệ sĩ ${cleanName}`,
+    sortBiography: '',
+    totalFollow: 0,
+    national: 'Việt Nam',
+    realname: cleanName,
   };
-
-  cache.set(cacheKey, payload, 1800); // 30 min cache
-  return payload;
+  cache.set(cacheKey, fallbackPayload, 600);
+  return fallbackPayload;
 };
+
 
 module.exports = {
   formatZingSong,

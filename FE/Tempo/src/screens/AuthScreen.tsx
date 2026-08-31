@@ -19,20 +19,12 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Music,
-  User,
   Mail,
   Lock,
   Eye,
   EyeOff,
-  Sparkles,
-  ShieldCheck,
-  Headphones,
-  Zap,
   ArrowRight,
-  Disc,
-  DownloadCloud,
-  CheckCircle2,
+  ShieldCheck,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../store/authStore';
@@ -201,22 +193,6 @@ export const AuthScreen: React.FC = () => {
 
               <Text style={styles.brandTitle}>Tempo Music</Text>
               <Text style={styles.brandTagline}>Âm Nhạc Không Giới Hạn</Text>
-
-              {/* Feature Pill Chips Row */}
-              <View style={styles.featureChipsRow}>
-                <View style={styles.featureChip}>
-                  <Zap size={12} color="#F59E0B" />
-                  <Text style={styles.featureChipText}>Lossless 320k</Text>
-                </View>
-                <View style={styles.featureChip}>
-                  <DownloadCloud size={12} color="#10B981" />
-                  <Text style={styles.featureChipText}>Offline 100%</Text>
-                </View>
-                <View style={styles.featureChip}>
-                  <Sparkles size={12} color="#C084FC" />
-                  <Text style={styles.featureChipText}>AI DJ Mix</Text>
-                </View>
-              </View>
             </View>
 
             {/* 3. Glassmorphic Form Card */}
@@ -495,26 +471,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizeBodySmall,
     color: COLORS.textSecondary,
     fontWeight: '500',
-    marginBottom: SPACING.md,
-  },
-  featureChipsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  featureChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: LAYOUT.radiusFull,
-  },
-  featureChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
+    marginBottom: SPACING.lg,
   },
   formGlassCard: {
     backgroundColor: 'rgba(24, 24, 30, 0.88)',

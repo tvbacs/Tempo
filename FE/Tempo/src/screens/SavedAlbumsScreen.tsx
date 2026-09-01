@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react-native";
 import { useLibraryStore } from "../store/libraryStore";
+import { Skeleton } from "../components/SkeletonLoader";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 
 export const SavedAlbumsScreen: React.FC<{ navigation: any }> = ({
@@ -28,9 +29,10 @@ export const SavedAlbumsScreen: React.FC<{ navigation: any }> = ({
 }) => {
   const { savedAlbums, fetchSavedAlbums } = useLibraryStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isScreenLoading, setIsScreenLoading] = useState(true);
 
   useEffect(() => {
-    fetchSavedAlbums();
+    fetchSavedAlbums().finally(() => setIsScreenLoading(false));
   }, [fetchSavedAlbums]);
 
   const filteredAlbums = savedAlbums.filter((album) => {
@@ -97,7 +99,17 @@ export const SavedAlbumsScreen: React.FC<{ navigation: any }> = ({
         </View>
 
         <View style={styles.listContainer}>
-          {filteredAlbums.length === 0 ? (
+          {isScreenLoading ? (
+            <View style={styles.albumGrid}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <View key={i} style={styles.albumCard}>
+                  <Skeleton width="100%" height={150} borderRadius={LAYOUT.radiusMd} style={{ marginBottom: SPACING.xs }} />
+                  <Skeleton width="75%" height={14} style={{ marginBottom: 4 }} />
+                  <Skeleton width="45%" height={12} />
+                </View>
+              ))}
+            </View>
+          ) : filteredAlbums.length === 0 ? (
             <View style={styles.emptyState}>
               <Disc size={48} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>Chưa lưu album nào</Text>

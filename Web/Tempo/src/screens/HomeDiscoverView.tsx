@@ -16,24 +16,56 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
   onSelectArtist,
   onSeeAllChart,
 }) => {
-  const [chartSongs, setChartSongs] = useState<UnifiedSong[]>([]);
-  const [newReleases, setNewReleases] = useState<UnifiedSong[]>([]);
-  const [playlists, setPlaylists] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [chartSongs, setChartSongs] = useState<UnifiedSong[]>(() => {
+    try {
+      const cached = localStorage.getItem('tempo_cached_chart');
+      return cached ? JSON.parse(cached) : [];
+    } catch (_) {
+      return [];
+    }
+  });
+  const [newReleases, setNewReleases] = useState<UnifiedSong[]>(() => {
+    try {
+      const cached = localStorage.getItem('tempo_cached_new_releases');
+      return cached ? JSON.parse(cached) : [];
+    } catch (_) {
+      return [];
+    }
+  });
+  const [playlists, setPlaylists] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem('tempo_cached_playlists');
+      return cached ? JSON.parse(cached) : [];
+    } catch (_) {
+      return [];
+    }
+  });
+  const [isLoading, setIsLoading] = useState(() => chartSongs.length === 0);
 
   const { playSong } = usePlayerStore();
   const { likedSongs } = useLibraryStore();
 
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
+    if (chartSongs.length === 0) setIsLoading(true);
 
     Promise.all([apiClient.getChart(), apiClient.getHome()])
       .then(([chart, home]) => {
         if (isMounted) {
-          setChartSongs(chart || []);
-          setNewReleases(home.newReleases || []);
-          setPlaylists(home.featuredPlaylists || []);
+          if (chart && chart.length > 0) {
+            setChartSongs(chart);
+            try { localStorage.setItem('tempo_cached_chart', JSON.stringify(chart)); } catch (_) {}
+          }
+          if (home) {
+            if (home.newReleases) {
+              setNewReleases(home.newReleases);
+              try { localStorage.setItem('tempo_cached_new_releases', JSON.stringify(home.newReleases)); } catch (_) {}
+            }
+            if (home.featuredPlaylists) {
+              setPlaylists(home.featuredPlaylists);
+              try { localStorage.setItem('tempo_cached_playlists', JSON.stringify(home.featuredPlaylists)); } catch (_) {}
+            }
+          }
           setIsLoading(false);
         }
       })
@@ -118,35 +150,42 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 select-none space-y-7 bg-[#121212]">
       {/* 1. Top Quick-Access Grid (2 rows x 4 columns = 8 cards) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
-        {quickItems.slice(0, 8).map((item) => (
-          <div
-            key={item.id}
-            onClick={item.onClick}
-            className="group flex items-center bg-[#242424] hover:bg-[#2f2f2f] rounded-md overflow-hidden cursor-pointer transition-colors pr-3 relative"
-          >
-            {item.isLiked ? (
-              <div className="w-12 h-12 bg-gradient-to-br from-[#491f8f] via-[#5b22b6] to-[#1e3264] flex items-center justify-center flex-shrink-0">
-                <Heart className="w-5 h-5 fill-white text-white" />
+        {isLoading && quickItems.length === 0
+          ? [...Array(8)].map((_, i) => (
+              <div key={i} className="flex items-center bg-[#242424] rounded-md overflow-hidden animate-pulse h-12">
+                <div className="w-12 h-12 bg-white/10 flex-shrink-0" />
+                <div className="h-3.5 bg-white/10 rounded w-24 ml-3" />
               </div>
-            ) : (
-              <img
-                src={item.thumb}
-                alt={item.title}
-                className="w-12 h-12 object-cover flex-shrink-0 bg-[#282828]"
-              />
-            )}
-            <span className="text-xs font-bold text-white truncate ml-3 flex-1">
-              {item.title}
-            </span>
-            <div className="w-8 h-8 rounded-full bg-white text-black shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-105 flex-shrink-0">
-              <Play className="w-4 h-4 fill-black text-black ml-0.5" />
-            </div>
-          </div>
-        ))}
+            ))
+          : quickItems.slice(0, 8).map((item) => (
+              <div
+                key={item.id}
+                onClick={item.onClick}
+                className="group flex items-center bg-[#242424] hover:bg-[#2f2f2f] rounded-md overflow-hidden cursor-pointer transition-colors pr-3 relative"
+              >
+                {item.isLiked ? (
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#491f8f] via-[#5b22b6] to-[#1e3264] flex items-center justify-center flex-shrink-0">
+                    <Heart className="w-5 h-5 fill-white text-white" />
+                  </div>
+                ) : (
+                  <img
+                    src={item.thumb}
+                    alt={item.title}
+                    className="w-12 h-12 object-cover flex-shrink-0 bg-[#282828]"
+                  />
+                )}
+                <span className="text-xs font-bold text-white truncate ml-3 flex-1">
+                  {item.title}
+                </span>
+                <div className="w-8 h-8 rounded-full bg-white text-black shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-105 flex-shrink-0">
+                  <Play className="w-4 h-4 fill-black text-black ml-0.5" />
+                </div>
+              </div>
+            ))}
       </div>
 
       {/* 3. Section: Được đề xuất cho hôm nay */}
-      {chartSongs.length > 0 && (
+      {(chartSongs.length > 0 || isLoading) && (
         <section>
           <div className="flex items-center justify-between mb-3.5">
             <div>
@@ -164,28 +203,36 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {chartSongs.slice(0, 6).map((song) => (
-              <div
-                key={song.encodeId || song.id}
-                onClick={() => playSong(song, chartSongs)}
-                className="bg-[#181818] hover:bg-[#282828] p-3 rounded-md cursor-pointer transition-colors group flex flex-col"
-              >
-                <div className="relative aspect-square w-full rounded-md overflow-hidden mb-3 bg-[#242424]">
-                  <img
-                    src={song.thumbnailM || song.thumbnail}
-                    alt={song.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
-                    <Play className="w-4 h-4 fill-black text-black ml-0.5" />
+            {isLoading && chartSongs.length === 0
+              ? [...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-[#181818] p-3 rounded-md animate-pulse flex flex-col space-y-3">
+                    <div className="aspect-square w-full rounded-md bg-white/10" />
+                    <div className="h-3.5 bg-white/10 rounded w-3/4" />
+                    <div className="h-2.5 bg-white/5 rounded w-1/2" />
                   </div>
-                </div>
-                <h4 className="text-sm font-bold text-white truncate">{song.title}</h4>
-                <p className="text-xs text-[#b3b3b3] truncate mt-1">
-                  {song.artistsNames || 'Tempo Artist'}
-                </p>
-              </div>
-            ))}
+                ))
+              : chartSongs.slice(0, 6).map((song) => (
+                  <div
+                    key={song.encodeId || song.id}
+                    onClick={() => playSong(song, chartSongs)}
+                    className="bg-[#181818] hover:bg-[#282828] p-3 rounded-md cursor-pointer transition-colors group flex flex-col"
+                  >
+                    <div className="relative aspect-square w-full rounded-md overflow-hidden mb-3 bg-[#242424]">
+                      <img
+                        src={song.thumbnailM || song.thumbnail}
+                        alt={song.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
+                        <Play className="w-4 h-4 fill-black text-black ml-0.5" />
+                      </div>
+                    </div>
+                    <h4 className="text-sm font-bold text-white truncate">{song.title}</h4>
+                    <p className="text-xs text-[#b3b3b3] truncate mt-1">
+                      {song.artistsNames || 'Tempo Artist'}
+                    </p>
+                  </div>
+                ))}
           </div>
         </section>
       )}
@@ -242,7 +289,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
       </section>
 
       {/* 5. Section: Nhạc Mới Phát Hành */}
-      {newReleases.length > 0 && (
+      {(newReleases.length > 0 || isLoading) && (
         <section>
           <div className="flex items-center justify-between mb-3.5">
             <h2 className="text-xl font-bold text-white">Nhạc Mới Phát Hành</h2>
@@ -252,28 +299,36 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {newReleases.slice(0, 6).map((song) => (
-              <div
-                key={song.encodeId || song.id}
-                onClick={() => playSong(song, newReleases)}
-                className="bg-[#181818] hover:bg-[#282828] p-3 rounded-md cursor-pointer transition-colors group flex flex-col"
-              >
-                <div className="relative aspect-square w-full rounded-md overflow-hidden mb-3 bg-[#242424]">
-                  <img
-                    src={song.thumbnailM || song.thumbnail}
-                    alt={song.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
-                    <Play className="w-4 h-4 fill-black text-black ml-0.5" />
+            {isLoading && newReleases.length === 0
+              ? [...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-[#181818] p-3 rounded-md animate-pulse flex flex-col space-y-3">
+                    <div className="aspect-square w-full rounded-md bg-white/10" />
+                    <div className="h-3.5 bg-white/10 rounded w-3/4" />
+                    <div className="h-2.5 bg-white/5 rounded w-1/2" />
                   </div>
-                </div>
-                <h4 className="text-sm font-bold text-white truncate">{song.title}</h4>
-                <p className="text-xs text-[#b3b3b3] truncate mt-1">
-                  {song.artistsNames || 'Tempo Artist'}
-                </p>
-              </div>
-            ))}
+                ))
+              : newReleases.slice(0, 6).map((song) => (
+                  <div
+                    key={song.encodeId || song.id}
+                    onClick={() => playSong(song, newReleases)}
+                    className="bg-[#181818] hover:bg-[#282828] p-3 rounded-md cursor-pointer transition-colors group flex flex-col"
+                  >
+                    <div className="relative aspect-square w-full rounded-md overflow-hidden mb-3 bg-[#242424]">
+                      <img
+                        src={song.thumbnailM || song.thumbnail}
+                        alt={song.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
+                        <Play className="w-4 h-4 fill-black text-black ml-0.5" />
+                      </div>
+                    </div>
+                    <h4 className="text-sm font-bold text-white truncate">{song.title}</h4>
+                    <p className="text-xs text-[#b3b3b3] truncate mt-1">
+                      {song.artistsNames || 'Tempo Artist'}
+                    </p>
+                  </div>
+                ))}
           </div>
         </section>
       )}

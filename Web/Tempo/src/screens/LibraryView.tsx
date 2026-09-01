@@ -19,9 +19,10 @@ import { UnifiedSong, Artist } from '../types/music';
 interface LibraryViewProps {
   onSelectPlaylist?: (p: any) => void;
   onSelectArtist?: (a: any) => void;
+  onSelectTab?: (tab: string) => void;
 }
 
-export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSelectArtist }) => {
+export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSelectArtist, onSelectTab }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'liked' | 'downloaded' | 'artists' | 'albums' | 'playlists'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
@@ -130,7 +131,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {/* Card 1: Bài hát đã thích */}
             <div
-              onClick={() => setActiveFilter('liked')}
+              onClick={() => onSelectTab ? onSelectTab('liked') : setActiveFilter('liked')}
               className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
               <div className="w-10 h-10 rounded-md bg-[#FC475C]/15 flex items-center justify-center text-[#FC475C] flex-shrink-0 transition-transform group-hover:scale-105">
@@ -147,7 +148,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
 
             {/* Card 2: Đã tải xuống */}
             <div
-              onClick={() => setActiveFilter('downloaded')}
+              onClick={() => onSelectTab ? onSelectTab('downloads') : setActiveFilter('downloaded')}
               className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
               <div className="w-10 h-10 rounded-md bg-[#10B981]/15 flex items-center justify-center text-[#10B981] flex-shrink-0 transition-transform group-hover:scale-105">
@@ -205,7 +206,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                   Bài hát đã thích ({likedSongs.length})
                 </h2>
                 <button
-                  onClick={() => setActiveFilter('liked')}
+                  onClick={() => onSelectTab ? onSelectTab('liked') : setActiveFilter('liked')}
                   className="text-xs font-bold text-white hover:underline border-none bg-transparent cursor-pointer"
                 >
                   Xem tất cả ({likedSongs.length})
@@ -254,7 +255,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                   Đã tải xuống offline ({downloadedSongs.length})
                 </h2>
                 <button
-                  onClick={() => setActiveFilter('downloaded')}
+                  onClick={() => onSelectTab ? onSelectTab('downloads') : setActiveFilter('downloaded')}
                   className="text-xs font-bold text-white hover:underline border-none bg-transparent cursor-pointer"
                 >
                   Xem tất cả ({downloadedSongs.length})

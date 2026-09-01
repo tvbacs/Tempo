@@ -32,6 +32,7 @@ import {
 } from "lucide-react-native";
 import { GradientPlayButton } from "../components/GradientButton";
 import { SongItem } from "../components/SongItem";
+import { SongItemSkeleton } from "../components/SkeletonLoader";
 import { SongOptionsModal } from "../components/SongOptionsModal";
 import { usePlayerStore } from "../store/playerStore";
 import { useActivePlayback } from "../store/connectStore";
@@ -282,7 +283,9 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           <Text style={styles.sectionTitle}>BÀI HÁT NỔI BẬT</Text>
 
           {isLoading ? (
-            <ActivityIndicator size="small" color={COLORS.accentPrimary} style={{ marginVertical: SPACING.xl }} />
+            Array.from({ length: 6 }).map((_, index) => (
+              <SongItemSkeleton key={index} />
+            ))
           ) : topSongs.length > 0 ? (
             topSongs.slice(0, 10).map((song, index) => (
               <SongItem

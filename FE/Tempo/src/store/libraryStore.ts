@@ -313,11 +313,11 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
             // Nếu local có bài mà cloud chưa có trong description, sync lên cloud
             if (localSongs.length > 0 && parsedSongs.length === 0 && userId) {
-              supabase.from('playlists').update({
+              void supabase.from('playlists').update({
                 description: JSON.stringify(localSongs),
                 cover_url: localSongs[0]?.thumbnail || r.cover_url || '',
                 updated_at: new Date().toISOString(),
-              }).eq('id', r.id).then(() => {}).catch(() => {});
+              }).eq('id', r.id);
             }
 
             return {

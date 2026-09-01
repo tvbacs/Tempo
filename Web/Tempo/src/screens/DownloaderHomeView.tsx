@@ -10,6 +10,7 @@ import {
   Check,
   Music2,
   MoreVertical,
+  ArrowLeft,
 } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
@@ -18,9 +19,10 @@ import { apiClient } from '../api/client';
 
 interface DownloaderHomeViewProps {
   onViewDownloads?: () => void;
+  onBack?: () => void;
 }
 
-export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDownloads }) => {
+export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDownloads, onBack }) => {
   const [inputUrl, setInputUrl] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedSong, setExtractedSong] = useState<UnifiedSong | null>(null);
@@ -135,6 +137,16 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
 
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-6 select-none pb-28 bg-[#121212]">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="self-start flex items-center gap-1.5 text-xs font-bold text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer p-0"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Quay lại</span>
+        </button>
+      )}
+
       {/* 1. Top Hero Banner Card (Nhạc ngoại tuyến trên PC) */}
       <div className="bg-[#181818] hover:bg-[#202020] transition-colors rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-none shadow-md">
         <div className="flex flex-col">

@@ -299,6 +299,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                     id: pl.id,
                     title: pl.name,
                     thumbnail: coverImage,
+                    initialSongs: pl.songs,
                   });
                 }}
               >
@@ -361,6 +362,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               id: selectedPlaylistForOptions.id,
               title: selectedPlaylistForOptions.name,
               thumbnail: selectedPlaylistForOptions.songs?.[0]?.thumbnail || selectedPlaylistForOptions.coverUrl,
+              initialSongs: selectedPlaylistForOptions.songs,
             });
           }
         }}

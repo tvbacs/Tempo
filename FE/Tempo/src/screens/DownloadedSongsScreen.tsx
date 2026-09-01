@@ -39,6 +39,7 @@ import {
 } from "lucide-react-native";
 import { GradientPlayButton } from "../components/GradientButton";
 import { SongItem } from "../components/SongItem";
+import { SongItemSkeleton } from "../components/SkeletonLoader";
 
 import { SongOptionsModal } from "../components/SongOptionsModal";
 import { usePlayerStore } from "../store/playerStore";
@@ -57,6 +58,7 @@ export const DownloadedSongsScreen: React.FC<{
   const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [isScreenLoading, setIsScreenLoading] = useState(true);
 
   // Multi-Select Mode
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -68,7 +70,7 @@ export const DownloadedSongsScreen: React.FC<{
   const { showToast } = useToastStore();
 
   useEffect(() => {
-    fetchDownloads();
+    fetchDownloads().finally(() => setIsScreenLoading(false));
   }, [fetchDownloads]);
 
   const filteredSongs = downloadedSongs.filter((song) => {
@@ -307,7 +309,9 @@ export const DownloadedSongsScreen: React.FC<{
 
         {/* Songs List */}
         <View style={styles.songListContainer}>
-          {filteredSongs.length === 0 ? (
+          {isScreenLoading ? (
+            Array.from({ length: 8 }).map((_, i) => <SongItemSkeleton key={i} />)
+          ) : filteredSongs.length === 0 ? (
             <View style={styles.emptyState}>
               <HardDriveDownload size={48} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>Chưa có bài hát tải về</Text>

@@ -55,6 +55,56 @@ import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
+
+const deduplicateSongList = (songs: UnifiedSong[]): UnifiedSong[] => {
+  const seen = new Set<string>();
+  return songs.filter((s) => {
+    if (!s) return false;
+    const key = (s.id || s.title || "").toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const makeUsUkFallback = (id: string, title: string, artist: string, thumb: string, dur: number): UnifiedSong => ({
+  id,
+  rawId: id,
+  source: 'youtube' as const,
+  title,
+  artistsNames: artist,
+  thumbnail: thumb,
+  duration: dur,
+});
+
+const fallbackUsUkSongs: UnifiedSong[] = [
+  makeUsUkFallback('us_1', 'Cruel Summer', 'Taylor Swift', 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400', 178),
+  makeUsUkFallback('us_2', 'Blinding Lights', 'The Weeknd', 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400', 200),
+  makeUsUkFallback('us_3', "we can't be friends", 'Ariana Grande', 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400', 228),
+  makeUsUkFallback('us_4', 'Die With A Smile', 'Lady Gaga, Bruno Mars', 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400', 251),
+  makeUsUkFallback('us_5', 'Stay', 'The Kid LAROI, Justin Bieber', 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=400', 141),
+  makeUsUkFallback('us_6', 'Shape of You', 'Ed Sheeran', 'https://images.unsplash.com/photo-1502877338535-766e1452684a?w=400', 233),
+  makeUsUkFallback('us_7', 'Levitating', 'Dua Lipa', 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=400', 203),
+  makeUsUkFallback('us_8', 'Birds of a Feather', 'Billie Eilish', 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400', 198),
+  makeUsUkFallback('us_9', 'Attention', 'Charlie Puth', 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400', 211),
+  makeUsUkFallback('us_10', 'Sunflower', 'Post Malone, Swae Lee', 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400', 158),
+  makeUsUkFallback('us_11', 'Starboy', 'The Weeknd, Daft Punk', 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400', 230),
+  makeUsUkFallback('us_12', 'Anti-Hero', 'Taylor Swift', 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=400', 200),
+  makeUsUkFallback('us_13', 'Save Your Tears', 'The Weeknd', 'https://images.unsplash.com/photo-1502877338535-766e1452684a?w=400', 215),
+  makeUsUkFallback('us_14', '7 rings', 'Ariana Grande', 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=400', 178),
+  makeUsUkFallback('us_15', 'Peaches', 'Justin Bieber, Daniel Caesar', 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400', 198),
+  makeUsUkFallback('us_16', 'Espresso', 'Sabrina Carpenter', 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400', 175),
+  makeUsUkFallback('us_17', 'As It Was', 'Harry Styles', 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400', 167),
+  makeUsUkFallback('us_18', 'Good 4 U', 'Olivia Rodrigo', 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400', 178),
+  makeUsUkFallback('us_19', 'Heat Waves', 'Glass Animals', 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=400', 238),
+  makeUsUkFallback('us_20', 'Watermelon Sugar', 'Harry Styles', 'https://images.unsplash.com/photo-1502877338535-766e1452684a?w=400', 174),
+  makeUsUkFallback('us_21', 'Counting Stars', 'OneRepublic', 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=400', 257),
+  makeUsUkFallback('us_22', 'Bad Guy', 'Billie Eilish', 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400', 194),
+  makeUsUkFallback('us_23', "That's What I Like", 'Bruno Mars', 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400', 206),
+  makeUsUkFallback('us_24', 'Someone You Loved', 'Lewis Capaldi', 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400', 182),
+  makeUsUkFallback('us_25', 'Perfect', 'Ed Sheeran', 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400', 263),
+];
+
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
 
@@ -70,6 +120,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [focusSongs, setFocusSongs] = useState<UnifiedSong[]>([]);
   const [driveSongs, setDriveSongs] = useState<UnifiedSong[]>([]);
   const [rainSongs, setRainSongs] = useState<UnifiedSong[]>([]);
+  const [usUkSongs, setUsUkSongs] = useState<UnifiedSong[]>([]);
   const [dailyMix1Songs, setDailyMix1Songs] = useState<UnifiedSong[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -117,19 +168,43 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         ['@tempo_chart_cache', JSON.stringify(chartData)],
       ]).catch(() => {});
 
-      // 2. Tải các mục phụ (TikTok, Ambient Themes) ngầm trong background (không block UI)
+      // 2. Tải các mục phụ đa dạng (Acoustic, Lofi, R&B, Nhạc Mưa, US-UK Hits) ngầm trong background
       Promise.all([
         apiClient.search("Nhạc Hot TikTok").catch(() => ({ songs: [] })),
-        apiClient.search("Cà Phê Sáng").catch(() => ({ songs: [] })),
-        apiClient.search("Lofi Chill").catch(() => ({ songs: [] })),
-        apiClient.search("Lái Xe Thư Giãn").catch(() => ({ songs: [] })),
-        apiClient.search("Nhạc Mưa").catch(() => ({ songs: [] })),
-      ]).then(([tiktokRes, coffeeRes, focusRes, driveRes, rainRes]) => {
+        apiClient.search("Cà Phê Sáng Acoustic").catch(() => ({ songs: [] })),
+        apiClient.search("Acoustic Việt Chill").catch(() => ({ songs: [] })),
+        apiClient.search("Lofi Chill Làm Việc").catch(() => ({ songs: [] })),
+        apiClient.search("Lofi Việt Nhẹ Nhàng").catch(() => ({ songs: [] })),
+        apiClient.search("Lái Xe Thư Giãn Pop Ballad").catch(() => ({ songs: [] })),
+        apiClient.search("R&B Việt Chill Buổi Tối").catch(() => ({ songs: [] })),
+        apiClient.search("Nhạc Mưa Piano Sleep").catch(() => ({ songs: [] })),
+        apiClient.search("Lofi Dễ Ngủ Đêm Khuya").catch(() => ({ songs: [] })),
+        apiClient.search("US UK Billboard Hits").catch(() => ({ songs: [] })),
+        apiClient.search("Pop US UK Taylor Swift The Weeknd").catch(() => ({ songs: [] })),
+      ]).then(([
+        tiktokRes,
+        coffeeRes1, coffeeRes2,
+        focusRes1, focusRes2,
+        driveRes1, driveRes2,
+        rainRes1, rainRes2,
+        usUkRes1, usUkRes2
+      ]) => {
         if (tiktokRes?.songs?.length) setTiktokSongs(tiktokRes.songs);
-        if (coffeeRes?.songs?.length) setCoffeeSongs(coffeeRes.songs);
-        if (focusRes?.songs?.length) setFocusSongs(focusRes.songs);
-        if (driveRes?.songs?.length) setDriveSongs(driveRes.songs);
-        if (rainRes?.songs?.length) setRainSongs(rainRes.songs);
+
+        const mergedCoffee = deduplicateSongList([...(coffeeRes1?.songs || []), ...(coffeeRes2?.songs || [])]);
+        if (mergedCoffee.length) setCoffeeSongs(mergedCoffee);
+
+        const mergedFocus = deduplicateSongList([...(focusRes1?.songs || []), ...(focusRes2?.songs || [])]);
+        if (mergedFocus.length) setFocusSongs(mergedFocus);
+
+        const mergedDrive = deduplicateSongList([...(driveRes1?.songs || []), ...(driveRes2?.songs || [])]);
+        if (mergedDrive.length) setDriveSongs(mergedDrive);
+
+        const mergedRain = deduplicateSongList([...(rainRes1?.songs || []), ...(rainRes2?.songs || [])]);
+        if (mergedRain.length) setRainSongs(mergedRain);
+
+        const mergedUsUk = deduplicateSongList([...(usUkRes1?.songs || []), ...(usUkRes2?.songs || [])]);
+        if (mergedUsUk.length) setUsUkSongs(mergedUsUk);
       }).catch(() => {});
     } catch (e: any) {
       console.log("ℹ️ [Tempo] Không có kết nối mạng · Đang chạy chế độ Ngoại tuyến (Offline)");
@@ -274,11 +349,14 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     });
 
-    // Lấy top 4 ca sĩ nghe nhiều nhất
-    return Array.from(artistMap.entries())
+    // Lấy top 6 ca sĩ nghe nhiều nhất, nếu chưa đủ thì bổ sung ca sĩ hot Việt Nam
+    const defaultHotArtists = ["Sơn Tùng M-TP", "Vũ.", "HIEUTHUHAI", "GREY D", "SOOBIN", "tlinh", "Bích Phương"];
+    const topUserArtists = Array.from(artistMap.entries())
       .sort((a, b) => b[1] - a[1])
-      .map((entry) => entry[0])
-      .slice(0, 4);
+      .map((entry) => entry[0]);
+
+    const combinedList = [...topUserArtists, ...defaultHotArtists];
+    return Array.from(new Set(combinedList)).slice(0, 6);
   }, [history, likedSongs]);
 
   // Tự động tìm kiếm tuyển tập bài hát chính thức của từng ca sĩ từ Zing API
@@ -297,14 +375,14 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 s.artistsNames?.toLowerCase().includes(artistName.toLowerCase()) ||
                 s.title?.toLowerCase().includes(artistName.toLowerCase())
             );
-            // Lấy 4 bài hay nhất của ca sĩ này
-            return (matched.length > 0 ? matched : res.songs).slice(0, 4);
+            // Lấy 6 bài hay nhất của ca sĩ này
+            return (matched.length > 0 ? matched : res.songs).slice(0, 6);
           })
           .catch(() => [])
       )
     ).then((results) => {
       if (isMounted) {
-        const combined = results.flat();
+        const combined = deduplicateSongList(results.flat());
         if (combined.length > 0) {
           setDailyMix1Songs(combined);
         }
@@ -316,13 +394,21 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     };
   }, [uniqueArtists]);
 
-  // 2. Tuyển tập Daily Mix cá nhân hóa
+  // 2. Tuyển tập Daily Mix cá nhân hóa (4 Daily Mixes phong phú 25 - 35 bài)
   const dailyMixes = useMemo(() => {
     // === DAILY MIX 1: Tuyển tập toàn bộ bài hát của các ca sĩ bạn đã nghe ===
     const mix1ArtistsSummary =
       uniqueArtists.length > 0
-        ? uniqueArtists.slice(0, 3).join(", ") + (uniqueArtists.length > 3 ? " và hơn thế nữa..." : "")
+        ? uniqueArtists.slice(0, 4).join(", ") + " và hơn thế nữa..."
         : "Tuyển tập các ca khúc dành riêng cho bạn";
+
+    // Đảm bảo Daily Mix 1 luôn có tối thiểu 25 - 35 bài
+    const mix1Songs = deduplicateSongList([
+      ...dailyMix1Songs,
+      ...likedSongs,
+      ...history.map((h) => h.song).filter(Boolean),
+      ...topChartSongs,
+    ]).slice(0, 32);
 
     const mix1 = {
       id: "daily_mix_1",
@@ -331,20 +417,20 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       subtitle: mix1ArtistsSummary,
       gradient: ["#EC4899", "#8B5CF6"] as [string, string],
       thumbnail:
-        dailyMix1Songs[0]?.thumbnail ||
+        mix1Songs[0]?.thumbnail ||
         topChartSongs[0]?.thumbnail ||
         "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80",
-      songs: dailyMix1Songs.length > 0 ? dailyMix1Songs : topChartSongs.slice(0, 15),
+      songs: mix1Songs,
     };
 
     // === DAILY MIX 2: Tùy biến theo thời gian trong ngày (Sáng, Trưa, Chiều, Tối, Đêm) ===
+    let mix2RawSongs: UnifiedSong[] = [];
     let mix2Config = {
       title: "Daily Mix 2 · Khởi Đầu Ngày Mới",
       tag: "BUỔI SÁNG · ACOUSTIC",
       subtitle: "Acoustic & Indie tươi tắn cho ngày mới tràn đầy hứng khởi",
       gradient: ["#F59E0B", "#F97316"] as [string, string],
       thumbnail: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&q=80",
-      songs: coffeeSongs.length > 0 ? coffeeSongs : topChartSongs.slice(0, 15),
     };
 
     if (currentHour >= 11 && currentHour < 17) {
@@ -354,8 +440,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         subtitle: "Deep Focus & Lofi nhịp nhàng giúp duy trì sự tỉnh táo và hiệu suất",
         gradient: ["#8B5CF6", "#3B82F6"] as [string, string],
         thumbnail: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=400&q=80",
-        songs: focusSongs.length > 0 ? focusSongs : topChartSongs.slice(2, 16),
       };
+      mix2RawSongs = [...focusSongs, ...topChartSongs.slice(5, 25)];
     } else if (currentHour >= 17 && currentHour < 22) {
       mix2Config = {
         title: "Daily Mix 2 · Thư Giãn Buổi Tối",
@@ -363,8 +449,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         subtitle: "Giai điệu Pop, Ballad & R&B nhẹ nhàng giải tỏa căng thẳng cuối ngày",
         gradient: ["#EC4899", "#8B5CF6"] as [string, string],
         thumbnail: "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=400&q=80",
-        songs: driveSongs.length > 0 ? driveSongs : globalTrendingSongs.slice(0, 15),
       };
+      mix2RawSongs = [...driveSongs, ...globalTrendingSongs, ...topChartSongs.slice(10, 30)];
     } else if (currentHour >= 22 || currentHour < 5) {
       mix2Config = {
         title: "Daily Mix 2 · Giai Điệu Dễ Ngủ",
@@ -372,31 +458,60 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         subtitle: "Nhạc mưa, Piano & Lofi êm dịu vỗ về giấc ngủ ngon",
         gradient: ["#06B6D4", "#1E3A8A"] as [string, string],
         thumbnail: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=400&q=80",
-        songs: rainSongs.length > 0 ? rainSongs : topChartSongs.slice(4, 18),
       };
+      mix2RawSongs = [...rainSongs, ...topChartSongs.slice(15, 35)];
+    } else {
+      // Buổi sáng
+      mix2RawSongs = [...coffeeSongs, ...topChartSongs.slice(0, 20)];
     }
+
+    const mix2Songs = deduplicateSongList([...mix2RawSongs, ...topChartSongs]).slice(0, 30);
 
     const mix2 = {
       id: "daily_mix_2",
       ...mix2Config,
+      songs: mix2Songs,
     };
 
-    // === DAILY MIX 3: Khám phá bài hát mới & Xu hướng thịnh hành ===
-    const mix3Songs =
-      globalTrendingSongs.length > 0 ? globalTrendingSongs.slice(0, 15) : topChartSongs.slice(5, 18);
+    // === DAILY MIX 3: US-UK & Pop Quốc Tế (Taylor Swift, The Weeknd, Ariana Grande, Bruno Mars...) ===
+    const mix3Songs = deduplicateSongList([
+      ...usUkSongs,
+      ...fallbackUsUkSongs,
+      ...globalTrendingSongs,
+    ]).slice(0, 30);
+
     const mix3 = {
       id: "daily_mix_3",
-      title: "Daily Mix 3 · Khám Phá Mới",
-      tag: "XU HƯỚNG MỚI",
-      subtitle: "Giai điệu thịnh hành & bài hát mới nổi bật hôm nay",
-      gradient: ["#10B981", "#06B6D4"] as [string, string],
+      title: "Daily Mix 3 · US-UK Hits",
+      tag: "POP QUỐC TẾ · BILLBOARD",
+      subtitle: "Taylor Swift, The Weeknd, Ariana Grande, Bruno Mars và hơn thế nữa...",
+      gradient: ["#6366F1", "#A855F7"] as [string, string],
       thumbnail:
-        globalTrendingSongs[0]?.thumbnail ||
-        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
+        mix3Songs[0]?.thumbnail ||
+        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80",
       songs: mix3Songs,
     };
 
-    return [mix1, mix2, mix3];
+    // === DAILY MIX 4: Khám phá bài hát mới & Xu hướng thịnh hành (Đổi từ Daily Mix 3 cũ) ===
+    const mix4Songs = deduplicateSongList([
+      ...globalTrendingSongs,
+      ...tiktokSongs,
+      ...topChartSongs.slice(5, 35),
+    ]).slice(0, 30);
+
+    const mix4 = {
+      id: "daily_mix_4",
+      title: "Daily Mix 4 · Khám Phá Mới",
+      tag: "XU HƯỚNG · THỊNH HÀNH",
+      subtitle: "Giai điệu thịnh hành & bài hát mới nổi bật hôm nay",
+      gradient: ["#10B981", "#06B6D4"] as [string, string],
+      thumbnail:
+        mix4Songs[0]?.thumbnail ||
+        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&q=80",
+      songs: mix4Songs,
+    };
+
+    return [mix1, mix2, mix3, mix4];
   }, [
     uniqueArtists,
     dailyMix1Songs,
@@ -406,6 +521,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     focusSongs,
     driveSongs,
     rainSongs,
+    usUkSongs,
+    tiktokSongs,
+    likedSongs,
+    history,
     currentHour,
   ]);
 
@@ -460,6 +579,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       return 0;
     });
   }, [coffeeSongs, focusSongs, driveSongs, rainSongs, topChartSongs, globalTrendingSongs, timeGreeting.timeSlot]);
+
+  if (isLoading && !feed && !chart) {
+    return <HomeScreenSkeleton />;
+  }
 
   return (
     <View style={styles.safeArea}>

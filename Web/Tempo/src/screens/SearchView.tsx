@@ -49,7 +49,20 @@ export const SearchView: React.FC<SearchViewProps> = ({ query }) => {
       </div>
 
       {isLoading ? (
-        <div className="py-16 text-center text-text-secondary text-sm">Đang tìm kiếm...</div>
+        <div className="flex flex-col gap-2.5 pt-2">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3 rounded-md bg-white/[0.02] animate-pulse">
+              <div className="w-4 h-4 bg-white/10 rounded" />
+              <div className="w-10 h-10 bg-white/10 rounded-md flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 bg-white/10 rounded w-1/3" />
+                <div className="h-2.5 bg-white/5 rounded w-1/5" />
+              </div>
+              <div className="w-24 h-3 bg-white/5 rounded hidden md:block" />
+              <div className="w-10 h-3 bg-white/5 rounded" />
+            </div>
+          ))}
+        </div>
       ) : results.length > 0 ? (
         <TrackTable songs={results} />
       ) : query ? (

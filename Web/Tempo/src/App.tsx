@@ -133,10 +133,14 @@ export const App: React.FC = () => {
           <LibraryView
             onSelectPlaylist={handleSelectPlaylist}
             onSelectArtist={handleSelectArtist}
+            onSelectTab={(tab) => {
+              setPreviousTab('library');
+              setCurrentTab(tab);
+            }}
           />
         );
       case 'liked':
-        return <LikedSongsView />;
+        return <LikedSongsView onBack={() => setCurrentTab(previousTab || 'library')} />;
       case 'playlist':
         return selectedPlaylist ? (
           <PlaylistView
@@ -164,13 +168,18 @@ export const App: React.FC = () => {
           />
         );
       case 'downloads':
-        return <DownloaderHomeView onViewDownloads={() => setCurrentTab('library')} />;
+        return (
+          <DownloaderHomeView
+            onViewDownloads={() => setCurrentTab('library')}
+            onBack={() => setCurrentTab(previousTab || 'library')}
+          />
+        );
       case 'upgrade':
         return <UpgradeView />;
       case 'history':
-        return <HistoryView />;
+        return <HistoryView onBack={() => setCurrentTab(previousTab || 'home')} />;
       case 'chart':
-        return <ChartScreen />;
+        return <ChartScreen onBack={() => setCurrentTab(previousTab || 'home')} />;
       default:
         return (
           <HomeDiscoverView

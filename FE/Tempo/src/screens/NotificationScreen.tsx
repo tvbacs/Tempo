@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { useNotificationStore } from '../store/notificationStore';
 import { AppNotification } from '../types/notification';
+import { Skeleton } from '../components/SkeletonLoader';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 type FilterTab = 'all' | 'release' | 'system';
@@ -186,9 +187,22 @@ export const NotificationScreen: React.FC<{ navigation: any }> = ({ navigation }
 
       {/* 3. Notification List */}
       {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.accentPrimary} />
-        </View>
+        <ScrollView
+          style={styles.scrollList}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={[styles.notifCard, { gap: SPACING.md }]}>
+              <Skeleton width={42} height={42} borderRadius={21} />
+              <View style={{ flex: 1 }}>
+                <Skeleton width="60%" height={14} style={{ marginBottom: 6 }} />
+                <Skeleton width="90%" height={12} style={{ marginBottom: 4 }} />
+                <Skeleton width="30%" height={10} />
+              </View>
+            </View>
+          ))}
+        </ScrollView>
       ) : filteredNotifications.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconCircle}>

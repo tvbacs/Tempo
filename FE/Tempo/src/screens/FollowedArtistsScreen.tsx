@@ -26,6 +26,7 @@ import {
   UserCheck,
 } from "lucide-react-native";
 import { useLibraryStore } from "../store/libraryStore";
+import { Skeleton } from "../components/SkeletonLoader";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 
 export const FollowedArtistsScreen: React.FC<{ navigation: any }> = ({
@@ -33,9 +34,10 @@ export const FollowedArtistsScreen: React.FC<{ navigation: any }> = ({
 }) => {
   const { followedArtists, fetchFollowedArtists, toggleFollowArtist } = useLibraryStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isScreenLoading, setIsScreenLoading] = useState(true);
 
   useEffect(() => {
-    fetchFollowedArtists();
+    fetchFollowedArtists().finally(() => setIsScreenLoading(false));
   }, [fetchFollowedArtists]);
 
   const filteredArtists = followedArtists.filter((artist) => {
@@ -98,7 +100,17 @@ export const FollowedArtistsScreen: React.FC<{ navigation: any }> = ({
         </View>
 
         <View style={styles.listContainer}>
-          {filteredArtists.length === 0 ? (
+          {isScreenLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <View key={i} style={styles.artistRow}>
+                <Skeleton width={52} height={52} borderRadius={26} />
+                <View style={{ flex: 1, marginLeft: SPACING.md }}>
+                  <Skeleton width="55%" height={14} style={{ marginBottom: 6 }} />
+                  <Skeleton width="35%" height={12} />
+                </View>
+              </View>
+            ))
+          ) : filteredArtists.length === 0 ? (
             <View style={styles.emptyState}>
               <Users size={48} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>Chưa theo dõi nghệ sĩ nào</Text>

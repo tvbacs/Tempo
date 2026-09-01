@@ -38,6 +38,7 @@ import {
 } from "lucide-react-native";
 import { GradientPlayButton } from "../components/GradientButton";
 import { SongItem } from "../components/SongItem";
+import { SongItemSkeleton } from "../components/SkeletonLoader";
 
 import { SongOptionsModal } from "../components/SongOptionsModal";
 import { AddSongsModal } from "../components/AddSongsModal";
@@ -59,6 +60,7 @@ export const LikedSongsScreen: React.FC<{
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDownloadSelector, setShowDownloadSelector] = useState(false);
   const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
+  const [isScreenLoading, setIsScreenLoading] = useState(true);
 
   // Multi-Select Mode
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -71,7 +73,8 @@ export const LikedSongsScreen: React.FC<{
   const { showToast } = useToastStore();
 
   useEffect(() => {
-    fetchLikedSongs();
+    // Mở màn hình ngay lập tức, fetch trong nền
+    fetchLikedSongs().finally(() => setIsScreenLoading(false));
   }, [fetchLikedSongs]);
 
   // Lọc chỉ hiển thị các bài hát có thể phát (loại bỏ bài offline đã bị xoá tệp)
@@ -346,7 +349,9 @@ export const LikedSongsScreen: React.FC<{
 
         {/* Songs List */}
         <View style={styles.songListContainer}>
-          {displaySongs.length === 0 ? (
+          {isScreenLoading ? (
+            Array.from({ length: 8 }).map((_, i) => <SongItemSkeleton key={i} />)
+          ) : displaySongs.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>Chưa có bài hát ưa thích</Text>
               <Text style={styles.emptySubtitle}>

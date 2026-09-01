@@ -157,6 +157,32 @@ export const PlaylistDetailScreen: React.FC<{
             setIsLoading(false);
             return;
           }
+        } else if (id === "daily_mix_3") {
+          const res = await apiClient.search("US UK Billboard Hits").catch(() => ({ songs: [] }));
+          if (res?.songs?.length && isMounted) {
+            setPlaylist({
+              id: "daily_mix_3",
+              title: initTitle || "Daily Mix 3 · US-UK Hits",
+              thumbnail: initThumb || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500",
+              artistsNames: initArtists || "Pop Quốc Tế · Taylor Swift, The Weeknd, Bruno Mars...",
+              songs: res.songs,
+            });
+            setIsLoading(false);
+            return;
+          }
+        } else if (id === "daily_mix_4") {
+          const res = await apiClient.search("Nhạc Hot Thịnh Hành").catch(() => ({ songs: [] }));
+          if (res?.songs?.length && isMounted) {
+            setPlaylist({
+              id: "daily_mix_4",
+              title: initTitle || "Daily Mix 4 · Khám Phá Mới",
+              thumbnail: initThumb || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500",
+              artistsNames: initArtists || "Xu hướng mới & Thịnh hành hôm nay",
+              songs: res.songs,
+            });
+            setIsLoading(false);
+            return;
+          }
         }
 
         // 1. Kiểm tra Playlist cá nhân người dùng tự tạo

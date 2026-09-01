@@ -31,6 +31,11 @@ class AudioEngine {
   private hasTriggeredEndForCurrentTrack = false;
   // Mutex: mỗi lần loadAndPlay tăng lên 1 — request cũ tự huỷ nếu bị thay thế
   private currentLoadId = 0;
+  // Watchdog: phát hiện kết thúc bài khi iOS không fire thêm event
+  private watchdogInterval: ReturnType<typeof setInterval> | null = null;
+  private lastKnownPosition = -1;
+  private lastKnownDuration = -1;
+  private lastStatusTime = 0;
 
   getCurrentSongId(): string | null {
     return this.currentSongId;
@@ -60,11 +65,47 @@ class AudioEngine {
     this.onTrackEndedCallback = cb;
   }
 
+  private clearWatchdog() {
+    if (this.watchdogInterval !== null) {
+      clearInterval(this.watchdogInterval);
+      this.watchdogInterval = null;
+    }
+    this.lastKnownPosition = -1;
+    this.lastKnownDuration = -1;
+    this.lastStatusTime = 0;
+  }
+
+  private startWatchdog() {
+    this.clearWatchdog();
+    this.lastStatusTime = Date.now();
+    this.watchdogInterval = setInterval(() => {
+      if (this.hasTriggeredEndForCurrentTrack || this.isStopping) return;
+
+      const now = Date.now();
+      const silenceSec = (now - this.lastStatusTime) / 1000;
+      const pos = this.lastKnownPosition;
+      const dur = this.lastKnownDuration;
+
+      // iOS đã ngừng fire event: nếu im lặng > 2s VÀ pos > 95% duration → next bài
+      if (silenceSec > 2 && pos >= 0 && dur > 5 && pos >= dur * 0.95) {
+        console.log(`[AudioEngine][Watchdog] iOS stopped events. pos=${pos.toFixed(2)}s / dur=${dur.toFixed(2)}s / silence=${silenceSec.toFixed(1)}s → triggering next`);
+        this.hasTriggeredEndForCurrentTrack = true;
+        this.clearWatchdog();
+        if (this.onTrackEndedCallback) {
+          this.onTrackEndedCallback();
+        }
+      }
+    }, 1000);
+  }
+
   async loadAndPlay(song: UnifiedSong): Promise<boolean> {
     await this.init();
 
     // Tăng loadId — bất kỳ request cũ nào đang chạy sẽ tự biết mình đã bị supersede
     const myLoadId = ++this.currentLoadId;
+
+    // Dừng watchdog cũ nếu có
+    this.clearWatchdog();
 
     try {
       // Dừng & giải phóng player cũ ngay lập tức trước khi load bài mới
@@ -254,6 +295,13 @@ class AudioEngine {
           });
         }
 
+        // Cập nhật watchdog state mỗi lần nhận event
+        const eventCurTime = status.currentTime || 0;
+        const eventDur = status.duration || 0;
+        if (eventDur > 0) this.lastKnownDuration = eventDur;
+        if (eventCurTime > 0) this.lastKnownPosition = eventCurTime;
+        this.lastStatusTime = Date.now();
+
         const curTime = status.currentTime || 0;
         const rawDur = status.duration || 0;
         const metaDurSec = (song.duration && song.duration > 0) ? song.duration : 0;
@@ -309,9 +357,10 @@ class AudioEngine {
         }
       });
 
-      // 5. Bắt đầu phát
+      // 5. Bắt đầu phát + khởi động watchdog
       this.hasTriggeredEndForCurrentTrack = false;
       newPlayer.play();
+      this.startWatchdog();
 
       // Gán player mới
       this.player = newPlayer;
@@ -331,6 +380,7 @@ class AudioEngine {
     if (this.player) {
       try {
         this.player.play();
+        this.startWatchdog();
       } catch (error) {
         console.warn('[AudioEngine] Play failed:', error);
       }
@@ -338,6 +388,7 @@ class AudioEngine {
   }
 
   async pause() {
+    this.clearWatchdog();
     if (!this.player) return;
     try {
       this.player.pause();
@@ -351,6 +402,8 @@ class AudioEngine {
       try {
         // expo-audio seekTo nhận tham số là giây (seconds)
         const targetSeconds = Math.max(0, positionMs / 1000);
+        this.lastKnownPosition = targetSeconds;
+        this.lastStatusTime = Date.now();
         await this.player.seekTo(targetSeconds);
       } catch (error) {
         console.warn('[AudioEngine] SeekTo failed:', error);
@@ -359,6 +412,7 @@ class AudioEngine {
   }
 
   async stop() {
+    this.clearWatchdog();
     if (this.player) {
       try {
         this.player.pause();
@@ -370,6 +424,7 @@ class AudioEngine {
   }
 
   async stopAndUnload() {
+    this.clearWatchdog();
     if (!this.player) return;
     this.isStopping = true;
     const old = this.player;

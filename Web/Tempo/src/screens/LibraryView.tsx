@@ -133,8 +133,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               onClick={() => setActiveFilter('liked')}
               className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
-              <div className="w-10 h-10 rounded-md bg-white/5 flex items-center justify-center text-[#b3b3b3] group-hover:text-primary flex-shrink-0 transition-colors">
-                <Heart className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-md bg-[#FC475C]/15 flex items-center justify-center text-[#FC475C] flex-shrink-0 transition-transform group-hover:scale-105">
+                <Heart className="w-5 h-5 fill-current" />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate">
@@ -150,11 +150,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               onClick={() => setActiveFilter('downloaded')}
               className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
-              <div className="w-10 h-10 rounded-md bg-white/5 flex items-center justify-center text-[#b3b3b3] group-hover:text-[#38bdf8] flex-shrink-0 transition-colors">
+              <div className="w-10 h-10 rounded-md bg-[#10B981]/15 flex items-center justify-center text-[#10B981] flex-shrink-0 transition-transform group-hover:scale-105">
                 <Download className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-[#38bdf8] transition-colors truncate">
+                <h3 className="text-xs font-bold text-white group-hover:text-[#10B981] transition-colors truncate">
                   Bài hát đã tải
                 </h3>
                 <p className="text-[11px] text-[#b3b3b3]">{downloadedSongs.length} bài hát</p>
@@ -167,11 +167,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               onClick={() => setActiveFilter('artists')}
               className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
-              <div className="w-10 h-10 rounded-md bg-white/5 flex items-center justify-center text-[#b3b3b3] group-hover:text-white flex-shrink-0 transition-colors">
+              <div className="w-10 h-10 rounded-md bg-[#F59E0B]/15 flex items-center justify-center text-[#F59E0B] flex-shrink-0 transition-transform group-hover:scale-105">
                 <Users className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-white transition-colors truncate">
+                <h3 className="text-xs font-bold text-white group-hover:text-[#F59E0B] transition-colors truncate">
                   Nghệ sĩ theo dõi
                 </h3>
                 <p className="text-[11px] text-[#b3b3b3]">{followedArtists.length} nghệ sĩ</p>
@@ -184,11 +184,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               onClick={() => setActiveFilter('albums')}
               className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
-              <div className="w-10 h-10 rounded-md bg-white/5 flex items-center justify-center text-[#b3b3b3] group-hover:text-white flex-shrink-0 transition-colors">
+              <div className="w-10 h-10 rounded-md bg-[#3B82F6]/15 flex items-center justify-center text-[#3B82F6] flex-shrink-0 transition-transform group-hover:scale-105">
                 <Disc className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-white transition-colors truncate">
+                <h3 className="text-xs font-bold text-white group-hover:text-[#3B82F6] transition-colors truncate">
                   Album đã lưu
                 </h3>
                 <p className="text-[11px] text-[#b3b3b3]">{savedAlbums.length} album</p>

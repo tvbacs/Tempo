@@ -3,49 +3,74 @@ import { supabase } from './supabase';
 
 let cachedApiBase = (import.meta as any).env?.VITE_API_URL || '';
 
-export async function getApiUrl(path: string): Promise<string> {
-  let base = cachedApiBase;
+export async function fetchServerBaseUrl(forceRefresh = false): Promise<string> {
+  if (!forceRefresh && cachedApiBase) return cachedApiBase;
 
-  if (!base && typeof window !== 'undefined') {
-    // Nếu chạy trên localhost thì dùng proxy Vite tương đối
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return path.startsWith('/') ? path : '/' + path;
-    }
-
-    // Khi chạy trên Vercel / Production: lấy từ Supabase
-    try {
-      const stored = localStorage.getItem('tempo_active_api_url');
-      if (stored && stored.startsWith('http')) {
-        base = stored;
-      } else {
-        const { data } = await supabase
-          .from('playlists')
-          .select('description')
-          .eq('name', '__TEMPO_ACTIVE_SERVER__')
-          .maybeSingle();
-
-        if (data?.description && data.description.startsWith('http')) {
-          base = data.description.trim().replace(/\/+$/, '');
-          cachedApiBase = base;
-          localStorage.setItem('tempo_active_api_url', base);
-        }
-      }
-    } catch (_) {}
+  // Khi chạy localhost
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return '';
   }
 
+  try {
+    if (!forceRefresh) {
+      const stored = localStorage.getItem('tempo_active_api_url');
+      if (stored && stored.startsWith('http')) {
+        cachedApiBase = stored;
+        return stored;
+      }
+    }
+
+    const { data } = await supabase
+      .from('playlists')
+      .select('description')
+      .eq('name', '__TEMPO_ACTIVE_SERVER__')
+      .maybeSingle();
+
+    if (data?.description && data.description.startsWith('http')) {
+      const base = data.description.trim().replace(/\/+$/, '');
+      cachedApiBase = base;
+      localStorage.setItem('tempo_active_api_url', base);
+      return base;
+    }
+  } catch (_) {}
+
+  return cachedApiBase || '';
+}
+
+export async function getApiUrl(path: string, forceRefresh = false): Promise<string> {
+  const base = await fetchServerBaseUrl(forceRefresh);
   if (!base) return path.startsWith('/') ? path : '/' + path;
   const cleanBase = base.replace(/\/api$/, '');
   const cleanPath = path.startsWith('/') ? path : '/' + path;
   return `${cleanBase}${cleanPath}`;
 }
 
+async function fetchApi(path: string, options?: RequestInit): Promise<any> {
+  let url = await getApiUrl(path);
+  try {
+    const res = await fetch(url, options);
+    if (!res.ok && res.status >= 500) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    // Nếu lỗi kết nối (tunnel đổi URL hoặc mất mạng), xóa cache và query lại Supabase
+    try {
+      localStorage.removeItem('tempo_active_api_url');
+      cachedApiBase = '';
+      url = await getApiUrl(path, true);
+      const res = await fetch(url, options);
+      return await res.json();
+    } catch (retryErr) {
+      throw retryErr;
+    }
+  }
+}
+
 export const apiClient = {
   async getChart(): Promise<UnifiedSong[]> {
     try {
-      const url = await getApiUrl('/api/music/chart');
-      const res = await fetch(url);
-      const json = await res.json();
-      return json.data?.songs || [];
+      const json = await fetchApi('/api/music/chart');
+      const items = json.data?.items || json.data?.songs || (Array.isArray(json.data) ? json.data : []);
+      return items;
     } catch (e) {
       console.error('getChart error:', e);
       return [];
@@ -58,13 +83,12 @@ export const apiClient = {
     globalTrending: UnifiedSong[];
   }> {
     try {
-      const url = await getApiUrl('/api/music/home');
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await fetchApi('/api/music/home');
+      const d = json.data || {};
       return {
-        newReleases: json.data?.newReleases || [],
-        featuredPlaylists: json.data?.featuredPlaylists || [],
-        globalTrending: json.data?.globalTrending || [],
+        newReleases: d.newReleasesVPop || d.newReleases || d.newRelease || [],
+        featuredPlaylists: d.featuredPlaylists || d.playlists || [],
+        globalTrending: d.globalTrending || [],
       };
     } catch (e) {
       console.error('getHome error:', e);
@@ -75,10 +99,8 @@ export const apiClient = {
   async search(query: string): Promise<UnifiedSong[]> {
     if (!query.trim()) return [];
     try {
-      const url = await getApiUrl(`/api/music/search?q=${encodeURIComponent(query)}`);
-      const res = await fetch(url);
-      const json = await res.json();
-      return json.data?.songs || [];
+      const json = await fetchApi(`/api/music/search?q=${encodeURIComponent(query)}`);
+      return json.data?.songs || (Array.isArray(json.data) ? json.data : []);
     } catch (e) {
       console.error('search error:', e);
       return [];
@@ -88,9 +110,7 @@ export const apiClient = {
   async getSongStream(songId: string, title?: string, artist?: string): Promise<string | null> {
     try {
       const enc = encodeURIComponent;
-      const url = await getApiUrl(`/api/music/song/${songId}?title=${enc(title || '')}&artist=${enc(artist || '')}`);
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await fetchApi(`/api/music/song/${songId}?title=${enc(title || '')}&artist=${enc(artist || '')}`);
       return json.data?.audioUrl || null;
     } catch (e) {
       console.error('getSongStream error:', e);
@@ -100,9 +120,7 @@ export const apiClient = {
 
   async getLyrics(songId: string): Promise<LyricSentence[]> {
     try {
-      const url = await getApiUrl(`/api/music/lyrics/${songId}`);
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await fetchApi(`/api/music/lyrics/${songId}`);
       return json.data?.sentences || [];
     } catch (e) {
       return [];
@@ -112,9 +130,7 @@ export const apiClient = {
   async getPlaylist(id: string): Promise<{ title: string; songs: UnifiedSong[] } | null> {
     try {
       const cleanId = id.startsWith('zing_') ? id.replace('zing_', '') : id;
-      const url = await getApiUrl(`/api/music/playlist/${cleanId}`);
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await fetchApi(`/api/music/playlist/${cleanId}`);
       const rawSongs = json.data?.songs || json.data?.song?.items || [];
       return {
         title: json.data?.title || 'Playlist',
@@ -127,9 +143,7 @@ export const apiClient = {
 
   async getArtistInfo(alias: string): Promise<Artist | null> {
     try {
-      const url = await getApiUrl(`/api/music/artist/${alias}`);
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await fetchApi(`/api/music/artist/${alias}`);
       return json.data || null;
     } catch (e) {
       return null;
@@ -138,13 +152,11 @@ export const apiClient = {
 
   async extractYouTube(url: string): Promise<UnifiedSong | null> {
     try {
-      const postUrl = await getApiUrl('/api/music/extract-youtube');
-      const res = await fetch(postUrl, {
+      const json = await fetchApi('/api/music/extract-youtube', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       });
-      const json = await res.json();
       return json.data || null;
     } catch (e) {
       console.error('extractYouTube error:', e);

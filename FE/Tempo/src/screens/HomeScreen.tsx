@@ -1013,14 +1013,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <Text style={styles.emptySubtitle}>
                   Tải xuống bài hát yêu thích để nghe khi không có mạng
                 </Text>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => { setIsLoading(true); loadData(); }}
-                  style={styles.retryButton}
-                >
-                  <RefreshCw size={16} color={COLORS.white} style={{ marginRight: 6 }} />
-                  <Text style={styles.retryButtonText}>Thử lại</Text>
-                </TouchableOpacity>
               </View>
             )}
           </View>

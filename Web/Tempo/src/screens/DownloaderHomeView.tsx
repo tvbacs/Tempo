@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ChevronRight,
+  ChevronLeft,
   Link as LinkIcon,
   Zap,
   Play,
@@ -8,9 +9,7 @@ import {
   Heart,
   Download,
   Check,
-  Music2,
   MoreVertical,
-  ArrowLeft,
 } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
@@ -98,26 +97,24 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
     setDownloadSuccess(false);
 
     try {
-      const data = await apiClient.extractYouTube(urlToExtract);
-      if (data) {
-        setExtractedSong(data);
-        setRecentExtracts((prev) => {
-          const filtered = prev.filter((s) => s.id !== data.id);
-          return [data, ...filtered].slice(0, 6);
-        });
+      const song = await apiClient.extractYouTube(urlToExtract);
+      if (song) {
+        setExtractedSong(song);
+        setRecentExtracts((prev) => [song, ...prev.filter((s) => s.id !== song.id)].slice(0, 5));
         setInputUrl('');
       }
     } catch (e) {
-      console.error('Extract error:', e);
+      console.error('Extraction error:', e);
     } finally {
       setIsExtracting(false);
     }
   };
 
-  const handleSaveDownload = (song: UnifiedSong) => {
-    addDownloadedSong(song);
+  const handleDownloadExtracted = () => {
+    if (!extractedSong) return;
+    addDownloadedSong(extractedSong);
     setDownloadSuccess(true);
-    setTimeout(() => setDownloadSuccess(false), 4000);
+    setTimeout(() => setDownloadSuccess(false), 3000);
   };
 
   const formatDuration = (sec: number) => {
@@ -138,19 +135,26 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-6 select-none pb-28 bg-[#121212]">
       {onBack && (
-        <button
-          onClick={onBack}
-          className="self-start flex items-center gap-1.5 text-xs font-bold text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer p-0"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            title="Quay lại"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition-all border-none cursor-pointer p-0"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        </div>
       )}
 
       {/* 1. Top Hero Banner Card (Nhạc ngoại tuyến trên PC) */}
-      <div className="bg-[#181818] hover:bg-[#202020] transition-colors rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-none shadow-md">
+      <div className="bg-gradient-to-r from-[#17263c] via-[#151c27] to-[#181818] hover:from-[#1e3250] hover:to-[#222222] transition-all rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-none shadow-md">
         <div className="flex flex-col">
-          <h2 className="text-base font-bold text-white">Bài hát đã tải xuống</h2>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse" />
+            <h2 className="text-base font-extrabold bg-gradient-to-r from-[#34D399] via-[#6EE7B7] to-[#60A5FA] bg-clip-text text-transparent">
+              Bài hát đã tải xuống
+            </h2>
+          </div>
           <p className="text-xs text-[#b3b3b3] mt-1">
             {downloadedSongs.length > 0
               ? `${downloadedSongs.length} bài hát sẵn sàng nghe ngoại tuyến trên máy tính`
@@ -160,7 +164,7 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
 
         <button
           onClick={onViewDownloads}
-          className="self-start sm:self-center flex items-center gap-1.5 px-4 py-2 bg-white/10 hover:bg-white/20 active:scale-98 text-white rounded-full text-xs font-bold transition-all border-none cursor-pointer"
+          className="self-start sm:self-center flex items-center gap-1.5 px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-full text-xs font-bold transition-all border-none cursor-pointer"
         >
           <span>Xem danh sách</span>
           <ChevronRight className="w-3.5 h-3.5" />
@@ -169,7 +173,7 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
 
       {/* 2. Link Extractor Card */}
       <div className="bg-[#181818] rounded-lg p-5 flex flex-col border-none shadow-lg">
-        <h3 className="text-base font-bold text-white mb-1">
+        <h3 className="text-base font-extrabold bg-gradient-to-r from-[#FC475C] via-[#FF6B6B] to-[#FCA5A5] bg-clip-text text-transparent mb-1">
           Dán link để trích xuất nhạc
         </h3>
         <p className="text-xs text-[#b3b3b3] mb-4">
@@ -178,8 +182,8 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
 
         {/* Input & Extract Button Row */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 flex items-center bg-[#121212] rounded-md px-4 h-11 gap-3 border-none focus-within:ring-1 focus-within:ring-white/30">
-            <LinkIcon className="w-4 h-4 text-[#b3b3b3] flex-shrink-0" />
+          <div className="flex-1 flex items-center bg-[#121212] rounded-md px-4 h-11 gap-3 border-none focus-within:ring-1 focus-within:ring-[#FC475C]/60">
+            <LinkIcon className="w-4 h-4 text-[#FC475C] flex-shrink-0" />
             <input
               type="text"
               value={inputUrl}
@@ -193,9 +197,9 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
           <button
             onClick={() => handleExtract()}
             disabled={isExtracting || !inputUrl.trim()}
-            className="h-11 px-6 bg-white hover:bg-white/90 active:scale-98 text-black rounded-md text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-40 border-none flex-shrink-0 shadow-md cursor-pointer"
+            className="h-11 px-6 bg-gradient-to-r from-[#FC475C] to-[#FC655A] hover:brightness-110 active:scale-98 text-white rounded-md text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-40 border-none flex-shrink-0 shadow-md cursor-pointer"
           >
-            <Zap className="w-4 h-4 fill-black text-black" />
+            <Zap className="w-4 h-4 fill-white text-white" />
             <span>{isExtracting ? 'Đang trích xuất...' : 'Trích xuất'}</span>
           </button>
         </div>
@@ -289,7 +293,7 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
 
               {/* Tải xuống máy tính */}
               <button
-                onClick={() => handleSaveDownload(extractedSong)}
+                onClick={() => handleDownloadExtracted()}
                 disabled={downloadSuccess}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-bold transition-all border-none cursor-pointer ${
                   downloadSuccess

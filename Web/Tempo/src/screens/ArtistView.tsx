@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BadgeCheck, Play, Pause, Shuffle, Check, UserPlus, Loader2, ArrowLeft } from 'lucide-react';
+import { BadgeCheck, Play, Pause, Shuffle, Check, UserPlus, Loader2, ChevronLeft } from 'lucide-react';
 import { Artist, UnifiedSong } from '../types/music';
 import { apiClient } from '../api/client';
 import { usePlayerStore } from '../store/playerStore';
@@ -67,14 +67,14 @@ export const ArtistView: React.FC<ArtistViewProps> = ({ artist, onBack }) => {
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar select-none bg-[#121212]">
       {/* Artist Hero Header */}
-      <div className="relative h-72 bg-[#242424] overflow-hidden flex flex-col justify-end p-8 flex-shrink-0">
+      <div className="relative h-72 bg-[#242424] overflow-hidden flex flex-col justify-between p-8 flex-shrink-0">
         {onBack && (
           <button
             onClick={onBack}
-            className="absolute top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors border-none cursor-pointer z-20 flex items-center gap-1.5 text-xs font-bold"
+            title="Quay lại"
+            className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 active:scale-95 text-white transition-all border-none cursor-pointer z-20 flex items-center justify-center p-0"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Quay lại</span>
+            <ChevronLeft className="w-5 h-5" />
           </button>
         )}
         {artistData.cover || artistData.thumbnail ? (

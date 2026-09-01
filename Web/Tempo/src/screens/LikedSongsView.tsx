@@ -10,7 +10,7 @@ import {
   X,
   Check,
   Loader2,
-  ArrowLeft,
+  ChevronLeft,
 } from 'lucide-react';
 import { useLibraryStore } from '../store/libraryStore';
 import { usePlayerStore } from '../store/playerStore';
@@ -130,33 +130,40 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar select-none bg-[#121212]">
       {/* Subtle Deep Crimson Gradient Header */}
-      <div className="bg-gradient-to-b from-[#341119] via-[#1c0a0e] to-[#121212] p-8 pb-6 flex items-end gap-6 flex-shrink-0 relative">
+      <div className="bg-gradient-to-b from-[#341119] via-[#1c0a0e] to-[#121212] p-8 pb-6 flex flex-col gap-4 flex-shrink-0">
         {onBack && (
           <button
             onClick={onBack}
-            className="absolute top-6 left-6 w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center text-white transition-colors border-none cursor-pointer z-10"
+            title="Quay lại"
+            className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 active:scale-95 flex items-center justify-center text-white transition-all border-none cursor-pointer self-start"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
         )}
-        <div className="flex flex-col justify-end">
-          <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-2">Danh sách phát</span>
-          <h1 className="text-6xl font-black text-white tracking-tight mb-4 drop-shadow-md">
-            Bài hát đã thích
-          </h1>
-          <div className="flex items-center gap-2 text-xs font-semibold text-white/90">
-            <div className="w-6 h-6 rounded-full bg-[#535353] flex items-center justify-center text-white text-[10px] font-bold">
-              {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+        <div className="flex items-end gap-6">
+          <div className="w-52 h-52 rounded-md bg-gradient-to-br from-[#491f8f] via-[#5b22b6] to-[#1e3264] flex items-center justify-center text-white shadow-2xl flex-shrink-0">
+            <Heart className="w-24 h-24 fill-white" />
+          </div>
+
+          <div className="flex flex-col justify-end">
+            <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-2">Danh sách phát</span>
+            <h1 className="text-6xl font-black text-white tracking-tight mb-4 drop-shadow-md">
+              Bài hát đã thích
+            </h1>
+            <div className="flex items-center gap-2 text-xs font-semibold text-white/90">
+              <div className="w-6 h-6 rounded-full bg-[#535353] flex items-center justify-center text-white text-[10px] font-bold">
+                {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <span className="font-bold text-white">{user?.email?.split('@')[0] || 'Tempo User'}</span>
+              <span>•</span>
+              <span>{likedSongs.length} bài hát</span>
+              {likedSongs.length > 0 && (
+                <>
+                  <span>,</span>
+                  <span>{durationLabel}</span>
+                </>
+              )}
             </div>
-            <span className="font-bold text-white">{user?.email?.split('@')[0] || 'Tempo User'}</span>
-            <span>•</span>
-            <span>{likedSongs.length} bài hát</span>
-            {likedSongs.length > 0 && (
-              <>
-                <span>,</span>
-                <span>{durationLabel}</span>
-              </>
-            )}
           </div>
         </div>
       </div>

@@ -121,7 +121,19 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
     return verifiedVietnameseArtists;
   }, []);
 
-  if (isLoading) {
+  const fallbackVietnameseSongs: UnifiedSong[] = [
+    { id: 'zing_fb_1', rawId: 'fb1', source: 'zing', title: 'Đừng Làm Trái Tim Anh Đau', artistsNames: 'Sơn Tùng M-TP', thumbnail: 'https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/avatars/5/9/6/9/59696c9dba7a914d587d886049c10df6.jpg', duration: 275 },
+    { id: 'zing_fb_2', rawId: 'fb2', source: 'zing', title: 'Lạ Lùng', artistsNames: 'Vũ.', thumbnail: 'https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/avatars/d/1/7/1/d17181fe947a2c205119a5a774863889.jpg', duration: 260 },
+    { id: 'zing_fb_3', rawId: 'fb3', source: 'zing', title: 'Nếu Lúc Đó', artistsNames: 'tlinh, 2pillz', thumbnail: 'https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/avatars/1/b/e/7/1be7b0f6f95b88917e86b98f156012b9.jpg', duration: 234 },
+    { id: 'zing_fb_4', rawId: 'fb4', source: 'zing', title: 'Đưa Em Về Nhà', artistsNames: 'GREY D, Chillies', thumbnail: 'https://photo-resize-zmp3.zmdcdn.me/w360_r1x1_jpeg/avatars/6/a/d/4/6ad41e27f0771a45bd43627f60221825.jpg', duration: 242 },
+    { id: 'zing_fb_5', rawId: 'fb5', source: 'zing', title: 'Giá Như', artistsNames: 'SOOBIN', thumbnail: 'https://photo-resize-zmp3.zmdcdn.me/w360_r1x1_jpeg/avatars/a/3/a/b/a3ab763366da3d3df96b55a20177285c.jpg', duration: 230 },
+    { id: 'zing_fb_6', rawId: 'fb6', source: 'zing', title: 'Không Thể Say', artistsNames: 'HIEUTHUHAI', thumbnail: 'https://photo-resize-zmp3.zmdcdn.me/w360_r1x1_jpeg/avatars/c/0/7/4/c0742c35795d4d234bf86cc7258b5077.jpg', duration: 222 },
+  ];
+
+  const displayChart = chartSongs.length > 0 ? chartSongs : (isLoading ? [] : fallbackVietnameseSongs);
+  const displayNewReleases = newReleases.length > 0 ? newReleases : (isLoading ? [] : fallbackVietnameseSongs);
+
+  if (isLoading && chartSongs.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-[#b3b3b3] text-sm">
         <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -136,13 +148,13 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
     thumb?: string;
     isLiked?: boolean;
     onClick: () => void;
-  }> = chartSongs.slice(0, 8).map((s) => ({
+  }> = displayChart.slice(0, 8).map((s) => ({
     id: s.encodeId || s.id,
     title: s.title,
     thumb: s.thumbnail || s.thumbnailM,
     isLiked: false,
     onClick: () => {
-      playSong(s, chartSongs);
+      playSong(s, displayChart);
     },
   }));
 
@@ -185,7 +197,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
       </div>
 
       {/* 3. Section: Được đề xuất cho hôm nay */}
-      {(chartSongs.length > 0 || isLoading) && (
+      {(displayChart.length > 0 || isLoading) && (
         <section>
           <div className="flex items-center justify-between mb-3.5">
             <div>
@@ -203,7 +215,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {isLoading && chartSongs.length === 0
+            {isLoading && displayChart.length === 0
               ? [...Array(6)].map((_, i) => (
                   <div key={i} className="bg-[#181818] p-3 rounded-md animate-pulse flex flex-col space-y-3">
                     <div className="aspect-square w-full rounded-md bg-white/10" />
@@ -211,10 +223,10 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
                     <div className="h-2.5 bg-white/5 rounded w-1/2" />
                   </div>
                 ))
-              : chartSongs.slice(0, 6).map((song) => (
+              : displayChart.slice(0, 6).map((song) => (
                   <div
                     key={song.encodeId || song.id}
-                    onClick={() => playSong(song, chartSongs)}
+                    onClick={() => playSong(song, displayChart)}
                     className="bg-[#181818] hover:bg-[#282828] p-3 rounded-md cursor-pointer transition-colors group flex flex-col"
                   >
                     <div className="relative aspect-square w-full rounded-md overflow-hidden mb-3 bg-[#242424]">
@@ -253,8 +265,8 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
               onClick={() => {
                 if (onSelectArtist) {
                   onSelectArtist({ name: artist.name, thumbnail: artist.artistImg, alias: artist.alias || artist.name.toLowerCase() });
-                } else if (chartSongs.length > idx) {
-                  playSong(chartSongs[idx], chartSongs);
+                } else if (displayChart.length > idx) {
+                  playSong(displayChart[idx], displayChart);
                 }
               }}
               className="bg-[#181818] hover:bg-[#242424] p-3.5 rounded-lg flex flex-col items-center text-center cursor-pointer transition-all group border-none relative"
@@ -270,7 +282,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (chartSongs.length > idx) playSong(chartSongs[idx], chartSongs);
+                    if (displayChart.length > idx) playSong(displayChart[idx], displayChart);
                   }}
                   className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-white text-black shadow-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-105"
                 >
@@ -289,7 +301,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
       </section>
 
       {/* 5. Section: Nhạc Mới Phát Hành */}
-      {(newReleases.length > 0 || isLoading) && (
+      {(displayNewReleases.length > 0 || isLoading) && (
         <section>
           <div className="flex items-center justify-between mb-3.5">
             <h2 className="text-xl font-bold text-white">Nhạc Mới Phát Hành</h2>
@@ -299,7 +311,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {isLoading && newReleases.length === 0
+            {isLoading && displayNewReleases.length === 0
               ? [...Array(6)].map((_, i) => (
                   <div key={i} className="bg-[#181818] p-3 rounded-md animate-pulse flex flex-col space-y-3">
                     <div className="aspect-square w-full rounded-md bg-white/10" />
@@ -307,10 +319,10 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
                     <div className="h-2.5 bg-white/5 rounded w-1/2" />
                   </div>
                 ))
-              : newReleases.slice(0, 6).map((song) => (
+              : displayNewReleases.slice(0, 6).map((song) => (
                   <div
                     key={song.encodeId || song.id}
-                    onClick={() => playSong(song, newReleases)}
+                    onClick={() => playSong(song, displayNewReleases)}
                     className="bg-[#181818] hover:bg-[#282828] p-3 rounded-md cursor-pointer transition-colors group flex flex-col"
                   >
                     <div className="relative aspect-square w-full rounded-md overflow-hidden mb-3 bg-[#242424]">

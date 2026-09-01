@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, Play, Pause, Shuffle, ArrowLeft } from 'lucide-react';
+import { TrendingUp, Play, Pause, Shuffle, ChevronLeft } from 'lucide-react';
 import { UnifiedSong } from '../types/music';
 import { apiClient } from '../api/client';
 import { usePlayerStore } from '../store/playerStore';
@@ -68,28 +68,31 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({ onBack }) => {
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar select-none bg-[#121212]">
       {/* Hero Header */}
-      <div className="bg-gradient-to-b from-[#2d2d38] via-[#1b1b22] to-[#121212] p-8 flex items-end gap-6 flex-shrink-0 relative">
+      <div className="bg-gradient-to-b from-[#2d2d38] via-[#1b1b22] to-[#121212] p-8 flex flex-col gap-4 flex-shrink-0">
         {onBack && (
           <button
             onClick={onBack}
-            className="absolute top-6 left-6 w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center text-white transition-colors border-none cursor-pointer z-10"
+            title="Quay lại"
+            className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 active:scale-95 flex items-center justify-center text-white transition-all border-none cursor-pointer self-start"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
         )}
 
-        <div className="w-52 h-52 rounded-md bg-gradient-to-br from-[#FC475C] via-[#941A2D] to-[#252530] flex items-center justify-center text-white shadow-2xl flex-shrink-0">
-          <TrendingUp className="w-24 h-24 stroke-[2.5]" />
-        </div>
+        <div className="flex items-end gap-6">
+          <div className="w-52 h-52 rounded-md bg-gradient-to-br from-[#FC475C] via-[#941A2D] to-[#252530] flex items-center justify-center text-white shadow-2xl flex-shrink-0">
+            <TrendingUp className="w-24 h-24 stroke-[2.5]" />
+          </div>
 
-        <div className="flex flex-col justify-end">
-          <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-2">Bảng Xếp Hạng</span>
-          <h1 className="text-5xl font-black text-white tracking-tight mb-4">
-            Tempo Chart Top 50
-          </h1>
-          <p className="text-xs font-semibold text-white/90">
-            Cập nhật theo thời gian thực từ Zing MP3 · {songs.length} bài hát hàng đầu
-          </p>
+          <div className="flex flex-col justify-end">
+            <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-2">Bảng Xếp Hạng</span>
+            <h1 className="text-5xl font-black text-white tracking-tight mb-4">
+              Tempo Chart Top 50
+            </h1>
+            <p className="text-xs font-semibold text-white/90">
+              Cập nhật theo thời gian thực từ Zing MP3 · {songs.length} bài hát hàng đầu
+            </p>
+          </div>
         </div>
       </div>
 

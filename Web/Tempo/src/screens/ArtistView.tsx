@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BadgeCheck, Play, Pause, Shuffle, Check, UserPlus } from 'lucide-react';
+import { BadgeCheck, Play, Pause, Shuffle, Check, UserPlus, Loader2 } from 'lucide-react';
 import { Artist, UnifiedSong } from '../types/music';
 import { apiClient } from '../api/client';
 import { usePlayerStore } from '../store/playerStore';
@@ -15,7 +15,7 @@ export const ArtistView: React.FC<ArtistViewProps> = ({ artist }) => {
   const [topSongs, setTopSongs] = useState<UnifiedSong[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { currentSong, isPlaying, playSong, togglePlayPause, isShuffle, toggleShuffle } = usePlayerStore();
+  const { currentSong, isPlaying, isLoading: isPlayerLoading, playSong, togglePlayPause, isShuffle, toggleShuffle } = usePlayerStore();
   const { isArtistFollowed, toggleFollowArtist } = useLibraryStore();
 
   const currentArtistObj: Artist = {
@@ -99,7 +99,9 @@ export const ArtistView: React.FC<ArtistViewProps> = ({ artist }) => {
           disabled={topSongs.length === 0 || isLoading}
           className="w-14 h-14 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-2xl transition-all disabled:opacity-50 border-none cursor-pointer"
         >
-          {isCurrentListPlaying ? (
+          {isCurrentListPlaying && isPlayerLoading ? (
+            <Loader2 className="w-6 h-6 animate-spin text-black" />
+          ) : isCurrentListPlaying ? (
             <Pause className="w-6 h-6 fill-black text-black" />
           ) : (
             <Play className="w-6 h-6 fill-black text-black ml-0.5" />

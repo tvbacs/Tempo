@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Library as LibraryIcon,
   Heart,
-  Bookmark,
+  ArrowDownToLine,
   Music2,
   Disc,
   Pin,
@@ -126,8 +126,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               currentTab === 'downloads' ? 'bg-[#242424]' : 'hover:bg-[#1a1a1a]'
             }`}
           >
-            <div className="w-12 h-12 rounded-md bg-[#242424] flex items-center justify-center flex-shrink-0 shadow-md">
-              <Bookmark className="w-5 h-5 fill-white text-white" />
+            <div className="w-12 h-12 rounded-md bg-gradient-to-br from-[#0284c7] via-[#0369a1] to-[#0c4a6e] flex items-center justify-center flex-shrink-0 shadow-md">
+              <ArrowDownToLine className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0 flex-1">
               <h4 className="text-sm font-bold text-white truncate">Tải xuống</h4>

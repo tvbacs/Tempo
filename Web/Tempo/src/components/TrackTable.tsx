@@ -11,6 +11,7 @@ import {
   ListPlus,
   Check,
   Copy,
+  Loader2,
 } from 'lucide-react';
 import { UnifiedSong } from '../types/music';
 import { usePlayerStore } from '../store/playerStore';
@@ -27,7 +28,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
   showAlbum = true,
   showDateAdded = true,
 }) => {
-  const { currentSong, isPlaying, playSong, togglePlayPause } = usePlayerStore();
+  const { currentSong, isPlaying, isLoading, playSong, togglePlayPause } = usePlayerStore();
   const {
     isLiked,
     toggleLike,
@@ -117,6 +118,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
         {songs.map((song, index) => {
           const songKey = song.encodeId || song.id || String(index);
           const isThisCurrent = (currentSong?.encodeId || currentSong?.id) === (song.encodeId || song.id);
+          const isThisLoading = isThisCurrent && isLoading;
           const isThisPlaying = isThisCurrent && isPlaying;
           const liked = isLiked(song.encodeId || song.id);
           const downloaded = isDownloaded(song.encodeId || song.id);
@@ -130,32 +132,38 @@ export const TrackTable: React.FC<TrackTableProps> = ({
                 isThisCurrent ? 'bg-[#242424]' : ''
               }`}
             >
-              {/* Index / Play Button */}
+              {/* Index / Play Button / Loading Spinner */}
               <div className="flex items-center justify-center">
-                <span
-                  className={`text-sm font-semibold group-hover:hidden ${
-                    isThisCurrent ? 'text-white font-bold' : 'text-[#b3b3b3]'
-                  }`}
-                >
-                  {index + 1}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isThisCurrent) {
-                      togglePlayPause();
-                    } else {
-                      playSong(song, songs);
-                    }
-                  }}
-                  className="hidden group-hover:flex text-white hover:scale-110 transition-transform border-none bg-transparent cursor-pointer p-0"
-                >
-                  {isThisPlaying ? (
-                    <Pause className="w-4 h-4 fill-white text-white" />
-                  ) : (
-                    <Play className="w-4 h-4 fill-white text-white" />
-                  )}
-                </button>
+                {isThisLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                ) : (
+                  <>
+                    <span
+                      className={`text-sm font-semibold group-hover:hidden ${
+                        isThisCurrent ? 'text-primary font-bold' : 'text-[#b3b3b3]'
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isThisCurrent) {
+                          togglePlayPause();
+                        } else {
+                          playSong(song, songs);
+                        }
+                      }}
+                      className="hidden group-hover:flex text-white hover:scale-110 transition-transform border-none bg-transparent cursor-pointer p-0"
+                    >
+                      {isThisPlaying ? (
+                        <Pause className="w-4 h-4 fill-white text-white" />
+                      ) : (
+                        <Play className="w-4 h-4 fill-white text-white" />
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Title & Artist */}

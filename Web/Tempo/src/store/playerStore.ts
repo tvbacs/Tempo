@@ -22,12 +22,25 @@ const _saved = loadPlayerState();
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
+function generateShuffledQueue(current: UnifiedSong | null, originalQueue: UnifiedSong[]): UnifiedSong[] {
+  if (originalQueue.length <= 1) return [...originalQueue];
+  const others = originalQueue.filter(
+    (s) => (s.encodeId || s.id) !== (current?.encodeId || current?.id)
+  );
+  for (let i = others.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [others[i], others[j]] = [others[j], others[i]];
+  }
+  return current ? [current, ...others] : others;
+}
+
 interface PlayerState {
   currentSong: UnifiedSong | null;
   isPlaying: boolean;
   isLoading: boolean;
   isAutoplayBlocked: boolean;
   queue: UnifiedSong[];
+  shuffledQueue: UnifiedSong[];
   currentIndex: number;
   positionSec: number;
   durationSec: number;
@@ -62,6 +75,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   isLoading: false,
   isAutoplayBlocked: false,
   queue: _saved.queue,
+  shuffledQueue: [],
   currentIndex: _saved.currentIndex,
   positionSec: 0,
   durationSec: _saved.song?.duration || 0,
@@ -105,8 +119,33 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
 
     audio.addEventListener('pause', () => {
-      set({ isPlaying: false });
+      set({ isPlaying: false, isLoading: false });
       useConnectStore.getState().broadcastState();
+    });
+
+    audio.addEventListener('waiting', () => {
+      set({ isLoading: true });
+    });
+
+    audio.addEventListener('playing', () => {
+      set({ isPlaying: true, isLoading: false });
+      useConnectStore.getState().broadcastState();
+    });
+
+    audio.addEventListener('canplay', () => {
+      set({ isLoading: false });
+    });
+
+    audio.addEventListener('seeking', () => {
+      set({ isLoading: true });
+    });
+
+    audio.addEventListener('seeked', () => {
+      set({ isLoading: false });
+    });
+
+    audio.addEventListener('error', () => {
+      set({ isLoading: false, isPlaying: false });
     });
 
     audio.addEventListener('ended', () => {
@@ -160,6 +199,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       queue = [song, ...queue];
     }
     const currentIndex = queue.findIndex(s => (s.encodeId || s.id) === (song.encodeId || song.id));
+    const shuffledQueue = get().isShuffle ? generateShuffledQueue(song, queue) : [];
 
     savePlayerState(song, queue, currentIndex);
 
@@ -169,6 +209,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({
       currentSong: song,
       queue,
+      shuffledQueue,
       currentIndex,
       isLoading: true,
       positionSec: startPosSec,
@@ -259,7 +300,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
-    const { queue, currentIndex, isShuffle, repeatMode } = get();
+    const { queue, currentIndex, isShuffle, shuffledQueue, repeatMode } = get();
     if (queue.length === 0) return;
 
     if (repeatMode === 'one') {
@@ -272,13 +313,29 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
-    if (isShuffle && queue.length > 1) {
-      let rand = Math.floor(Math.random() * queue.length);
-      if (rand === currentIndex) {
-        rand = (rand + 1) % queue.length;
+    if (isShuffle) {
+      const activeQueue = shuffledQueue.length > 0 ? shuffledQueue : queue;
+      const currentShuffledIdx = activeQueue.findIndex(
+        (s) => (s.encodeId || s.id) === (get().currentSong?.encodeId || get().currentSong?.id)
+      );
+      if (currentShuffledIdx >= 0 && currentShuffledIdx + 1 < activeQueue.length) {
+        get().playSong(activeQueue[currentShuffledIdx + 1], queue);
+        return;
+      } else if (repeatMode === 'all') {
+        const reshuffled = generateShuffledQueue(null, queue);
+        set({ shuffledQueue: reshuffled });
+        get().playSong(reshuffled[0], queue);
+        return;
+      } else {
+        const audio = get().audioElement;
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+        set({ isPlaying: false, positionSec: 0 });
+        useConnectStore.getState().broadcastState();
+        return;
       }
-      get().playSong(queue[rand], queue);
-      return;
     }
 
     if (currentIndex + 1 < queue.length) {
@@ -344,7 +401,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   toggleShuffle: () => {
     const nextVal = !get().isShuffle;
-    set({ isShuffle: nextVal });
+    const { currentSong, queue } = get();
+    const shuffledQueue = nextVal ? generateShuffledQueue(currentSong, queue) : [];
+    set({ isShuffle: nextVal, shuffledQueue });
     const connect = useConnectStore.getState();
     if (connect.activeDeviceId !== 'web-player-pc') {
       connect.sendCommand('set_shuffle', { isShuffle: nextVal });

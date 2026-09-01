@@ -16,6 +16,7 @@ import {
   Maximize2,
   Laptop,
   Smartphone,
+  Loader2,
 } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
@@ -25,6 +26,7 @@ export const PlayerBar: React.FC = () => {
   const {
     currentSong,
     isPlaying,
+    isLoading,
     positionSec,
     durationSec,
     volume,
@@ -86,23 +88,35 @@ export const PlayerBar: React.FC = () => {
   return (
     <div className="flex flex-col flex-shrink-0 z-50 select-none">
       <footer className="h-20 bg-[#000000] border-none flex items-center justify-between px-4 select-none z-50 flex-shrink-0 relative">
-      {/* 1. Left Track Info (56x56 Cover + Title + Artist + Green Checkmark) */}
+      {/* 1. Left Track Info (56x56 Cover + Title + Artist + Heart) */}
       <div className="flex items-center gap-3.5 w-72 min-w-0">
-        <img
-          src={
-            currentSong?.thumbnail ||
-            currentSong?.thumbnailM ||
-            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120'
-          }
-          alt="Thumb"
-          className="w-14 h-14 rounded-md object-cover bg-[#282828] flex-shrink-0 shadow"
-        />
+        <div className="relative w-14 h-14 rounded-md overflow-hidden bg-[#282828] flex-shrink-0 shadow">
+          <img
+            src={
+              currentSong?.thumbnail ||
+              currentSong?.thumbnailM ||
+              'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120'
+            }
+            alt="Thumb"
+            className={`w-full h-full object-cover transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}
+          />
+          {isLoading && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-white drop-shadow" />
+            </div>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <h4 className="text-sm font-bold text-white truncate hover:underline cursor-pointer">
             {currentSong?.title || 'Chưa chọn bài hát'}
           </h4>
-          <p className="text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer">
-            {currentSong?.artistsNames || 'Tempo Music'}
+          <p className="text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer flex items-center gap-1.5">
+            <span>{currentSong?.artistsNames || 'Tempo Music'}</span>
+            {isLoading && (
+              <span className="text-[10px] text-primary font-bold animate-pulse">
+                • Đang tải...
+              </span>
+            )}
           </p>
         </div>
         {currentSong && (
@@ -144,12 +158,15 @@ export const PlayerBar: React.FC = () => {
             <SkipBack className="w-5 h-5 fill-current" />
           </button>
 
-          {/* Solid White Circle Play/Pause Button */}
+          {/* Solid White Circle Play/Pause/Loading Button */}
           <button
             onClick={togglePlayPause}
+            title={isLoading ? 'Đang tải âm thanh...' : isPlaying ? 'Tạm dừng' : 'Phát'}
             className="w-8 h-8 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center transition-transform shadow-md border-none cursor-pointer"
           >
-            {isPlaying ? (
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-black" />
+            ) : isPlaying ? (
               <Pause className="w-4 h-4 fill-black text-black" />
             ) : (
               <Play className="w-4 h-4 fill-black text-black ml-0.5" />

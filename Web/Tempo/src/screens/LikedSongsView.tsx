@@ -9,6 +9,7 @@ import {
   ArrowUpDown,
   X,
   Check,
+  Loader2,
 } from 'lucide-react';
 import { useLibraryStore } from '../store/libraryStore';
 import { usePlayerStore } from '../store/playerStore';
@@ -17,7 +18,7 @@ import { TrackTable } from '../components/TrackTable';
 
 export const LikedSongsView: React.FC = () => {
   const { likedSongs, addDownloadedSong } = useLibraryStore();
-  const { currentSong, isPlaying, playSong, togglePlayPause, isShuffle, toggleShuffle } = usePlayerStore();
+  const { currentSong, isPlaying, isLoading, playSong, togglePlayPause, isShuffle, toggleShuffle } = usePlayerStore();
   const { user } = useAuthStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -155,7 +156,9 @@ export const LikedSongsView: React.FC = () => {
             disabled={processedSongs.length === 0}
             className="w-14 h-14 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-2xl transition-all disabled:opacity-50 border-none cursor-pointer"
           >
-            {isCurrentListPlaying ? (
+            {isCurrentListPlaying && isLoading ? (
+              <Loader2 className="w-6 h-6 animate-spin text-black" />
+            ) : isCurrentListPlaying ? (
               <Pause className="w-6 h-6 fill-black text-black" />
             ) : (
               <Play className="w-6 h-6 fill-black text-black ml-0.5" />

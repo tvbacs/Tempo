@@ -6,7 +6,7 @@ import { apiClient } from '../api/client';
 import { Artist, UnifiedSong } from '../types/music';
 
 export const RightNowPlayingSidebar: React.FC = () => {
-  const { currentSong, queue, currentIndex, repeatMode, isShuffle, playSong } = usePlayerStore();
+  const { currentSong, queue, shuffledQueue, currentIndex, repeatMode, isShuffle, playSong } = usePlayerStore();
   const { isLiked, toggleLike, isArtistFollowed, toggleFollowArtist } = useLibraryStore();
   const [artistDetail, setArtistDetail] = useState<Artist | null>(null);
 
@@ -31,6 +31,17 @@ export const RightNowPlayingSidebar: React.FC = () => {
   if (repeatMode === 'one') {
     nextSong = currentSong;
     nextLabel = 'Tiếp theo (Lặp lại 1 bài)';
+  } else if (isShuffle) {
+    nextLabel = 'Tiếp theo (Trộn ngẫu nhiên)';
+    const activeQueue = shuffledQueue && shuffledQueue.length > 0 ? shuffledQueue : queue;
+    const curIdx = activeQueue.findIndex(
+      (s) => (s.encodeId || s.id) === (currentSong?.encodeId || currentSong?.id)
+    );
+    if (curIdx >= 0 && curIdx + 1 < activeQueue.length) {
+      nextSong = activeQueue[curIdx + 1];
+    } else if (repeatMode === 'all' && activeQueue.length > 0) {
+      nextSong = activeQueue[0];
+    }
   } else if (currentIndex >= 0 && currentIndex + 1 < queue.length) {
     nextSong = queue[currentIndex + 1];
   } else if (repeatMode === 'all' && queue.length > 0) {
@@ -175,7 +186,7 @@ export const RightNowPlayingSidebar: React.FC = () => {
           className="bg-[#242424] hover:bg-[#2e2e2e] rounded-lg p-3 cursor-pointer transition-colors group"
         >
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-bold text-white group-hover:text-[#1ed760] transition-colors">
+            <h4 className="text-xs font-bold text-white group-hover:text-primary transition-colors">
               {nextLabel}
             </h4>
             <span className="text-[10px] font-bold text-[#b3b3b3]">Hàng đợi</span>

@@ -6,6 +6,7 @@ import {
   Music2,
   Disc,
   Pin,
+  ChevronRight,
 } from 'lucide-react';
 import { useLibraryStore } from '../store/libraryStore';
 
@@ -101,20 +102,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {(filterType === 'all' || filterType === 'playlist') && (
           <div
             onClick={() => setCurrentTab('liked')}
-            className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+            className={`flex items-center justify-between px-3 py-2.5 rounded-md cursor-pointer transition-colors group ${
               currentTab === 'liked' ? 'bg-[#242424]' : 'hover:bg-[#1a1a1a]'
             }`}
           >
-            <div className="w-12 h-12 rounded-md bg-gradient-to-br from-[#E03A50] via-[#941A2D] to-[#45101A] flex items-center justify-center flex-shrink-0 shadow-md">
-              <Heart className="w-5 h-5 fill-white text-white" />
-            </div>
             <div className="min-w-0 flex-1">
-              <h4 className="text-sm font-bold text-white truncate">Bài hát đã thích</h4>
+              <h4 className="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">
+                Bài hát đã thích
+              </h4>
               <p className="text-xs text-[#b3b3b3] truncate flex items-center gap-1.5 mt-0.5">
                 <Pin className="w-3 h-3 text-[#b3b3b3] fill-[#b3b3b3] flex-shrink-0" />
                 <span>Danh sách phát • {likedSongs.length} bài hát</span>
               </p>
             </div>
+            <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white flex-shrink-0 transition-colors ml-2" />
           </div>
         )}
 
@@ -122,20 +123,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {(filterType === 'all' || filterType === 'playlist') && (
           <div
             onClick={() => setCurrentTab('downloads')}
-            className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+            className={`flex items-center justify-between px-3 py-2.5 rounded-md cursor-pointer transition-colors group ${
               currentTab === 'downloads' ? 'bg-[#242424]' : 'hover:bg-[#1a1a1a]'
             }`}
           >
-            <div className="w-12 h-12 rounded-md bg-gradient-to-br from-[#0284c7] via-[#0369a1] to-[#0c4a6e] flex items-center justify-center flex-shrink-0 shadow-md">
-              <ArrowDownToLine className="w-5 h-5 text-white" />
-            </div>
             <div className="min-w-0 flex-1">
-              <h4 className="text-sm font-bold text-white truncate">Tải xuống</h4>
+              <h4 className="text-sm font-bold text-white truncate group-hover:text-[#38bdf8] transition-colors">
+                Tải xuống
+              </h4>
               <p className="text-xs text-[#b3b3b3] truncate flex items-center gap-1.5 mt-0.5">
                 <Pin className="w-3 h-3 text-[#b3b3b3] fill-[#b3b3b3] flex-shrink-0" />
                 <span>Tập tin nghe ngoại tuyến</span>
               </p>
             </div>
+            <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white flex-shrink-0 transition-colors ml-2" />
           </div>
         )}
 

@@ -38,6 +38,7 @@ interface PlayerState {
   currentSong: UnifiedSong | null;
   isPlaying: boolean;
   isLoading: boolean;
+  loadingSongId: string | null;
   isAutoplayBlocked: boolean;
   queue: UnifiedSong[];
   shuffledQueue: UnifiedSong[];
@@ -73,6 +74,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentSong: _saved.song,
   isPlaying: false,
   isLoading: false,
+  loadingSongId: null,
   isAutoplayBlocked: false,
   queue: _saved.queue,
   shuffledQueue: [],
@@ -119,25 +121,29 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
 
     audio.addEventListener('pause', () => {
-      set({ isPlaying: false, isLoading: false });
+      set({ isPlaying: false, isLoading: false, loadingSongId: null });
       useConnectStore.getState().broadcastState();
     });
 
     audio.addEventListener('waiting', () => {
-      set({ isLoading: true });
+      if (audio.src && !audio.paused) {
+        set({ isLoading: true });
+      }
     });
 
     audio.addEventListener('playing', () => {
-      set({ isPlaying: true, isLoading: false });
+      set({ isPlaying: true, isLoading: false, loadingSongId: null });
       useConnectStore.getState().broadcastState();
     });
 
     audio.addEventListener('canplay', () => {
-      set({ isLoading: false });
+      set({ isLoading: false, loadingSongId: null });
     });
 
     audio.addEventListener('seeking', () => {
-      set({ isLoading: true });
+      if (audio.src && !audio.paused) {
+        set({ isLoading: true });
+      }
     });
 
     audio.addEventListener('seeked', () => {
@@ -145,7 +151,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
 
     audio.addEventListener('error', () => {
-      set({ isLoading: false, isPlaying: false });
+      set({ isLoading: false, loadingSongId: null, isPlaying: false });
     });
 
     audio.addEventListener('ended', () => {
@@ -212,6 +218,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       shuffledQueue,
       currentIndex,
       isLoading: true,
+      loadingSongId: song.encodeId || song.id,
       positionSec: startPosSec,
       durationSec: song.duration || 0,
     });
@@ -258,16 +265,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       audio.src = streamUrl;
       audio.currentTime = startPosSec;
       audio.play().then(() => {
-        set({ isPlaying: true, isLoading: false, isAutoplayBlocked: false });
+        set({ isPlaying: true, isLoading: false, loadingSongId: null, isAutoplayBlocked: false });
         useConnectStore.getState().broadcastState();
       }).catch((err) => {
         console.warn('[Web Player] Autoplay prevented:', err.message);
         // Trình duyệt chặn do chưa có tương tác chuột trên trang web
-        set({ isPlaying: false, isLoading: false, isAutoplayBlocked: true });
+        set({ isPlaying: false, isLoading: false, loadingSongId: null, isAutoplayBlocked: true });
         useConnectStore.getState().broadcastState();
       });
     } else {
-      set({ isLoading: false });
+      set({ isLoading: false, loadingSongId: null });
       useConnectStore.getState().broadcastState();
     }
   },

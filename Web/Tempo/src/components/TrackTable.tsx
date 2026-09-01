@@ -28,7 +28,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
   showAlbum = true,
   showDateAdded = true,
 }) => {
-  const { currentSong, isPlaying, isLoading, playSong, togglePlayPause } = usePlayerStore();
+  const { currentSong, isPlaying, isLoading, loadingSongId, playSong, togglePlayPause } = usePlayerStore();
   const {
     isLiked,
     toggleLike,
@@ -117,8 +117,9 @@ export const TrackTable: React.FC<TrackTableProps> = ({
       <div className="flex flex-col gap-0.5">
         {songs.map((song, index) => {
           const songKey = song.encodeId || song.id || String(index);
-          const isThisCurrent = (currentSong?.encodeId || currentSong?.id) === (song.encodeId || song.id);
-          const isThisLoading = isThisCurrent && isLoading;
+          const songId = song.encodeId || song.id;
+          const isThisCurrent = (currentSong?.encodeId || currentSong?.id) === songId;
+          const isThisLoading = Boolean((loadingSongId && loadingSongId === songId) || (isThisCurrent && isLoading && isPlaying));
           const isThisPlaying = isThisCurrent && isPlaying;
           const liked = isLiked(song.encodeId || song.id);
           const downloaded = isDownloaded(song.encodeId || song.id);

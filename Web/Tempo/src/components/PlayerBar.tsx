@@ -27,6 +27,7 @@ export const PlayerBar: React.FC = () => {
     currentSong,
     isPlaying,
     isLoading,
+    loadingSongId,
     positionSec,
     durationSec,
     volume,
@@ -43,6 +44,8 @@ export const PlayerBar: React.FC = () => {
     toggleRepeat,
     toggleLyrics,
   } = usePlayerStore();
+
+  const isBuffering = Boolean(loadingSongId || (isLoading && isPlaying));
 
   const { isLiked, toggleLike } = useLibraryStore();
   const {
@@ -98,9 +101,9 @@ export const PlayerBar: React.FC = () => {
               'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120'
             }
             alt="Thumb"
-            className={`w-full h-full object-cover transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}
+            className={`w-full h-full object-cover transition-opacity duration-300 ${isBuffering ? 'opacity-50' : 'opacity-100'}`}
           />
-          {isLoading && (
+          {isBuffering && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-white drop-shadow" />
             </div>
@@ -112,7 +115,7 @@ export const PlayerBar: React.FC = () => {
           </h4>
           <p className="text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer flex items-center gap-1.5">
             <span>{currentSong?.artistsNames || 'Tempo Music'}</span>
-            {isLoading && (
+            {isBuffering && (
               <span className="text-[10px] text-primary font-bold animate-pulse">
                 • Đang tải...
               </span>
@@ -161,10 +164,10 @@ export const PlayerBar: React.FC = () => {
           {/* Solid White Circle Play/Pause/Loading Button */}
           <button
             onClick={togglePlayPause}
-            title={isLoading ? 'Đang tải âm thanh...' : isPlaying ? 'Tạm dừng' : 'Phát'}
+            title={isBuffering ? 'Đang tải âm thanh...' : isPlaying ? 'Tạm dừng' : 'Phát'}
             className="w-8 h-8 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center transition-transform shadow-md border-none cursor-pointer"
           >
-            {isLoading ? (
+            {isBuffering ? (
               <Loader2 className="w-4 h-4 animate-spin text-black" />
             ) : isPlaying ? (
               <Pause className="w-4 h-4 fill-black text-black" />

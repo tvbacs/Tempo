@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { X, Music } from 'lucide-react';
+import { X, Lock, User } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, closeAuthModal, signIn, signUp } = useAuthStore();
   const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -19,10 +19,10 @@ export const AuthModal: React.FC = () => {
 
     try {
       if (isRegister) {
-        const res = await signUp(email, password);
+        const res = await signUp(identifier, password);
         if (!res.success) setErrorMsg(res.error || 'Đăng ký thất bại');
       } else {
-        const res = await signIn(email, password);
+        const res = await signIn(identifier, password);
         if (!res.success) setErrorMsg(res.error || 'Đăng nhập thất bại');
       }
     } catch (err: any) {
@@ -33,54 +33,65 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-[#181818] rounded-xl p-8 w-full max-w-md relative shadow-2xl">
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[9999] flex items-center justify-center p-4 select-none">
+      <div className="bg-[#181818] border border-white/10 rounded-2xl p-8 w-full max-w-md relative shadow-2xl animate-in fade-in zoom-in duration-200">
         <button
           onClick={closeAuthModal}
-          className="absolute top-4 right-4 text-text-muted hover:text-white transition-colors"
+          title="Đóng / Khám phá như khách"
+          className="absolute top-4 right-4 text-[#b3b3b3] hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10 border-none bg-transparent cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#FC475C] to-[#FC655A] flex items-center justify-center text-white mb-3 shadow-lg">
-            <Music className="w-6 h-6" />
-          </div>
-          <h2 className="text-2xl font-extrabold text-white">
+          <img
+            src="/logo.png"
+            alt="Tempo Music"
+            className="w-16 h-16 rounded-full object-contain mb-3 drop-shadow-lg"
+          />
+          <h2 className="text-2xl font-black text-white tracking-tight">
             {isRegister ? 'Tạo tài khoản Tempo' : 'Đăng nhập vào Tempo'}
           </h2>
-          <p className="text-xs text-text-secondary mt-1">
-            Đồng bộ toàn bộ bài hát yêu thích và lịch sử từ điện thoại
+          <p className="text-xs text-[#b3b3b3] mt-1.5 max-w-xs">
+            Đồng bộ danh sách bài hát yêu thích, playlist và chuyển phát trực tiếp giữa các thiết bị
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5 text-left">
-            <label className="text-xs font-bold text-text-secondary">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="Nhập email của bạn..."
-              className="bg-[#121212] rounded-md px-3.5 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-primary"
-            />
+            <label className="text-xs font-bold text-[#b3b3b3]">
+              {isRegister ? 'Email đăng ký' : 'Tên tài khoản hoặc Email'}
+            </label>
+            <div className="relative flex items-center">
+              <User className="w-4 h-4 text-[#727272] absolute left-3.5" />
+              <input
+                type={isRegister ? 'email' : 'text'}
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                required
+                placeholder={isRegister ? 'Nhập email của bạn...' : 'Nhập username hoặc email...'}
+                className="w-full bg-[#121212] border border-white/10 rounded-lg pl-10 pr-3.5 py-2.5 text-sm text-white outline-none focus:border-primary transition-colors placeholder:text-[#555]"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5 text-left">
-            <label className="text-xs font-bold text-text-secondary">Mật khẩu</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Nhập mật khẩu..."
-              className="bg-[#121212] rounded-md px-3.5 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-primary"
-            />
+            <label className="text-xs font-bold text-[#b3b3b3]">Mật khẩu</label>
+            <div className="relative flex items-center">
+              <Lock className="w-4 h-4 text-[#727272] absolute left-3.5" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Nhập mật khẩu..."
+                className="w-full bg-[#121212] border border-white/10 rounded-lg pl-10 pr-3.5 py-2.5 text-sm text-white outline-none focus:border-primary transition-colors placeholder:text-[#555]"
+              />
+            </div>
           </div>
 
           {errorMsg && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-500 text-xs p-2.5 rounded-md">
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-2.5 rounded-lg leading-relaxed">
               {errorMsg}
             </div>
           )}
@@ -88,22 +99,29 @@ export const AuthModal: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-gradient-to-r from-[#FC475C] to-[#FC655A] text-white font-bold py-3 rounded-md mt-2 hover:opacity-90 active:scale-98 transition-all disabled:opacity-50"
+            className="bg-primary hover:bg-[#e03a50] text-white font-bold py-3 rounded-lg mt-1 transition-all disabled:opacity-50 shadow-lg shadow-primary/20 border-none cursor-pointer"
           >
             {isLoading ? 'Đang xử lý...' : isRegister ? 'Đăng ký tài khoản' : 'Đăng nhập'}
           </button>
 
-          <div className="flex items-center justify-center gap-1.5 text-xs text-text-muted mt-2">
-            <span>{isRegister ? 'Đã có tài khoản?' : 'Chưa có tài khoản?'}</span>
+          <div className="flex items-center justify-between text-xs text-[#b3b3b3] mt-2 pt-2 border-t border-white/5">
             <button
               type="button"
               onClick={() => {
                 setIsRegister(!isRegister);
                 setErrorMsg('');
               }}
-              className="text-primary font-bold hover:underline"
+              className="text-primary font-bold hover:underline border-none bg-transparent cursor-pointer p-0"
             >
-              {isRegister ? 'Đăng nhập ngay' : 'Đăng ký miễn phí'}
+              {isRegister ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký ngay'}
+            </button>
+
+            <button
+              type="button"
+              onClick={closeAuthModal}
+              className="text-[#727272] hover:text-white hover:underline border-none bg-transparent cursor-pointer p-0"
+            >
+              Khám phá như khách
             </button>
           </div>
         </form>

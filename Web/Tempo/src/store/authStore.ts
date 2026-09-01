@@ -32,7 +32,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user ?? null;
-      set({ user, isLoading: false });
+      set({
+        user,
+        isLoading: false,
+        isAuthModalOpen: !user,
+      });
 
       if (user) {
         syncAllData();
@@ -46,7 +50,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
       });
     } catch (e) {
-      set({ isLoading: false });
+      set({ isLoading: false, isAuthModalOpen: true });
     }
   },
 

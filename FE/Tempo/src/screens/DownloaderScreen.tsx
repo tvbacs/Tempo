@@ -31,6 +31,7 @@ import {
   ListPlus,
   Plus,
 } from "lucide-react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { apiClient } from "../api/client";
 import { UnifiedSong } from "../types/music";
 import { AddToPlaylistModal } from "../components/AddToPlaylistModal";
@@ -39,6 +40,7 @@ import { useDownloadStore } from "../store/downloadStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { useToastStore } from "../store/toastStore";
 import { useAuthStore } from "../store/authStore";
+import { useNavStore } from "../store/navStore";
 import { AppAvatarBadge } from "../components/AppAvatarBadge";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 import { formatDuration } from "../utils/format";
@@ -73,6 +75,11 @@ const FEATURED_CHANNELS = [
 ];
 
 export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  useFocusEffect(
+    React.useCallback(() => {
+      useNavStore.getState().setCurrentRoute("Downloads");
+    }, [])
+  );
   const [url, setUrl] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedSong, setExtractedSong] = useState<(UnifiedSong & { audioUrl: string; quality?: string; fileSize?: string }) | null>(null);
@@ -148,7 +155,12 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   };
 
   const handlePlay = (song: UnifiedSong) => {
-    playSong(song, [song], { type: 'extracted', title: 'Nhạc trích xuất' });
+    const activeQueue = searchResults.length > 0
+      ? searchResults
+      : recentExtracts.length > 0
+      ? recentExtracts
+      : [song];
+    playSong(song, activeQueue, { type: 'extracted', title: 'Nhạc trích xuất' });
   };
 
   const remaining = getRemainingExtracts();
@@ -165,7 +177,7 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
           onPress={() => navigation.navigate("Profile")}
           style={styles.headerAvatarBtn}
         >
-          <AppAvatarBadge size={36} />
+          <AppAvatarBadge size={42} />
         </TouchableOpacity>
       </View>
 
@@ -491,7 +503,13 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                     onPress={() => downloadSong(song)}
                     style={styles.recentDownloadBtn}
                   >
-                    <Download size={18} color={isDownloaded(song.id) ? COLORS.accentPrimary : COLORS.textSecondary} />
+                    {isDownloading(song.id) ? (
+                      <ActivityIndicator size="small" color="#1DB954" />
+                    ) : isDownloaded(song.id) ? (
+                      <CheckCircle size={18} color="#1DB954" />
+                    ) : (
+                      <Download size={18} color={COLORS.textSecondary} />
+                    )}
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
@@ -542,10 +560,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   headerAvatarBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    overflow: "hidden",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    overflow: "visible",
   },
   headerAvatar: {
     width: "100%",

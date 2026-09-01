@@ -219,6 +219,7 @@ export const DownloadedSongsScreen: React.FC<{
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Left-Aligned Header Section */}
         <View style={styles.headerSection}>

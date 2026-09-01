@@ -1,6 +1,6 @@
 /**
- * UpgradeScreen - Giao diện Nâng Cấp VIP cao cấp
- * Full Tai Thỏ (Edge-to-Edge Notch), Lưới ảnh mosaic sole nhau, Icon Trắng, App Primary Accent Gradient (#FC475C -> #FC655A)
+ * UpgradeScreen - Giao diện Nâng Cấp VIP cao cấp phong cách SoundCloud Pro
+ * Gradient nền sâu, Hero Card nổi bật với đầy đủ Checklist đặc quyền, Nút đăng ký tương phản cao
  * Strictly follows STANDARDS.md: Zero Emojis, Zero Borders, Tokenized variables
  */
 import React, { useState } from 'react';
@@ -11,92 +11,97 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Image,
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Crown,
-  Zap,
-  Shuffle,
-  Download,
   Check,
-  Sparkles,
-  Volume2,
 } from 'lucide-react-native';
 import { useAuthStore } from '../store/authStore';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const MOSAIC_ROW_1 = [
-  'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=350&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=350&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=350&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=350&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=350&auto=format&fit=crop&q=80',
-];
-
-const MOSAIC_ROW_2 = [
-  'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=350&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=350&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=350&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=350&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1445985543470-41fba5c3144a?w=350&auto=format&fit=crop&q=80',
-];
-
 interface PlanItem {
   id: 'monthly' | 'yearly' | 'lifetime';
+  categoryTag: string;
+  periodTag: string;
   badge?: string;
   name: string;
   price: string;
   period: string;
-  subText: string;
+  subPrice: string;
+  features: string[];
   featured?: boolean;
 }
-
-const REASONS = [
-  { icon: Zap, label: 'Trích xuất bài hát không giới hạn' },
-  { icon: Shuffle, label: 'Tự do tắt / bật chế độ Trộn bài bất kỳ lúc nào' },
-  { icon: Download, label: 'Tải xuống để nghe ngoại tuyến không cần mạng' },
-  { icon: Volume2, label: 'Chất lượng âm thanh trung thực Lossless 320kbps' },
-];
 
 const PLANS: PlanItem[] = [
   {
     id: 'yearly',
-    badge: 'TIẾT KIỆM 30% · PHỔ BIẾN NHẤT',
-    name: 'Gói 1 Năm',
+    categoryTag: 'TIẾT KIỆM NHẤT',
+    periodTag: 'Gói 1 Năm',
+    badge: 'TIẾT KIỆM 30%',
+    name: 'Tempo VIP Pro',
     price: '499.000 đ',
     period: '/ năm',
-    subText: 'Khoảng 41.000 đ / tháng · Mở khóa toàn bộ đặc quyền',
+    subPrice: 'Khoảng 41.000 đ / tháng',
     featured: true,
+    features: [
+      'Trích xuất bài hát không giới hạn từ YouTube, TikTok & SoundCloud',
+      'Mở khóa toàn bộ kho nhạc bản quyền Zing MP3 & Quốc tế',
+      'Tự do Bật / Tắt chế độ Trộn bài (Shuffle) bất kỳ lúc nào',
+      'Tải nhạc không giới hạn để nghe ngoại tuyến không cần mạng',
+      'Chất lượng âm thanh trung thực Lossless 320kbps',
+    ],
   },
   {
     id: 'monthly',
-    name: 'Gói 1 Tháng',
+    categoryTag: 'LINH HOẠT',
+    periodTag: 'Gói 1 Tháng',
+    name: 'Tempo VIP Monthly',
     price: '59.000 đ',
     period: '/ tháng',
-    subText: 'Thanh toán hàng tháng · Hủy bất cứ lúc nào',
+    subPrice: 'Thanh toán hàng tháng · Hủy bất cứ lúc nào',
+    features: [
+      'Trích xuất bài hát không giới hạn mọi nền tảng',
+      'Mở khóa kho nhạc bản quyền Zing MP3',
+      'Tự do bật/tắt chế độ Trộn bài',
+      'Tải nhạc nghe ngoại tuyến không giới hạn',
+      'Âm thanh chất lượng cao 320kbps',
+    ],
   },
   {
     id: 'lifetime',
-    badge: 'MỘT LẦN DUY NHẤT',
-    name: 'VIP Trọn Đời',
+    categoryTag: 'MỘT LẦN DUY NHẤT',
+    periodTag: 'Trọn Đời',
+    badge: 'VĨNH VIỄN',
+    name: 'Tempo VIP Lifetime',
     price: '999.000 đ',
-    period: ' vĩnh viễn',
-    subText: 'Sở hữu trọn đời không bao giờ hết hạn',
+    period: ' trọn đời',
+    subPrice: 'Sở hữu vĩnh viễn không bao giờ hết hạn',
+    features: [
+      'Đặc quyền VIP trọn đời vĩnh viễn không cần gia hạn',
+      'Trích xuất & tải nhạc không giới hạn trọn đời',
+      'Toàn quyền truy cập mọi tính năng mới trong tương lai',
+      'Ưu tiên kết nối máy chủ tốc độ cao nhất',
+      'Âm thanh Lossless 320kbps chất lượng phòng thu',
+    ],
   },
 ];
 
 export const UpgradeScreen: React.FC = () => {
+  const [selectedPlanId, setSelectedPlanId] = useState<'yearly' | 'monthly' | 'lifetime'>('yearly');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const { user, upgradeVip } = useAuthStore();
   const insets = useSafeAreaInsets();
-  const currentPlan = user?.isVip ? (user.vipPlan || 'yearly') : null;
+
+  const selectedPlan = PLANS.find((p) => p.id === selectedPlanId) || PLANS[0];
+  const isUserVip = !!user?.isVip;
 
   const handleSelectPlan = async (plan: PlanItem) => {
+    if (isUserVip) return;
     setProcessingId(plan.id);
     await upgradeVip(plan.id);
     setProcessingId(null);
@@ -112,181 +117,135 @@ export const UpgradeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="never"
       >
-        {/* Top Hero with Full Notch Bleed & Alternating Mosaic Grid Background */}
-        <View style={[styles.heroWrapper, { paddingTop: topSafePadding + SPACING.lg }]}>
-          {/* Alternating Mosaic Rows */}
-          <View style={styles.mosaicContainer} pointerEvents="none">
-            <View style={styles.mosaicRow1}>
-              {MOSAIC_ROW_1.map((uri, idx) => (
-                <Image key={idx} source={{ uri }} style={styles.mosaicCover} />
-              ))}
+        <LinearGradient
+          colors={['#5A122A', '#2D0A16', '#14060B', COLORS.bgPrimary]}
+          locations={[0, 0.35, 0.65, 1]}
+          style={[styles.heroGradientBackground, { paddingTop: topSafePadding + SPACING.lg }]}
+        >
+          <View style={styles.glowAura} pointerEvents="none" />
+
+          <View style={styles.brandRow}>
+            <View style={styles.crownBox}>
+              <Crown size={14} color={COLORS.white} fill={COLORS.white} />
             </View>
-            <View style={styles.mosaicRow2}>
-              {MOSAIC_ROW_2.map((uri, idx) => (
-                <Image key={idx} source={{ uri }} style={styles.mosaicCover} />
-              ))}
-            </View>
+            <Text style={styles.brandText}>TEMPO VIP</Text>
           </View>
 
-          {/* Deep Dark & Primary Gradient Overlay */}
-          <LinearGradient
-            colors={[
-              'rgba(10, 10, 14, 0.05)',
-              'rgba(10, 10, 14, 0.45)',
-              'rgba(10, 10, 14, 0.92)',
-              COLORS.bgPrimary,
-            ]}
-            locations={[0, 0.4, 0.75, 1]}
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
+          <Text style={styles.heroHeadline}>
+            {`Trải nghiệm âm nhạc\nĐỉnh cao trên Tempo`}
+          </Text>
 
-          {/* Hero Content */}
-          <View style={styles.heroContent}>
-            <View style={styles.brandRow}>
-              <LinearGradient
-                colors={[COLORS.accentPrimary, COLORS.accentSecondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.crownBox}
-              >
-                <Crown size={13} color={COLORS.white} fill={COLORS.white} />
-              </LinearGradient>
-              <Text style={styles.brandText}>TEMPO VIP</Text>
-            </View>
-
-            <Text style={styles.heroHeadline}>
-              {`Trải nghiệm âm nhạc\nKhông giới hạn`}
-            </Text>
-
-            <View style={styles.promoBadge}>
-              <Text style={styles.promoBadgeText}>Ưu đãi dành cho thành viên mới</Text>
-            </View>
-
-            {/* Quick Action Button */}
-            <TouchableOpacity
-              activeOpacity={0.88}
-              onPress={() => handleSelectPlan(PLANS[0])}
-              disabled={processingId !== null || !!user?.isVip}
-              style={styles.heroCTA}
-            >
-              <LinearGradient
-                colors={[COLORS.accentPrimary, COLORS.accentSecondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.heroCTAGradient}
-              >
-                <Text style={styles.heroCTAText}>
-                  {user?.isVip ? 'Đã Kích Hoạt VIP' : 'Bắt Đầu Ngay'}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Section: Lý do nên dùng gói VIP */}
-        <View style={styles.reasonsCard}>
-          <Text style={styles.reasonsHeading}>Đặc quyền dành riêng cho VIP</Text>
-
-          <View style={styles.reasonsList}>
-            {REASONS.map((item, idx) => {
-              const IconComp = item.icon;
+          <View style={styles.planSelectorRow}>
+            {PLANS.map((plan) => {
+              const isSelected = selectedPlanId === plan.id;
               return (
-                <View key={idx} style={styles.reasonItem}>
-                  <View style={styles.reasonIconBox}>
-                    <IconComp size={18} color={COLORS.white} />
-                  </View>
-                  <Text style={styles.reasonText}>{item.label}</Text>
-                </View>
+                <TouchableOpacity
+                  key={plan.id}
+                  activeOpacity={0.85}
+                  onPress={() => setSelectedPlanId(plan.id)}
+                  style={[
+                    styles.planTabBtn,
+                    isSelected && styles.planTabBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.planTabText,
+                      isSelected && styles.planTabTextActive,
+                    ]}
+                  >
+                    {plan.periodTag}
+                  </Text>
+                </TouchableOpacity>
               );
             })}
           </View>
-        </View>
 
-        {/* Section: Các gói có sẵn */}
-        <View style={styles.plansSection}>
-          <Text style={styles.plansHeading}>CÁC GÓI CÓ SẴN</Text>
+          <View style={styles.showcaseCard}>
+            <View style={styles.cardTagsRow}>
+              <View style={styles.categoryTagPill}>
+                <Text style={styles.categoryTagText}>{selectedPlan.categoryTag}</Text>
+              </View>
+              <View style={styles.periodTagPill}>
+                <Text style={styles.periodTagText}>{selectedPlan.periodTag}</Text>
+              </View>
+              {isUserVip && (
+                <View style={[styles.periodTagPill, { backgroundColor: '#065F46' }]}>
+                  <Text style={[styles.periodTagText, { color: '#6EE7B7' }]}>ĐÃ KÍCH HOẠT</Text>
+                </View>
+              )}
+            </View>
 
-          {PLANS.map((plan) => {
-            const isCurrent = user?.isVip && currentPlan === plan.id;
-            const isProcessing = processingId === plan.id;
+            <View style={styles.planTitleRow}>
+              <Text style={styles.cardPlanName}>{selectedPlan.name}</Text>
+              <View style={styles.orangeCrownBadge}>
+                <Crown size={11} color={COLORS.white} fill={COLORS.white} />
+              </View>
+            </View>
 
-            return (
-              <TouchableOpacity
-                key={plan.id}
-                activeOpacity={0.88}
-                onPress={() => handleSelectPlan(plan)}
-                disabled={isProcessing || isCurrent}
-                style={[
-                  styles.planCard,
-                  plan.featured && styles.planCardFeatured,
-                  isCurrent && styles.planCardActive,
-                ]}
-              >
-                {plan.badge && (
-                  <View
-                    style={[
-                      styles.planBadge,
-                      plan.featured && styles.planBadgeFeatured,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.planBadgeText,
-                        plan.featured && styles.planBadgeTextFeatured,
-                      ]}
-                    >
-                      {plan.badge}
-                    </Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceBigText}>{selectedPlan.price}</Text>
+              <Text style={styles.periodSmallText}>{selectedPlan.period}</Text>
+            </View>
+            <Text style={styles.subPriceText}>{selectedPlan.subPrice}</Text>
+
+            <View style={styles.cardDivider} />
+
+            <View style={styles.checklistContainer}>
+              {selectedPlan.features.map((feature, idx) => (
+                <View key={idx} style={styles.checkItemRow}>
+                  <View style={styles.checkIconWrap}>
+                    <Check size={15} color={COLORS.white} strokeWidth={2.8} />
                   </View>
-                )}
-
-                <View style={styles.planInfo}>
-                  <Text style={styles.planName}>{plan.name}</Text>
-                  <Text style={styles.planSub}>{plan.subText}</Text>
+                  <Text style={styles.checkItemText}>{feature}</Text>
                 </View>
+              ))}
+            </View>
 
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceText}>{plan.price}</Text>
-                  <Text style={styles.periodText}>{plan.period}</Text>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => handleSelectPlan(selectedPlan)}
+              disabled={processingId !== null || isUserVip}
+              style={[styles.primaryActionButton, isUserVip && { backgroundColor: '#10B981' }]}
+            >
+              {processingId === selectedPlan.id ? (
+                <ActivityIndicator size="small" color={COLORS.black} />
+              ) : isUserVip ? (
+                <View style={styles.btnInnerRow}>
+                  <Check size={18} color={COLORS.white} strokeWidth={3} />
+                  <Text style={[styles.primaryActionText, { color: COLORS.white }]}>
+                    Đang Hoạt Động
+                  </Text>
                 </View>
+              ) : (
+                <Text style={styles.primaryActionText}>Đăng ký ngay</Text>
+              )}
+            </TouchableOpacity>
 
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => handleSelectPlan(plan)}
-                  disabled={isProcessing || isCurrent}
-                  style={styles.subscribeBtn}
-                >
-                  <LinearGradient
-                    colors={
-                      isCurrent
-                        ? ['#10B981', '#059669']
-                        : plan.featured
-                        ? [COLORS.accentPrimary, COLORS.accentSecondary]
-                        : [COLORS.bgSurfaceSecondary, COLORS.bgSurface]
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.btnGradient}
-                  >
-                    {isProcessing ? (
-                      <ActivityIndicator size="small" color={COLORS.white} />
-                    ) : isCurrent ? (
-                      <View style={styles.btnInner}>
-                        <Check size={16} color={COLORS.white} />
-                        <Text style={styles.btnText}>Đang Hoạt Động</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.btnText}>
-                        {plan.featured ? 'Nâng Cấp Gói Này' : 'Chọn Gói Này'}
-                      </Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
+            {!isUserVip ? (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => handleSelectPlan(selectedPlan)}
+                disabled={processingId !== null}
+                style={styles.secondaryActionButton}
+              >
+                <Text style={styles.secondaryActionText}>Mở khóa tức thì</Text>
+                <View style={styles.saveGreenBadge}>
+                  <Text style={styles.saveGreenBadgeText}>TIẾT KIỆM 10%</Text>
+                </View>
               </TouchableOpacity>
-            );
-          })}
-        </View>
+            ) : null}
+
+            <View style={styles.disclaimerContainer}>
+              <Text style={styles.cancelAnytimeText}>
+                {isUserVip ? 'Tài khoản của bạn có quyền truy cập toàn bộ tính năng VIP.' : 'Hủy bất kỳ lúc nào.'}
+              </Text>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text style={styles.termsLinkText}>Chính sách và điều khoản áp dụng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
 
         <View style={{ height: LAYOUT.miniPlayerHeight + SPACING.bottomPaddingOffset }} />
       </ScrollView>
@@ -305,53 +264,32 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: SPACING.xl,
   },
-  heroWrapper: {
+  heroGradientBackground: {
     position: 'relative',
-    minHeight: 380,
-    justifyContent: 'flex-end',
     paddingHorizontal: SPACING.screenPadding,
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.xxl,
     overflow: 'hidden',
   },
-  mosaicContainer: {
+  glowAura: {
     position: 'absolute',
-    top: -50,
-    left: -20,
-    right: -20,
-    bottom: 0,
-    justifyContent: 'center',
-    gap: 12,
-    opacity: 0.88,
-  },
-  mosaicRow1: {
-    flexDirection: 'row',
-    gap: 10,
-    marginLeft: -20,
-  },
-  mosaicRow2: {
-    flexDirection: 'row',
-    gap: 10,
-    marginLeft: -55,
-  },
-  mosaicCover: {
-    width: (SCREEN_WIDTH - 20) / 3,
-    height: (SCREEN_WIDTH - 20) / 3,
-    borderRadius: LAYOUT.radiusMd,
-    backgroundColor: COLORS.bgSurfaceSecondary,
-  },
-  heroContent: {
-    zIndex: 2,
+    top: -80,
+    left: '10%',
+    width: '80%',
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(252, 71, 92, 0.18)',
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
   crownBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.accentPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -362,174 +300,207 @@ const styles = StyleSheet.create({
     letterSpacing: TYPOGRAPHY.letterSpacingWide,
   },
   heroHeadline: {
-    fontSize: 28,
-    fontWeight: '900',
+    fontSize: 22,
+    fontWeight: '800',
     color: COLORS.white,
-    letterSpacing: -0.8,
-    lineHeight: 34,
+    letterSpacing: -0.5,
+    lineHeight: 28,
+    marginBottom: SPACING.md,
+  },
+  planSelectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: SPACING.md,
+  },
+  planTabBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: LAYOUT.radiusFull,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planTabBtnActive: {
+    backgroundColor: COLORS.white,
+  },
+  planTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  planTabTextActive: {
+    color: COLORS.black,
+    fontWeight: '700',
+  },
+  showcaseCard: {
+    backgroundColor: '#121218',
+    borderRadius: LAYOUT.radiusLg,
+    padding: SPACING.md + 2,
+    marginTop: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  cardTagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: SPACING.sm,
   },
-  promoBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(252, 71, 92, 0.22)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: LAYOUT.radiusFull,
-    marginBottom: SPACING.md,
-  },
-  promoBadgeText: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
-  heroCTA: {
-    borderRadius: LAYOUT.radiusFull,
-    overflow: 'hidden',
-    marginTop: 2,
-  },
-  heroCTAGradient: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroCTAText: {
-    fontSize: TYPOGRAPHY.sizeBody,
-    fontWeight: '800',
-    color: COLORS.white,
-    letterSpacing: 0.2,
-  },
-  reasonsCard: {
-    backgroundColor: COLORS.bgSurface,
-    borderRadius: LAYOUT.radiusLg,
-    marginHorizontal: SPACING.screenPadding,
-    padding: SPACING.lg,
-    marginBottom: SPACING.xl,
-  },
-  reasonsHeading: {
-    fontSize: TYPOGRAPHY.sizeBodyLarge,
-    fontWeight: '800',
-    color: COLORS.white,
-    marginBottom: SPACING.md,
-  },
-  reasonsList: {
-    gap: SPACING.md,
-  },
-  reasonItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  reasonIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(252, 71, 92, 0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reasonText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.sizeBodySmall,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    lineHeight: 18,
-  },
-  plansSection: {
-    paddingHorizontal: SPACING.screenPadding,
-    gap: SPACING.md,
-  },
-  plansHeading: {
-    fontSize: TYPOGRAPHY.sizeMicro,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: TYPOGRAPHY.letterSpacingWide,
-    marginBottom: 4,
-    marginLeft: 4,
-  },
-  planCard: {
-    backgroundColor: COLORS.bgSurface,
-    borderRadius: LAYOUT.radiusLg,
-    padding: SPACING.lg,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  planCardFeatured: {
-    backgroundColor: '#1E1217',
-  },
-  planCardActive: {
-    backgroundColor: '#0F261B',
-  },
-  planBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.bgSurfaceSecondary,
+  categoryTagPill: {
+    backgroundColor: '#1E3A8A',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: LAYOUT.radiusXs,
-    marginBottom: SPACING.sm,
+    borderRadius: 4,
   },
-  planBadgeFeatured: {
-    backgroundColor: COLORS.accentPrimary,
-  },
-  planBadgeText: {
-    fontSize: 10,
+  categoryTagText: {
+    fontSize: 9.5,
     fontWeight: '800',
-    color: COLORS.textSecondary,
-    letterSpacing: 0.5,
+    color: '#93C5FD',
+    letterSpacing: 0.4,
   },
-  planBadgeTextFeatured: {
-    color: COLORS.white,
+  periodTagPill: {
+    backgroundColor: '#581C87',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
-  planInfo: {
-    marginBottom: 6,
-  },
-  planName: {
-    fontSize: TYPOGRAPHY.sizeBodyLarge,
+  periodTagText: {
+    fontSize: 9.5,
     fontWeight: '800',
-    color: COLORS.textPrimary,
+    color: '#E9D5FF',
+    letterSpacing: 0.4,
+  },
+  planTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
     marginBottom: 2,
   },
-  planSub: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    color: COLORS.textMuted,
+  cardPlanName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.white,
+    letterSpacing: -0.3,
+  },
+  orangeCrownBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 4,
-    marginBottom: SPACING.md,
+    marginTop: 2,
   },
-  priceText: {
-    fontSize: 24,
-    fontWeight: '900',
+  priceBigText: {
+    fontSize: 20,
+    fontWeight: '800',
     color: COLORS.white,
+    letterSpacing: -0.4,
   },
-  periodText: {
-    fontSize: TYPOGRAPHY.sizeBodySmall,
-    color: COLORS.textSecondary,
+  periodSmallText: {
+    fontSize: 13,
     fontWeight: '600',
+    color: COLORS.textSecondary,
   },
-  subscribeBtn: {
-    borderRadius: LAYOUT.radiusFull,
-    overflow: 'hidden',
-    marginTop: SPACING.xs,
+  subPriceText: {
+    fontSize: 11.5,
+    color: COLORS.textMuted,
+    marginTop: 2,
   },
-  btnGradient: {
-    paddingVertical: 13,
+  cardDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginVertical: SPACING.sm + 2,
+  },
+  checklistContainer: {
+    gap: 10,
+    marginBottom: SPACING.lg,
+  },
+  checkItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+  },
+  checkIconWrap: {
+    marginTop: 2,
+    width: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnInner: {
+  checkItemText: {
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '500',
+    color: '#E4E4E7',
+    lineHeight: 18.5,
+  },
+  primaryActionButton: {
+    backgroundColor: COLORS.white,
+    borderRadius: LAYOUT.radiusFull,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  primaryActionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.black,
+  },
+  btnInnerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  btnText: {
-    fontSize: TYPOGRAPHY.sizeBodySmall,
+  secondaryActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1E1E26',
+    borderRadius: LAYOUT.radiusFull,
+    paddingVertical: 11,
+    marginBottom: SPACING.sm + 2,
+  },
+  secondaryActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.white,
+  },
+  saveGreenBadge: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  saveGreenBadgeText: {
+    fontSize: 9.5,
     fontWeight: '800',
     color: COLORS.white,
-    letterSpacing: 0.2,
+    letterSpacing: 0.4,
+  },
+  disclaimerContainer: {
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  cancelAnytimeText: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    color: COLORS.textMuted,
+    marginBottom: 4,
+  },
+  termsLinkText: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    fontWeight: '600',
+    color: '#60A5FA',
   },
 });

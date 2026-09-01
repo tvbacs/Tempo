@@ -2,7 +2,7 @@
  * ProfileScreen - Quản lý tài khoản, cài đặt âm thanh, thống kê & Đăng xuất
  * Strictly follows STANDARDS.md: Zero Emojis, Zero Borders, Tokenized variables
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
   TouchableOpacity,
   Switch,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, LogOut, Crown, Zap, Sparkles } from 'lucide-react-native';
+import { ChevronLeft, LogOut, Crown, Zap, Sparkles, HardDrive, Download, Trash2, Share2 } from 'lucide-react-native';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { useLibraryStore } from '../store/libraryStore';
 import { useDownloadStore } from '../store/downloadStore';
@@ -22,9 +23,31 @@ import { AppAvatarBadge } from '../components/AppAvatarBadge';
 export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { likedSongs, playlists, history, resetForUser } = useLibraryStore();
   const { user, logout, getRemainingExtracts } = useAuthStore();
+  const {
+    downloadedSongs,
+    preserveOnUninstall,
+    setPreserveOnUninstall,
+    totalStorageBytes,
+    exportAllDownloads,
+    clearAllDownloads,
+    calculateStorageUsage,
+    scanAndSyncLocalFiles,
+  } = useDownloadStore();
+
   const [streamQuality, setStreamQuality] = useState<'Tiêu chuẩn (128k)' | 'Chất lượng cao (320k)' | 'Không nén (Lossless)'>('Chất lượng cao (320k)');
   const [dataSaver, setDataSaver] = useState(false);
   const [gaplessPlayback, setGaplessPlayback] = useState(true);
+
+  useEffect(() => {
+    calculateStorageUsage();
+  }, []);
+
+  const formatBytes = (bytes: number) => {
+    if (!bytes || bytes <= 0) return '0 MB';
+    const mb = bytes / (1024 * 1024);
+    if (mb < 1000) return `${mb.toFixed(1)} MB`;
+    return `${(mb / 1024).toFixed(2)} GB`;
+  };
 
   const totalListenMs = history.reduce((acc, h) => acc + (h.durationMs || 0), 0);
   const totalListenH = Math.round(totalListenMs / 3600000);
@@ -35,6 +58,17 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     resetForUser();
     useDownloadStore.getState().resetForUser();
     await logout();
+  };
+
+  const handleConfirmClearAll = () => {
+    Alert.alert(
+      'Xóa toàn bộ nhạc ngoại tuyến?',
+      `Hành động này sẽ xóa ${downloadedSongs.length} bài hát đã tải và giải phóng ${formatBytes(totalStorageBytes)} dung lượng trên máy.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'Xóa sạch', style: 'destructive', onPress: clearAllDownloads },
+      ]
+    );
   };
 
   return (
@@ -164,34 +198,97 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
         {/* Section: Storage & Downloads */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>LƯU TRỮ & TỆP NGOẠI TUYẾN</Text>
+          <Text style={styles.sectionTitle}>LƯU TRỮ & DỮ LIỆU NGOẠI TUYẾN</Text>
 
+          {/* 1. Tùy chọn Bảo tồn tệp khi gỡ cài đặt app */}
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Chia sẻ tệp trong Ứng dụng Tệp iOS</Text>
-              <Text style={styles.settingSubLabel}>Nhạc tải về luôn hiển thị trong thư mục Tệp để nghe và sao chép</Text>
+              <Text style={styles.settingLabel}>Bảo tồn tệp khi gỡ ứng dụng</Text>
+              <Text style={styles.settingSubLabel}>
+                {preserveOnUninstall
+                  ? 'Bật: File nhạc được bảo toàn trên máy, không bị xoá khi gỡ app'
+                  : 'Tắt: File nhạc sẽ tự động xoá sạch khi gỡ cài đặt app'}
+              </Text>
             </View>
             <Switch
-              value={true}
-              disabled={true}
+              value={preserveOnUninstall}
+              onValueChange={setPreserveOnUninstall}
               trackColor={{ false: COLORS.bgPill, true: COLORS.accentPrimary }}
               thumbColor={COLORS.white}
             />
           </View>
 
+          {/* 2. Quản lý bài hát & Xem dung lượng */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => navigation.navigate('DownloadedSongs')}
             style={styles.settingRow}
           >
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Quản lý bài hát đã tải về</Text>
-              <Text style={styles.settingSubLabel}>Xem danh sách và chọn bài hát cần xóa</Text>
+              <Text style={styles.settingLabel}>Dung lượng nhạc ngoại tuyến</Text>
+              <Text style={styles.settingSubLabel}>
+                {formatBytes(totalStorageBytes)} · {downloadedSongs.length} bài hát đã tải
+              </Text>
             </View>
             <View style={styles.pillActionBtn}>
               <Text style={styles.pillActionText}>Quản lý</Text>
             </View>
           </TouchableOpacity>
+
+          {/* 3. Nút Sao lưu / Xuất nhạc ra thư mục máy */}
+          {downloadedSongs.length > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={exportAllDownloads}
+              style={styles.settingRow}
+            >
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Sao lưu nhạc ra Thư mục máy</Text>
+                <Text style={styles.settingSubLabel}>
+                  Đóng gói ZIP toàn bộ MP3 ra bộ nhớ thiết bị / Tệp để lưu trữ vĩnh viễn
+                </Text>
+              </View>
+              <View style={[styles.pillActionBtn, { backgroundColor: 'rgba(252, 71, 92, 0.15)' }]}>
+                <Text style={[styles.pillActionText, { color: COLORS.accentPrimary }]}>Sao lưu</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* 3.1 Nút Quét & Khôi phục nhạc từ tệp máy / thư mục giải nén */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={scanAndSyncLocalFiles}
+            style={styles.settingRow}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Khôi phục nhạc từ Tệp máy</Text>
+              <Text style={styles.settingSubLabel}>
+                Quét và nạp lại toàn bộ file MP3 đã giải nén hoặc lưu trong máy vào app
+              </Text>
+            </View>
+            <View style={[styles.pillActionBtn, { backgroundColor: 'rgba(29, 185, 84, 0.15)' }]}>
+              <Text style={[styles.pillActionText, { color: '#1DB954' }]}>Quét tệp</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* 4. Nút Xoá toàn bộ tệp nhạc tải về */}
+          {downloadedSongs.length > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleConfirmClearAll}
+              style={styles.settingRow}
+            >
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingLabel, { color: '#EF4444' }]}>Xóa toàn bộ nhạc ngoại tuyến</Text>
+                <Text style={styles.settingSubLabel}>
+                  Giải phóng {formatBytes(totalStorageBytes)} bộ nhớ trên máy
+                </Text>
+              </View>
+              <View style={[styles.pillActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                <Text style={[styles.pillActionText, { color: '#EF4444' }]}>Xóa sạch</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Section: Account Actions */}

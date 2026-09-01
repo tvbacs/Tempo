@@ -70,6 +70,7 @@ export const FollowedArtistsScreen: React.FC<{ navigation: any }> = ({
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerSection}>
           <Text style={styles.mainTitle}>Nghệ sĩ đã theo dõi</Text>

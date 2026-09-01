@@ -23,6 +23,31 @@ import { useConnectStore, useActivePlayback } from '../store/connectStore';
 import { DevicePickerModal } from './DevicePickerModal';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
+export const MiniPlayerProgressBar: React.FC<{ isRemote: boolean }> = React.memo(({ isRemote }) => {
+  const positionMs = usePlayerStore((s) => s.positionMs);
+  const durationMs = usePlayerStore((s) => s.durationMs);
+  const remotePlayback = useConnectStore((s) => s.remotePlayback);
+
+  const pos = isRemote ? (remotePlayback?.positionMs || 0) : positionMs;
+  const dur = isRemote ? (remotePlayback?.durationMs || 1) : durationMs;
+  const pct = dur > 0 ? Math.min(Math.max((pos / dur) * 100, 0), 100) : 0;
+
+  return (
+    <View style={styles.bottomProgressTrack}>
+      <LinearGradient
+        colors={
+          isRemote
+            ? [COLORS.accentPrimary, '#FC655A']
+            : [COLORS.gradientTop, COLORS.gradientBottom]
+        }
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.bottomProgressBar, { width: `${pct}%` }]}
+      />
+    </View>
+  );
+});
+
 export const MiniPlayer: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { hasTabBar } = useNavStore();
@@ -31,12 +56,10 @@ export const MiniPlayer: React.FC = () => {
     isRemote,
     song,
     isPlaying,
-    positionMs,
-    durationMs,
     isLoading,
     device,
     togglePlayPause,
-  } = useActivePlayback(true);
+  } = useActivePlayback(false);
 
   const {
     newlyDiscoveredDevice,
@@ -67,8 +90,6 @@ export const MiniPlayer: React.FC = () => {
   }, [isRemote, device.deviceName, newlyDiscoveredDevice]);
 
   if (!song) return null;
-
-  const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
 
   const tooltipHeading = isRemote
     ? 'Đang nghe trên'
@@ -245,19 +266,8 @@ export const MiniPlayer: React.FC = () => {
             </View>
           </TouchableOpacity>
 
-          {/* Thanh ngang thời lượng ở đáy card */}
-          <View style={styles.bottomProgressTrack}>
-            <LinearGradient
-              colors={
-                isRemote
-                  ? [COLORS.accentPrimary, '#FC655A']
-                  : [COLORS.gradientTop, COLORS.gradientBottom]
-              }
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.bottomProgressBar, { width: `${progress * 100}%` }]}
-            />
-          </View>
+          {/* Thanh ngang thời lượng ở đáy card (Đã tối ưu 0ms re-render) */}
+          <MiniPlayerProgressBar isRemote={isRemote} />
         </View>
       )}
 

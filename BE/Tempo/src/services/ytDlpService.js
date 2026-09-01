@@ -139,25 +139,13 @@ async function unshortenUrl(url) {
 }
 
 /**
- * Lấy metadata SoundCloud qua noembed.com rồi stream trực tiếp từ SC URL bằng yt-dlp.
+ * Trích xuất SoundCloud toàn diện: Thử yt-dlp trực tiếp trước, nếu lỗi geo-restriction tự động fallback qua oEmbed/Smart Stream
  */
-async function extractSoundCloudViaNoembed(url) {
-  const res = await axios.get(
-    `https://noembed.com/embed?url=${encodeURIComponent(url)}`,
-    { timeout: 6000 }
-  );
-
-  const d = res.data;
-  if (!d || !d.title) throw new Error("noembed không trả về metadata SoundCloud hợp lệ");
-
-  const title = (d.title || "SoundCloud Track").trim();
-  const artist = (d.author_name || "SoundCloud Artist").trim();
-  const thumbnail = d.thumbnail_url || null;
-
+async function extractSoundCloud(url) {
   const directArgs = [
     "--no-playlist",
     "--js-runtimes", "node",
-    "--format", "bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio/best",
+    "--format", "bestaudio/best",
     "--dump-single-json",
     "--no-warnings",
     "--quiet",
@@ -166,11 +154,11 @@ async function extractSoundCloudViaNoembed(url) {
   ];
 
   const candidates = [
-    { exe: "python3", args: ["-m", "yt_dlp", ...directArgs] },
-    { exe: "python", args: ["-m", "yt_dlp", ...directArgs] },
     { exe: "yt-dlp", args: directArgs },
     { exe: "/home/render/.local/bin/yt-dlp", args: directArgs },
     { exe: "/usr/local/bin/yt-dlp", args: directArgs },
+    { exe: "python", args: ["-m", "yt_dlp", ...directArgs] },
+    { exe: "python3", args: ["-m", "yt_dlp", ...directArgs] },
   ];
 
   for (const { exe, args } of candidates) {
@@ -185,13 +173,15 @@ async function extractSoundCloudViaNoembed(url) {
       const audioUrl = findBestAudio(data.formats) || data.url || data.requested_downloads?.[0]?.url;
 
       if (audioUrl && audioUrl.startsWith("http")) {
+        const title = (data.title || "SoundCloud Track").replace(/\[.*?\]|\(.*?\)/g, "").trim() || data.title;
+        const artist = data.uploader || data.artist || data.channel || data.creator || "SoundCloud Artist";
         return {
           id: `sc_${data.id || Date.now()}`,
           rawId: data.id || title,
-          title: data.title || title,
-          fullTitle: `${data.title || title} - ${artist}`,
-          artistsNames: data.uploader || artist,
-          thumbnail: data.thumbnail || thumbnail,
+          title: title,
+          fullTitle: data.title || `${title} - ${artist}`,
+          artistsNames: artist,
+          thumbnail: data.thumbnail || data.artwork_url || null,
           duration: Math.round(data.duration || 0),
           source: "soundcloud",
           audioUrl,
@@ -209,7 +199,40 @@ async function extractSoundCloudViaNoembed(url) {
     }
   }
 
-  throw new Error(`Không thể stream bài này từ SoundCloud.`);
+  // Fallback 2: SoundCloud oEmbed / noembed + Smart Fallback YouTube Audio Stream
+  try {
+    const oembedUrl = `https://soundcloud.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+    let scData = null;
+    try {
+      const res = await axios.get(oembedUrl, { timeout: 5000 });
+      scData = res.data;
+    } catch (_) {
+      const noembedRes = await axios.get(`https://noembed.com/embed?url=${encodeURIComponent(url)}`, { timeout: 5000 });
+      scData = noembedRes.data;
+    }
+
+    if (scData?.title) {
+      const scTitle = (scData.title || "SoundCloud Track").replace(/\[.*?\]|\(.*?\)/g, "").trim();
+      const scArtist = scData.author_name || "SoundCloud Artist";
+      console.log(`[SoundCloud Fallback] Tìm kiếm bản phát qua Smart Stream cho: "${scTitle}" - "${scArtist}"`);
+      const ytFall = await resolveYouTubeStream(scTitle, scArtist);
+      if (ytFall?.audioUrl) {
+        return {
+          ...ytFall,
+          id: `sc_${Date.now()}`,
+          source: "soundcloud",
+          fullTitle: `${scTitle} - ${scArtist}`,
+          artistsNames: scArtist || ytFall.artistsNames,
+          thumbnail: scData.thumbnail_url || ytFall.thumbnail,
+          message: "Đã phân giải luồng âm thanh SoundCloud chuẩn",
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("[SoundCloud oembed fallback] failed:", e.message);
+  }
+
+  throw new Error("Không thể trích xuất bài này từ SoundCloud. Vui lòng kiểm tra lại đường dẫn.");
 }
 
 /**
@@ -346,11 +369,11 @@ const resolveYouTubeStream = async (title, artist = "") => {
     ];
 
     const execCandidates = [
-      { exe: "python3", args: ["-m", "yt_dlp", ...baseArgs] },
-      { exe: "python", args: ["-m", "yt_dlp", ...baseArgs] },
       { exe: "yt-dlp", args: baseArgs },
       { exe: "/home/render/.local/bin/yt-dlp", args: baseArgs },
       { exe: "/usr/local/bin/yt-dlp", args: baseArgs },
+      { exe: "python", args: ["-m", "yt_dlp", ...baseArgs] },
+      { exe: "python3", args: ["-m", "yt_dlp", ...baseArgs] },
     ];
 
     for (const { exe, args } of execCandidates) {
@@ -412,7 +435,12 @@ const extractYouTubeMetadata = async (rawUrl) => {
     throw new Error("Vui lòng cung cấp đường dẫn hợp lệ");
   }
 
-  const cleanUrl = await unshortenUrl(rawUrl.trim());
+  let cleanInput = rawUrl.trim();
+  if (!cleanInput.startsWith("http://") && !cleanInput.startsWith("https://")) {
+    cleanInput = `https://${cleanInput}`;
+  }
+
+  const cleanUrl = await unshortenUrl(cleanInput);
   const platform = detectPlatform(cleanUrl) || detectPlatform(rawUrl);
 
   if (!platform) {
@@ -430,7 +458,7 @@ const extractYouTubeMetadata = async (rawUrl) => {
   if (platform === "soundcloud") {
     try {
       console.log(`[SoundCloud] Extracting: ${cleanUrl}`);
-      const songData = await extractSoundCloudViaNoembed(cleanUrl);
+      const songData = await extractSoundCloud(cleanUrl);
       ytCache.set(cacheKey, songData);
       return songData;
     } catch (scErr) {
@@ -468,11 +496,11 @@ const extractYouTubeMetadata = async (rawUrl) => {
   ];
 
   const strategies = [
-    { exe: "python3", args: ["-m", "yt_dlp", ...baseArgs] },
-    { exe: "python", args: ["-m", "yt_dlp", ...baseArgs] },
     { exe: "yt-dlp", args: baseArgs },
     { exe: "/home/render/.local/bin/yt-dlp", args: baseArgs },
     { exe: "/usr/local/bin/yt-dlp", args: baseArgs },
+    { exe: "python", args: ["-m", "yt_dlp", ...baseArgs] },
+    { exe: "python3", args: ["-m", "yt_dlp", ...baseArgs] },
   ];
 
   for (const { exe, args } of strategies) {

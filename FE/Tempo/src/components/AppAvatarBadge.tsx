@@ -15,11 +15,13 @@ interface AppAvatarBadgeProps {
 }
 
 export const AppAvatarBadge: React.FC<AppAvatarBadgeProps> = ({
-  size = 36,
+  size = 40,
   showVipBadge = true,
 }) => {
   const { user } = useAuthStore();
   const radius = size / 2;
+  const vipDotSize = Math.max(15, Math.round(size * 0.38));
+  const crownIconSize = Math.max(9, Math.round(vipDotSize * 0.6));
 
   return (
     <View style={[styles.container, { width: size, height: size, borderRadius: radius }]}>
@@ -30,8 +32,19 @@ export const AppAvatarBadge: React.FC<AppAvatarBadgeProps> = ({
       />
 
       {showVipBadge && user?.isVip && (
-        <View style={styles.vipDot}>
-          <Crown size={9} color={COLORS.white} strokeWidth={2.5} />
+        <View
+          style={[
+            styles.vipDot,
+            {
+              width: vipDotSize,
+              height: vipDotSize,
+              borderRadius: vipDotSize / 2,
+              bottom: -1,
+              right: -1,
+            },
+          ]}
+        >
+          <Crown size={crownIconSize} color={COLORS.white} strokeWidth={2.5} />
         </View>
       )}
     </View>
@@ -63,5 +76,7 @@ const styles = StyleSheet.create({
     height: 15,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
+    elevation: 5,
   },
 });

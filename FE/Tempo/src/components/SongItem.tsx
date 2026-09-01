@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import { Play, Pause, MoreVertical, ArrowDownCircle, Plus, CheckCircle2 } from 'lucide-react-native';
+import { Play, Pause, MoreVertical, ArrowDownCircle, Plus, CheckCircle2, FolderCheck } from 'lucide-react-native';
 import { UnifiedSong } from '../types/music';
 import { usePlayerStore } from '../store/playerStore';
 import { useDownloadStore } from '../store/downloadStore';
@@ -39,6 +39,7 @@ export const SongItem: React.FC<SongItemProps> = React.memo(({
   const isDownloading = useDownloadStore((s) => s.downloadingIds.includes(song.id));
   const isQueued = useDownloadStore((s) => s.queueSongIds?.includes(song.id));
   const isSaved = useLibraryStore((s) => s.likedSongs.some((ls) => ls.id === song.id));
+  const isInPlaylist = useLibraryStore((s) => s.playlists.some((p) => (p.songs || []).some((ps) => ps.id === song.id)));
 
   const handlePress = () => {
     if (onPress) {
@@ -154,13 +155,24 @@ export const SongItem: React.FC<SongItemProps> = React.memo(({
         >
           {isSaved ? (
             <CheckCircle2 size={18} color="#1DB954" />
+          ) : isInPlaylist ? (
+            <FolderCheck size={18} color="#1DB954" />
           ) : (
             <Plus size={18} color={COLORS.textSecondary} />
           )}
         </TouchableOpacity>
-      ) : (!hideSavedBadge && isSaved) ? (
-        <View style={styles.savedBadgeSlot}>
-          <CheckCircle2 size={16} color="#1DB954" />
+      ) : !hideSavedBadge ? (
+        <View style={styles.savedBadgeSlotRow}>
+          {isSaved && (
+            <View style={styles.savedBadgeSlot}>
+              <CheckCircle2 size={15} color="#1DB954" />
+            </View>
+          )}
+          {isInPlaylist && (
+            <View style={styles.savedBadgeSlot}>
+              <FolderCheck size={15} color="#1DB954" />
+            </View>
+          )}
         </View>
       ) : null}
 
@@ -299,9 +311,14 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 2,
   },
-  savedBadgeSlot: {
-    padding: SPACING.xs,
+  savedBadgeSlotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
     marginLeft: SPACING.xs,
+  },
+  savedBadgeSlot: {
+    padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

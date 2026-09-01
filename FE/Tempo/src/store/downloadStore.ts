@@ -5,8 +5,11 @@
  * Strictly follows STANDARDS.md
  */
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import JSZip from 'jszip';
 import { UnifiedSong } from '../types/music';
 import { apiClient, API_BASE_URL } from '../api/client';
 import { useToastStore } from './toastStore';
@@ -17,6 +20,8 @@ interface DownloadState {
   queueSongIds: string[];
   downloadProgress: Record<string, number>; // songId -> 0..1
   isLoading: boolean;
+  preserveOnUninstall: boolean;
+  totalStorageBytes: number;
 
   // Actions
   resetForUser: () => void;
@@ -28,9 +33,16 @@ interface DownloadState {
   isDownloading: (songId: string) => boolean;
   isQueued: (songId: string) => boolean;
   getProgress: (songId: string) => number;
+  setPreserveOnUninstall: (preserve: boolean) => Promise<void>;
+  clearAllDownloads: () => Promise<void>;
+  exportSongToDevice: (song: UnifiedSong) => Promise<void>;
+  exportAllDownloads: () => Promise<void>;
+  calculateStorageUsage: () => Promise<number>;
+  scanAndSyncLocalFiles: () => Promise<number>;
 }
 
 const DOWNLOAD_STORAGE_KEY = 'tempo_offline_downloaded_songs';
+const PRESERVE_ON_UNINSTALL_KEY = 'tempo_preserve_downloads_on_uninstall';
 const DOWNLOADS_DIR = `${FileSystem.documentDirectory}tempo_downloads/`;
 
 const getUserKey = (baseKey: string) => {
@@ -236,25 +248,326 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   queueSongIds: [],
   downloadProgress: {},
   isLoading: false,
+  preserveOnUninstall: true,
+  totalStorageBytes: 0,
 
   resetForUser: () => {
     downloadQueue.length = 0;
     batchTotal = 0;
     batchCompleted = 0;
-    set({ downloadedSongs: [], downloadingIds: [], queueSongIds: [], downloadProgress: {} });
+    set({ downloadedSongs: [], downloadingIds: [], queueSongIds: [], downloadProgress: {}, totalStorageBytes: 0 });
   },
 
   fetchDownloads: async () => {
     try {
       const data = await AsyncStorage.getItem(getUserKey(DOWNLOAD_STORAGE_KEY));
+      const preserveVal = await AsyncStorage.getItem(PRESERVE_ON_UNINSTALL_KEY);
+      const isPreserve = preserveVal !== null ? preserveVal === 'true' : true;
+
       if (data) {
         const list: UnifiedSong[] = JSON.parse(data);
-        set({ downloadedSongs: list });
+        set({ downloadedSongs: list, preserveOnUninstall: isPreserve });
       } else {
-        set({ downloadedSongs: [] });
+        set({ downloadedSongs: [], preserveOnUninstall: isPreserve });
       }
+      get().calculateStorageUsage();
     } catch (e) {
       console.error('Error fetching downloads:', e);
+    }
+  },
+
+  setPreserveOnUninstall: async (preserve: boolean) => {
+    set({ preserveOnUninstall: preserve });
+    await AsyncStorage.setItem(PRESERVE_ON_UNINSTALL_KEY, preserve ? 'true' : 'false');
+    useToastStore.getState().showToast(
+      preserve
+        ? 'Đã bật: File nhạc được lưu bảo toàn trên máy khi xoá app'
+        : 'Đã tắt: File nhạc sẽ tự động dọn sạch khi gỡ cài đặt app',
+      'info'
+    );
+  },
+
+  calculateStorageUsage: async () => {
+    try {
+      await ensureDirExists();
+      const dirInfo = await FileSystem.getInfoAsync(DOWNLOADS_DIR);
+      if (!dirInfo.exists) {
+        set({ totalStorageBytes: 0 });
+        return 0;
+      }
+      const files = await FileSystem.readDirectoryAsync(DOWNLOADS_DIR);
+      let total = 0;
+      for (const f of files) {
+        const fileInfo = await FileSystem.getInfoAsync(`${DOWNLOADS_DIR}${f}`);
+        if (fileInfo.exists && (fileInfo as any).size) {
+          total += (fileInfo as any).size;
+        }
+      }
+      set({ totalStorageBytes: total });
+      return total;
+    } catch (e) {
+      return 0;
+    }
+  },
+
+  scanAndSyncLocalFiles: async () => {
+    try {
+      await ensureDirExists();
+      const existingSongs = [...get().downloadedSongs];
+      const existingUris = new Set(existingSongs.map((s) => s.localUri || s.audioUrl));
+      const newlyFound: UnifiedSong[] = [];
+
+      // Quét cả thư mục gốc DocumentDirectory (nơi user giải nén hoặc copy file) và thư mục tempo_downloads
+      const dirsToScan = [
+        FileSystem.documentDirectory,
+        DOWNLOADS_DIR,
+      ];
+
+      for (const dir of dirsToScan) {
+        if (!dir) continue;
+        try {
+          const dirInfo = await FileSystem.getInfoAsync(dir);
+          if (!dirInfo.exists) continue;
+
+          const entries = await FileSystem.readDirectoryAsync(dir);
+          for (const entry of entries) {
+            const fullPath = `${dir}${entry}`;
+            const fileInfo = await FileSystem.getInfoAsync(fullPath);
+
+            // Nếu là thư mục con (ví dụ thư mục giải nén từ zip)
+            if (fileInfo.isDirectory) {
+              try {
+                const subFiles = await FileSystem.readDirectoryAsync(`${fullPath}/`);
+                for (const sub of subFiles) {
+                  if (sub.toLowerCase().endsWith('.mp3')) {
+                    const subFullPath = `${fullPath}/${sub}`;
+                    if (!existingUris.has(subFullPath)) {
+                      existingUris.add(subFullPath);
+                      const baseName = sub.replace(/\.mp3$/i, '');
+                      let title = baseName;
+                      let artist = 'Tempo Local';
+                      if (baseName.includes(' - ')) {
+                        const parts = baseName.split(' - ');
+                        artist = parts[0].trim();
+                        title = parts.slice(1).join(' - ').trim();
+                      }
+                      const songId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                      newlyFound.push({
+                        id: songId,
+                        rawId: songId,
+                        title: title || 'Bài hát tệp máy',
+                        artistsNames: artist,
+                        audioUrl: subFullPath,
+                        localUri: subFullPath,
+                        isOffline: true,
+                        source: 'local',
+                        duration: 0,
+                        thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500',
+                      });
+                    }
+                  }
+                }
+              } catch (_) {}
+            } else if (entry.toLowerCase().endsWith('.mp3')) {
+              if (!existingUris.has(fullPath)) {
+                existingUris.add(fullPath);
+                const baseName = entry.replace(/\.mp3$/i, '');
+                let title = baseName;
+                let artist = 'Tempo Local';
+                if (baseName.includes(' - ')) {
+                  const parts = baseName.split(' - ');
+                  artist = parts[0].trim();
+                  title = parts.slice(1).join(' - ').trim();
+                }
+                const songId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                newlyFound.push({
+                  id: songId,
+                  rawId: songId,
+                  title: title || 'Bài hát tệp máy',
+                  artistsNames: artist,
+                  audioUrl: fullPath,
+                  localUri: fullPath,
+                  isOffline: true,
+                  source: 'local',
+                  duration: 0,
+                  thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500',
+                });
+              }
+            }
+          }
+        } catch (scanErr) {
+          console.warn('Scan dir error:', scanErr);
+        }
+      }
+
+      if (newlyFound.length > 0) {
+        const updated = [...newlyFound, ...existingSongs];
+        set({ downloadedSongs: updated });
+        await AsyncStorage.setItem(getUserKey(DOWNLOAD_STORAGE_KEY), JSON.stringify(updated));
+        get().calculateStorageUsage();
+        useToastStore.getState().showToast(`Đã tìm thấy và khôi phục ${newlyFound.length} bài hát từ tệp máy!`, 'success');
+        return newlyFound.length;
+      } else {
+        useToastStore.getState().showToast('Thư viện bài hát đã đồng bộ đủ với tệp máy', 'info');
+        return 0;
+      }
+    } catch (e) {
+      console.error('scanAndSyncLocalFiles error:', e);
+      return 0;
+    }
+  },
+
+  exportSongToDevice: async (song: UnifiedSong) => {
+    const fileUri = song.localUri || song.audioUrl;
+    if (!fileUri || !fileUri.startsWith('file://')) {
+      useToastStore.getState().showToast('Không tìm thấy tệp nhạc để xuất', 'error');
+      return;
+    }
+    const isAvailable = await Sharing.isAvailableAsync();
+    if (!isAvailable) {
+      useToastStore.getState().showToast('Thiết bị không hỗ trợ tính năng chia sẻ tệp', 'error');
+      return;
+    }
+    try {
+      const artistPart = song.artistsNames ? `${song.artistsNames} - ` : '';
+      const cleanName = `${artistPart}${song.title}`.replace(/[/\\?%*:|"<>]/g, '_').trim();
+      const exportUri = `${FileSystem.documentDirectory}${cleanName}.mp3`;
+
+      const fileInfo = await FileSystem.getInfoAsync(exportUri);
+      if (!fileInfo.exists) {
+        await FileSystem.copyAsync({ from: fileUri, to: exportUri });
+      }
+
+      await Sharing.shareAsync(exportUri, {
+        mimeType: 'audio/mpeg',
+        dialogTitle: `Lưu bài hát vào Tệp: ${song.title}`,
+        UTI: 'public.mp3',
+      });
+      useToastStore.getState().showToast(`Đã xuất "${song.title}" ra Tệp máy`, 'success');
+    } catch (e) {
+      console.error('Share failed:', e);
+    }
+  },
+
+  exportAllDownloads: async () => {
+    const { downloadedSongs } = get();
+    if (downloadedSongs.length === 0) {
+      useToastStore.getState().showToast('Chưa có bài hát nào được tải để sao lưu', 'info');
+      return;
+    }
+
+    // 1. Android: Sử dụng Storage Access Framework (SAF) để lưu toàn bộ tệp vào thư mục người dùng chọn (Music/Downloads)
+    if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
+      try {
+        useToastStore.getState().showToast('Vui lòng chọn thư mục trên máy để lưu toàn bộ bài hát', 'info');
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!permissions.granted) {
+          useToastStore.getState().showToast('Đã hủy quyền chọn thư mục lưu', 'info');
+          return;
+        }
+
+        const targetDirUri = permissions.directoryUri;
+        useToastStore.getState().showToast(`Đang sao lưu ${downloadedSongs.length} bài hát ra máy...`, 'info');
+
+        let savedCount = 0;
+        for (const song of downloadedSongs) {
+          const fileUri = song.localUri || song.audioUrl;
+          if (!fileUri || !fileUri.startsWith('file://')) continue;
+
+          const artistPart = song.artistsNames ? `${song.artistsNames} - ` : '';
+          const cleanName = `${artistPart}${song.title}`.replace(/[/\\?%*:|"<>]/g, '_').trim();
+
+          try {
+            const fileBase64 = await FileSystem.readAsStringAsync(fileUri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            const createdFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+              targetDirUri,
+              `${cleanName}.mp3`,
+              'audio/mpeg'
+            );
+            await FileSystem.writeAsStringAsync(createdFileUri, fileBase64, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            savedCount++;
+          } catch (itemErr) {
+            console.warn(`Could not export song ${cleanName}:`, itemErr);
+          }
+        }
+
+        useToastStore.getState().showToast(
+          `Đã sao lưu thành công ${savedCount}/${downloadedSongs.length} bài hát vào thư mục thiết bị!`,
+          'success'
+        );
+        return;
+      } catch (safErr) {
+        console.warn('[ExportAll] SAF failed, falling back to Sharing...', safErr);
+      }
+    }
+
+    // 2. iOS & Fallback: Đóng gói 100% TẤT CẢ bài hát vào tệp ZIP (Tempo_Backup_All_Songs.zip)
+    const isAvailable = await Sharing.isAvailableAsync();
+    if (!isAvailable) {
+      useToastStore.getState().showToast('Thiết bị không hỗ trợ tính năng xuất tệp', 'error');
+      return;
+    }
+
+    try {
+      useToastStore.getState().showToast(`Đang nén ${downloadedSongs.length} bài hát thành tệp sao lưu...`, 'info');
+
+      const zip = new JSZip();
+      let packedCount = 0;
+
+      for (const song of downloadedSongs) {
+        const fileUri = song.localUri || song.audioUrl;
+        if (!fileUri || !fileUri.startsWith('file://')) continue;
+
+        const artistPart = song.artistsNames ? `${song.artistsNames} - ` : '';
+        const cleanName = `${artistPart}${song.title}`.replace(/[/\\?%*:|"<>]/g, '_').trim();
+
+        try {
+          const base64Data = await FileSystem.readAsStringAsync(fileUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          zip.file(`${cleanName}.mp3`, base64Data, { base64: true });
+          packedCount++;
+        } catch (readErr) {
+          console.warn(`Could not read ${cleanName} for zip:`, readErr);
+        }
+      }
+
+      if (packedCount === 0) {
+        useToastStore.getState().showToast('Không tìm thấy tệp hợp lệ để sao lưu', 'error');
+        return;
+      }
+
+      const zipBase64 = await zip.generateAsync({ type: 'base64' });
+      const zipUri = `${FileSystem.documentDirectory}Tempo_Backup_${packedCount}_BaiHat.zip`;
+      await FileSystem.writeAsStringAsync(zipUri, zipBase64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      await Sharing.shareAsync(zipUri, {
+        mimeType: 'application/zip',
+        dialogTitle: `Sao lưu toàn bộ ${packedCount} bài hát (Tệp ZIP)`,
+        UTI: 'public.zip-archive',
+      });
+      useToastStore.getState().showToast(`Đã tạo gói sao lưu ${packedCount} bài hát!`, 'success');
+    } catch (e) {
+      console.error('Export all failed:', e);
+      useToastStore.getState().showToast('Lỗi khi sao lưu bài hát', 'error');
+    }
+  },
+
+  clearAllDownloads: async () => {
+    try {
+      await FileSystem.deleteAsync(DOWNLOADS_DIR, { idempotent: true });
+      await ensureDirExists();
+      set({ downloadedSongs: [], totalStorageBytes: 0 });
+      await AsyncStorage.removeItem(getUserKey(DOWNLOAD_STORAGE_KEY));
+      useToastStore.getState().showToast('Đã xóa sạch toàn bộ tệp nhạc tải về', 'success');
+    } catch (e) {
+      console.error('Clear all downloads error:', e);
     }
   },
 
@@ -328,6 +641,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       }
     }
 
+    get().calculateStorageUsage();
     useToastStore.getState().showToast('Đã xóa bài hát khỏi bộ nhớ', 'info');
   },
 

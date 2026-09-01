@@ -28,7 +28,7 @@ import { useSleepTimerStore } from '../store/sleepTimerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { useDownloadStore } from '../store/downloadStore';
 import { useToastStore } from '../store/toastStore';
-import { navigate } from '../navigation/AppNavigator';
+import { navigate } from '../navigation/navigationRef';
 import { AddToPlaylistModal } from './AddToPlaylistModal';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
@@ -277,6 +277,30 @@ export const SongOptionsModal: React.FC<SongOptionsModalProps> = ({
                     </Text>
                   </View>
                 </TouchableOpacity>
+
+                {/* 5.1 Lưu tệp vào ứng dụng Tệp / Xuất MP3 nếu đã tải */}
+                {downloaded && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      onClose();
+                      useDownloadStore.getState().exportSongToDevice(song);
+                    }}
+                    style={styles.menuItem}
+                  >
+                    <View style={styles.menuIconWrap}>
+                      <Share2 size={22} color="#10B981" />
+                    </View>
+                    <View style={styles.menuTextWrap}>
+                      <Text style={[styles.menuLabel, { color: '#10B981' }]}>
+                        Lưu file vào ứng dụng Tệp (Files)
+                      </Text>
+                      <Text style={styles.menuSubLabel}>
+                        Lưu tệp MP3 ra bộ nhớ máy để nghe hoặc sao lưu vĩnh viễn
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </TouchableWithoutFeedback>

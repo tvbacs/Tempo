@@ -95,7 +95,7 @@ export const apiClient = {
     if (title) params.append('title', title);
     if (artist) params.append('artist', artist);
     const query = params.toString() ? `?${params.toString()}` : '';
-    const res = await fetchWithTimeout(`${baseUrl}/music/song/${id}${query}`, {}, 5000);
+    const res = await fetchWithTimeout(`${baseUrl}/music/song/${id}${query}`, {}, 15000);
     const json = await res.json();
     if (!json.success) throw new Error(json.error?.message || 'Audio stream not found');
     return json.data;

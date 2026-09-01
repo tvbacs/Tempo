@@ -27,6 +27,8 @@ class AudioEngine {
   private onTrackEndedCallback: (() => void) | null = null;
   private isInitialized = false;
   private currentSongId: string | null = null;
+  private isStopping = false;
+  private hasTriggeredEndForCurrentTrack = false;
   // Mutex: mỗi lần loadAndPlay tăng lên 1 — request cũ tự huỷ nếu bị thay thế
   private currentLoadId = 0;
 
@@ -95,10 +97,37 @@ class AudioEngine {
         } catch (e) {}
       }
 
-      // Ưu tiên 2: Sử dụng trực tiếp audioUrl nếu bài hát đã có sẵn link stream (nhạc trích xuất TikTok, YouTube, SoundCloud)
-      if (!streamUrl && song.audioUrl && (song.audioUrl.startsWith('http://') || song.audioUrl.startsWith('https://'))) {
+      // Kiểm tra xem bài có phải nguồn trích xuất online không (YouTube/TikTok/SoundCloud/extract)
+      // Link này có thời hạn ngắn (2–6h) → cần chủ động làm mới thay vì dùng URL cũ hết hạn
+      const isOnlineExtract = (song.source as string) === 'youtube'
+        || (song.source as string) === 'tiktok'
+        || (song.source as string) === 'soundcloud'
+        || (song.source as string) === 'extract'
+        || (song as any).isExtracted === true
+        || (song.id?.startsWith('yt_') || song.id?.startsWith('tt_') || song.id?.startsWith('sc_'));
+
+      // Ưu tiên 2: Nếu bài trích xuất online → Luôn làm mới URL qua getSongStream để tránh link hết hạn
+      if (!streamUrl && song.audioUrl && song.audioUrl.startsWith('http') && !isOnlineExtract) {
         streamUrl = song.audioUrl;
-        console.log('[AudioEngine] Using direct audioUrl for extracted stream track:', song.title);
+        console.log('[AudioEngine] Using direct audioUrl for stream track:', song.title);
+      }
+
+      // Ưu tiên 2b: Bài trích xuất online → Luôn gọi API làm mới link (tránh 403 sau vài giờ)
+      if (!streamUrl && isOnlineExtract) {
+        try {
+          console.log('[AudioEngine] Refreshing expired extract URL for:', song.title);
+          const freshData = await apiClient.getSongStream(song.id, song.title, song.artistsNames);
+          if (freshData?.audioUrl) {
+            streamUrl = freshData.audioUrl;
+          } else {
+            // Fallback: thử dùng URL gốc nếu backend không trả về
+            streamUrl = song.audioUrl || undefined;
+          }
+        } catch (refreshErr: any) {
+          console.warn('[AudioEngine] Refresh extract URL failed, trying original:', refreshErr?.message);
+          // Dùng URL gốc làm phương án cuối cùng
+          streamUrl = song.audioUrl || undefined;
+        }
       }
 
       // Nếu là bài offline thuần mà không có file trên máy -> Báo không còn file
@@ -149,12 +178,34 @@ class AudioEngine {
           keepAudioSessionActive: true,
         });
       } catch (directError: any) {
-        console.warn('[AudioEngine] Direct player creation failed, trying stream-proxy:', directError?.message);
-        const proxyUrl = `${API_BASE_URL}/music/stream-proxy?url=${encodeURIComponent(streamUrl)}`;
-        newPlayer = createAudioPlayer(proxyUrl, {
-          updateInterval: 400,
-          keepAudioSessionActive: true,
-        });
+        console.warn('[AudioEngine] Direct player creation failed, trying fresh stream resolution:', directError?.message);
+        try {
+          const freshData = await apiClient.getSongStream(song.id, song.title, song.artistsNames);
+          if (freshData?.audioUrl) {
+            streamUrl = freshData.audioUrl;
+            newPlayer = createAudioPlayer(streamUrl, {
+              updateInterval: 400,
+              keepAudioSessionActive: true,
+            });
+          }
+        } catch (_) {}
+
+        if (!newPlayer) {
+          try {
+            const proxyUrl = `${API_BASE_URL}/music/stream-proxy?url=${encodeURIComponent(streamUrl)}`;
+            newPlayer = createAudioPlayer(proxyUrl, {
+              updateInterval: 400,
+              keepAudioSessionActive: true,
+            });
+          } catch (proxyErr) {
+            console.warn('[AudioEngine] Proxy stream also failed:', proxyErr);
+          }
+        }
+      }
+
+      if (!newPlayer) {
+        useToastStore.getState().showToast('Không thể kết nối luồng phát bài hát này', 'error');
+        return false;
       }
 
       // Nếu trong lúc tạo player có request mới hơn đến → hủy player vừa tạo và thoát
@@ -166,26 +217,31 @@ class AudioEngine {
 
       // 3. Cấu hình Lock Screen / Now Playing Metadata (Màn hình khóa & Trung tâm điều khiển)
       try {
-        newPlayer.setActiveForLockScreen(
-          true,
-          {
-            title: song.title || 'Tempo Track',
-            artist: song.artistsNames || 'Nghệ sĩ',
-            albumTitle: song.album?.title || 'Tempo Music',
-            artworkUrl:
-              song.thumbnail ||
-              'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500',
-          },
-          {
-            showSeekForward: true,
-            showSeekBackward: true,
-          }
-        );
+        if (typeof (newPlayer as any)?.setActiveForLockScreen === 'function') {
+          (newPlayer as any).setActiveForLockScreen(
+            true,
+            {
+              title: song.title || 'Tempo Track',
+              artist: song.artistsNames || 'Nghệ sĩ',
+              albumTitle: song.album?.title || 'Tempo Music',
+              artworkUrl:
+                song.thumbnail ||
+                'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500',
+            },
+            {
+              showSeekForward: true,
+              showSeekBackward: true,
+            }
+          );
+        }
       } catch (lockScreenErr) {
-        console.warn('[AudioEngine] Lock screen metadata error:', lockScreenErr);
+        // Safe fallback - Lockscreen metadata is handled natively by Expo AudioSession
       }
 
       // 4. Đăng ký lắng nghe sự kiện phát nhạc và kết thúc bài
+      let lastTrackPosition = -1;
+      let nearEndStallCount = 0;
+
       newPlayer.addListener('playbackStatusUpdate', (status: AudioStatus) => {
         if (this.onStatusUpdateCallback) {
           this.onStatusUpdateCallback({
@@ -198,7 +254,46 @@ class AudioEngine {
           });
         }
 
-        if (status.didJustFinish) {
+        const curTime = status.currentTime || 0;
+        const rawDur = status.duration || 0;
+        const metaDur = (song.duration && song.duration > 0) ? song.duration : 0;
+
+        // Effective duration: ưu tiên metadata nếu có, hoặc dùng rawDur từ engine
+        const dur = (metaDur > 0 && (rawDur <= 0 || Math.abs(rawDur - metaDur) < 15))
+          ? metaDur
+          : (rawDur || metaDur);
+
+        const pState = (status.playbackState || '').toLowerCase();
+
+        // 1. Tín hiệu Native trực tiếp (didJustFinish hoặc state=ended)
+        const nativeEnded = status.didJustFinish === true || pState === 'ended';
+
+        // 2. Chạm ngưỡng cuối bài (trong vòng 1.2s cuối cùng của bài)
+        const reachEndThreshold = dur > 2 && curTime > 0 && curTime >= (dur - 1.2);
+
+        // 3. Đứng hoặc dừng ở đoạn cuối bài (>= dur - 2.5s hoặc >= 96% thời lượng)
+        let isStalledNearEnd = false;
+        if (dur > 5 && (curTime >= (dur - 2.5) || curTime >= dur * 0.96)) {
+          if (!status.playing || pState === 'idle' || pState === 'paused' || pState === 'stopped') {
+            isStalledNearEnd = true;
+          } else if (lastTrackPosition >= 0 && Math.abs(curTime - lastTrackPosition) < 0.25) {
+            nearEndStallCount++;
+            if (nearEndStallCount >= 1) {
+              isStalledNearEnd = true;
+            }
+          } else {
+            nearEndStallCount = 0;
+          }
+        } else {
+          nearEndStallCount = 0;
+        }
+        lastTrackPosition = curTime;
+
+        const isReachedEnd = nativeEnded || reachEndThreshold || isStalledNearEnd;
+
+        if (isReachedEnd && !this.isStopping && !this.hasTriggeredEndForCurrentTrack) {
+          this.hasTriggeredEndForCurrentTrack = true;
+          console.log(`[AudioEngine] Track finished -> Advancing next track (native=${nativeEnded}, reachEnd=${reachEndThreshold}, stalled=${isStalledNearEnd}, pos=${curTime.toFixed(1)}s/${dur.toFixed(1)}s)`);
           if (this.onTrackEndedCallback) {
             this.onTrackEndedCallback();
           }
@@ -206,6 +301,7 @@ class AudioEngine {
       });
 
       // 5. Bắt đầu phát
+      this.hasTriggeredEndForCurrentTrack = false;
       newPlayer.play();
 
       // Gán player mới
@@ -224,40 +320,56 @@ class AudioEngine {
 
   async play() {
     if (this.player) {
-      this.player.play();
+      try {
+        this.player.play();
+      } catch (error) {
+        console.warn('[AudioEngine] Play failed:', error);
+      }
     }
   }
 
   async pause() {
-    if (this.player) {
+    if (!this.player) return;
+    try {
       this.player.pause();
+    } catch (error) {
+      console.warn('[AudioEngine] Pause failed:', error);
     }
   }
 
   async seekTo(positionMs: number) {
     if (this.player) {
-      // expo-audio seekTo nhận tham số là giây (seconds)
-      const targetSeconds = Math.max(0, positionMs / 1000);
-      await this.player.seekTo(targetSeconds);
+      try {
+        // expo-audio seekTo nhận tham số là giây (seconds)
+        const targetSeconds = Math.max(0, positionMs / 1000);
+        await this.player.seekTo(targetSeconds);
+      } catch (error) {
+        console.warn('[AudioEngine] SeekTo failed:', error);
+      }
     }
   }
 
   async stop() {
     if (this.player) {
-      this.player.pause();
-      await this.player.seekTo(0);
+      try {
+        this.player.pause();
+        await this.player.seekTo(0);
+      } catch (error) {
+        console.warn('[AudioEngine] Stop failed:', error);
+      }
     }
   }
 
   async stopAndUnload() {
-    if (this.player) {
-      const old = this.player;
-      this.player = null;
-      this.currentSongId = null;
-      try { old.pause(); } catch (_) {}
-      try { old.clearLockScreenControls(); } catch (_) {}
-      try { old.remove(); } catch (_) {}
-    }
+    if (!this.player) return;
+    this.isStopping = true;
+    const old = this.player;
+    this.player = null;
+    this.currentSongId = null;
+    try { old.pause(); } catch (_) {}
+    try { old.clearLockScreenControls(); } catch (_) {}
+    try { old.remove(); } catch (_) {}
+    this.isStopping = false;
   }
 }
 

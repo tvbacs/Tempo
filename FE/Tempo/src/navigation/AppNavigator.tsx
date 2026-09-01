@@ -4,10 +4,9 @@
  */
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createStackNavigator } from "@react-navigation/stack";
+import { createStackNavigator, CardStyleInterpolators } from "@react-navigation/stack";
 import {
   NavigationContainer,
-  createNavigationContainerRef,
 } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Home, Search, Library, Download, Crown } from "lucide-react-native";
@@ -32,14 +31,8 @@ import { usePlayerStore } from "../store/playerStore";
 import { useSleepTimerStore } from "../store/sleepTimerStore";
 import { useDownloadStore } from "../store/downloadStore";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
-
-export const navigationRef = createNavigationContainerRef<any>();
-
-export function navigate(name: string, params?: any) {
-  if (navigationRef.isReady()) {
-    navigationRef.navigate(name, params);
-  }
-}
+import { navigationRef, navigate } from "./navigationRef";
+export { navigationRef, navigate };
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -177,6 +170,9 @@ export const AppNavigator: React.FC = () => {
         screenOptions={{
           headerShown: false,
           cardStyle: { backgroundColor: COLORS.bgPrimary },
+          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+          gestureEnabled: true,
+          detachPreviousScreen: false,
         }}
       >
         <Stack.Screen name="MainTabs" component={MainTabs} />

@@ -33,31 +33,60 @@ interface SleepTimerState {
   onTrackEnded: () => void;
 }
 
-const triggerSleepPause = () => {
+const triggerSleepPause = async () => {
   try {
     const { usePlayerStore } = require('./playerStore');
     const ps = usePlayerStore.getState();
     const currentSong = ps.currentSong;
-    const positionMs = ps.positionMs;
     const durationMs = ps.durationMs;
 
-    // Tạm dừng bài hát ngay tại giây đang phát hiện tại
-    ps.pause();
+    // 1. CHỈ pause native audio engine an toàn, không can thiệp remote cross-device
+    try {
+      await audioEngine.pause();
+    } catch (e) {
+      console.warn('[SleepTimer] Direct audioEngine.pause warning:', e);
+    }
 
-    // Lưu lại thời điểm chính xác vào lịch sử nghe
+    // 2. Đồng bộ Zustand state
+    try {
+      usePlayerStore.setState({
+        isPlaying: false,
+        isLoading: false,
+      });
+    } catch (_) {}
+
+    // 3. Đọc positionMs sau khi đã dừng native player
+    const positionMs = usePlayerStore.getState().positionMs || 0;
+
+    // 4. Lưu lại thời điểm chính xác vào lịch sử nghe
     if (currentSong) {
       try {
         const { useLibraryStore } = require('./libraryStore');
         useLibraryStore.getState().recordHistory(currentSong, positionMs, durationMs);
       } catch (_) {}
     }
-  } catch (_) {
-    audioEngine.pause();
+  } catch (error) {
+    try {
+      await audioEngine.pause();
+    } catch (_) {}
   }
-  useToastStore.getState().showToast('Hẹn giờ tắt nhạc: Chúc bạn ngủ ngon', 'info');
+
+  try {
+    const { useToastStore } = require('./toastStore');
+    useToastStore.getState().showToast('Hẹn giờ tắt nhạc: Chúc bạn ngủ ngon', 'info');
+  } catch (_) {}
 };
 
 let timerInterval: any = null;
+let isTriggeringPause = false;
+
+const safeTriggerSleepPause = () => {
+  if (isTriggeringPause) return;
+  isTriggeringPause = true;
+  triggerSleepPause().finally(() => {
+    isTriggeringPause = false;
+  });
+};
 
 export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
   activeOption: null,
@@ -67,6 +96,10 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
   isModalVisible: false,
 
   init: async () => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
     try {
       const raw = await AsyncStorage.getItem(SLEEP_TIMER_STORAGE_KEY);
       if (!raw) return;
@@ -91,7 +124,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
         const diffMs = saved.targetTimestamp - now;
 
         if (diffMs <= 0) {
-          // Đã hết hạn trong lúc tắt app -> dọn dẹp và dừng phát nhạc
+          // Đã hết hạn từ phiên trước -> dọn dẹp storage an toàn, không can thiệp phiên phát nhạc mới
           await AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY);
           set({
             activeOption: null,
@@ -99,7 +132,6 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
             remainingSeconds: null,
             isTimerActive: false,
           });
-          triggerSleepPause();
         } else {
           // Còn thời gian -> khôi phục đếm ngược
           const remainingSec = Math.round(diffMs / 1000);
@@ -125,7 +157,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
                 remainingSeconds: null,
                 isTimerActive: false,
               });
-              triggerSleepPause();
+              safeTriggerSleepPause();
             } else {
               set({ remainingSeconds: Math.ceil(diffMs / 1000) });
             }
@@ -231,9 +263,13 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
   },
 
   onTrackEnded: () => {
-    if (get().activeOption === 'end_of_track') {
-      get().cancelTimer();
-      triggerSleepPause();
+    try {
+      if (get().activeOption === 'end_of_track') {
+        get().cancelTimer();
+        safeTriggerSleepPause();
+      }
+    } catch (err) {
+      console.warn('[SleepTimer] onTrackEnded error:', err);
     }
   },
 }));

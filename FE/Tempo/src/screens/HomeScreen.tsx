@@ -42,11 +42,13 @@ import { apiClient } from "../api/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { HomeFeedData, ChartData, UnifiedSong } from "../types/music";
 import { SongItem } from "../components/SongItem";
+import { useFocusEffect } from "@react-navigation/native";
 import { HomeScreenSkeleton } from "../components/SkeletonLoader";
 import { usePlayerStore } from "../store/playerStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { useDownloadStore } from "../store/downloadStore";
 import { useNotificationStore } from "../store/notificationStore";
+import { useNavStore } from "../store/navStore";
 import { AppAvatarBadge } from "../components/AppAvatarBadge";
 import { formatDuration } from "../utils/format";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
@@ -55,6 +57,12 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+
+  useFocusEffect(
+    useCallback(() => {
+      useNavStore.getState().setCurrentRoute("Home");
+    }, [])
+  );
   const [feed, setFeed] = useState<HomeFeedData | null>(null);
   const [chart, setChart] = useState<ChartData | null>(null);
   const [tiktokSongs, setTiktokSongs] = useState<UnifiedSong[]>([]);
@@ -534,7 +542,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               onPress={() => navigation.navigate("Profile")}
               style={styles.headerProfileRow}
             >
-              <AppAvatarBadge size={38} />
+              <AppAvatarBadge size={44} />
               <View style={styles.headerTextCol}>
                 <Text style={styles.headerSubtitle}>{timeGreeting.greeting}</Text>
                 <Text numberOfLines={1} style={styles.headerTitle}>
@@ -1342,21 +1350,23 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              {topChartSongs.length > 0 ? (
-                topChartSongs.slice(0, 10).map((song, i) => (
-                  <SongItem
-                    key={song.id}
-                    song={song}
-                    index={i}
-                    showIndex
-                    onPress={() => handlePlaySong(song, topChartSongs, { type: 'chart', title: 'Bảng xếp hạng V-Pop' })}
-                  />
-                ))
-              ) : (
-                <View style={styles.emptyListNotice}>
-                  <Text style={styles.emptyListText}>Đang cập nhật bảng xếp hạng...</Text>
-                </View>
-              )}
+              <View style={{ paddingHorizontal: SPACING.screenPadding }}>
+                {topChartSongs.length > 0 ? (
+                  topChartSongs.slice(0, 10).map((song, i) => (
+                    <SongItem
+                      key={song.id}
+                      song={song}
+                      index={i}
+                      showIndex
+                      onPress={() => handlePlaySong(song, topChartSongs, { type: 'chart', title: 'Bảng xếp hạng V-Pop' })}
+                    />
+                  ))
+                ) : (
+                  <View style={styles.emptyListNotice}>
+                    <Text style={styles.emptyListText}>Đang cập nhật bảng xếp hạng...</Text>
+                  </View>
+                )}
+              </View>
             </View>
           </View>
         )}

@@ -53,7 +53,7 @@ import { useLibraryStore } from "../store/libraryStore";
 import { useDownloadStore } from "../store/downloadStore";
 import { useSleepTimerStore } from "../store/sleepTimerStore";
 import { useToastStore } from "../store/toastStore";
-import { navigate } from "../navigation/AppNavigator";
+import { navigate } from "../navigation/navigationRef";
 import { apiClient } from "../api/client";
 import { LyricData, UnifiedSong } from "../types/music";
 import { SleepTimerModal } from "../components/SleepTimerModal";
@@ -66,7 +66,7 @@ import { formatDurationMs } from "../utils/format";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const FULL_HERO_HEIGHT = Math.min(SCREEN_WIDTH * 1.05, SCREEN_HEIGHT * 0.46);
 
-export const PlayerModalScreen: React.FC = () => {
+const FullPlayerContent: React.FC = () => {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -214,7 +214,6 @@ export const PlayerModalScreen: React.FC = () => {
 
   const isExtractedOrSingle =
     playbackContext?.type === 'extracted' ||
-    playbackContext?.type === 'single' ||
     queue.length <= 1;
 
   const handleToggleShuffle = () => {
@@ -410,7 +409,6 @@ export const PlayerModalScreen: React.FC = () => {
             onPress={handleHeaderPress}
             style={styles.headerTitleCenter}
           >
-            <View style={styles.dragBar} />
             <Text style={styles.headerSub}>{contextSub}</Text>
             <Text numberOfLines={1} style={styles.headerMain}>
               {contextTitle}
@@ -861,6 +859,12 @@ export const PlayerModalScreen: React.FC = () => {
       </View>
     </Modal>
   );
+};
+
+export const PlayerModalScreen: React.FC = () => {
+  const isFullPlayerVisible = usePlayerStore((s) => s.isFullPlayerVisible);
+  if (!isFullPlayerVisible) return null;
+  return <FullPlayerContent />;
 };
 
 const styles = StyleSheet.create({

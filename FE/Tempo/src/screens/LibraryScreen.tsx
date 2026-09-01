@@ -13,6 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Heart,
@@ -22,10 +23,12 @@ import {
   MoreHorizontal,
   Disc,
   ListMusic,
+  ChevronRight,
 } from 'lucide-react-native';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { useLibraryStore, CustomPlaylist } from '../store/libraryStore';
 import { useDownloadStore } from '../store/downloadStore';
+import { useNavStore } from '../store/navStore';
 import { AppAvatarBadge } from '../components/AppAvatarBadge';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { PlaylistOptionsModal } from '../components/PlaylistOptionsModal';
@@ -38,6 +41,12 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPlaylistForOptions, setSelectedPlaylistForOptions] = useState<CustomPlaylist | null>(null);
   const [showAddSongsModal, setShowAddSongsModal] = useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      useNavStore.getState().setCurrentRoute('Library');
+    }, [])
+  );
 
   const {
     likedSongs,
@@ -66,6 +75,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Full-Bleed Creative Diagonal Capsule Hero Section (Tràn Viền & Full Tai Thỏ) */}
         <View style={[styles.creativeHeroCard, { paddingTop: Math.max(insets.top, 24) }]}>
@@ -150,7 +160,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 onPress={() => navigation.navigate('Profile')}
                 style={styles.headerAvatarBtn}
               >
-                <AppAvatarBadge size={36} />
+                <AppAvatarBadge size={42} />
               </TouchableOpacity>
             </View>
           </View>
@@ -161,96 +171,111 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               <Text style={styles.heroBadgeText}>BỘ SƯU TẬP CỦA BẠN</Text>
             </View>
             <Text style={styles.creativeHeroTitle}>Không Gian Âm Nhạc</Text>
-            <Text style={styles.creativeHeroSubtitle}>
-              {likedSongs.length} bài yêu thích · {playlists.length} danh sách phát · {downloadedSongs.length} bài đã tải
-            </Text>
           </View>
         </View>
 
-        {/* 2x2 Grid of 4 Quick Action Cards */}
-        <View style={styles.gridContainer}>
-          {/* Card 1: Bài hát đã thích */}
+        {/* Clean Modern Quick Action Items */}
+        <View style={styles.bannerCardsContainer}>
+          {/* Item 1: Bài hát đã thích */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.75}
             onPress={() => navigation.navigate('LikedSongs')}
-            style={styles.gridCard}
+            style={styles.fullWidthCard}
           >
             <LinearGradient
-              colors={['#0A0A0E', '#1C0E14', '#42141F']}
+              colors={['#8A2387', '#E94057']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.gridCardGradient}
-            />
-            <View style={[styles.gridIconBox, { backgroundColor: COLORS.accentPrimary }]}>
-              <Heart size={20} color={COLORS.white} fill={COLORS.white} />
+              style={styles.cardIconBox}
+            >
+              <Heart size={22} color={COLORS.white} fill={COLORS.white} />
+            </LinearGradient>
+            <View style={styles.cardInfoCol}>
+              <Text style={styles.cardMainTitle}>Bài hát đã thích</Text>
+              <Text style={styles.cardSubTitle}>{likedSongs.length} bài hát</Text>
             </View>
-            <View style={styles.gridCardBottom}>
-              <Text numberOfLines={2} style={styles.gridCardTitle}>Bài hát đã thích</Text>
-              <Text style={styles.gridCardSub}>{likedSongs.length} bài hát</Text>
-            </View>
+            <ChevronRight size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          {/* Card 2: Bài hát đã tải về */}
+          {/* Item 2: Bài hát đã tải về */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.75}
             onPress={() => navigation.navigate('DownloadedSongs')}
-            style={styles.gridCard}
+            style={styles.fullWidthCard}
           >
-            <LinearGradient
-              colors={['#0A0A0E', '#0B1D14', '#114227']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gridCardGradient}
-            />
-            <View style={[styles.gridIconBox, { backgroundColor: '#1DB954' }]}>
-              <Download size={20} color={COLORS.white} />
+            {downloadedSongs[0]?.thumbnail ? (
+              <Image source={{ uri: downloadedSongs[0].thumbnail }} style={styles.cardImageThumb} />
+            ) : (
+              <LinearGradient
+                colors={['#065F46', '#10B981']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.cardIconBox}
+              >
+                <Download size={22} color={COLORS.white} strokeWidth={2.3} />
+              </LinearGradient>
+            )}
+            <View style={styles.cardInfoCol}>
+              <Text style={styles.cardMainTitle}>Bài hát đã tải</Text>
+              <Text style={styles.cardSubTitle}>{downloadedSongs.length} bài hát · Nghe ngoại tuyến</Text>
             </View>
-            <View style={styles.gridCardBottom}>
-              <Text numberOfLines={2} style={styles.gridCardTitle}>Bài hát đã tải</Text>
-              <Text style={styles.gridCardSub}>{downloadedSongs.length} bài hát</Text>
-            </View>
+            <ChevronRight size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          {/* Card 3: Nghệ sĩ đã theo dõi */}
+          {/* Item 3: Nghệ sĩ đã theo dõi */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.75}
             onPress={() => navigation.navigate('FollowedArtists')}
-            style={styles.gridCard}
+            style={styles.fullWidthCard}
           >
-            <LinearGradient
-              colors={['#0A0A0E', '#1C150A', '#45260A']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gridCardGradient}
-            />
-            <View style={[styles.gridIconBox, { backgroundColor: '#FF9500' }]}>
-              <Users size={20} color={COLORS.white} />
+            {(followedArtists[0]?.thumbnail || (followedArtists[0] as any)?.cover || (followedArtists[0] as any)?.avatar) ? (
+              <Image
+                source={{ uri: followedArtists[0]?.thumbnail || (followedArtists[0] as any)?.cover || (followedArtists[0] as any)?.avatar }}
+                style={[styles.cardImageThumb, { borderRadius: LAYOUT.radiusFull }]}
+              />
+            ) : (
+              <LinearGradient
+                colors={['#92400E', '#F59E0B']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.cardIconBox}
+              >
+                <Users size={22} color={COLORS.white} strokeWidth={2.3} />
+              </LinearGradient>
+            )}
+            <View style={styles.cardInfoCol}>
+              <Text style={styles.cardMainTitle}>Nghệ sĩ theo dõi</Text>
+              <Text style={styles.cardSubTitle}>{followedArtists.length} nghệ sĩ</Text>
             </View>
-            <View style={styles.gridCardBottom}>
-              <Text numberOfLines={2} style={styles.gridCardTitle}>Nghệ sĩ theo dõi</Text>
-              <Text style={styles.gridCardSub}>{followedArtists.length} nghệ sĩ</Text>
-            </View>
+            <ChevronRight size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          {/* Card 4: Album đã lưu */}
+          {/* Item 4: Album đã lưu */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.75}
             onPress={() => navigation.navigate('SavedAlbums')}
-            style={styles.gridCard}
+            style={styles.fullWidthCard}
           >
-            <LinearGradient
-              colors={['#0A0A0E', '#0D1728', '#14315A']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gridCardGradient}
-            />
-            <View style={[styles.gridIconBox, { backgroundColor: '#3A7BD5' }]}>
-              <Disc size={20} color={COLORS.white} />
+            {(savedAlbums[0]?.thumbnail || (savedAlbums[0] as any)?.cover) ? (
+              <Image
+                source={{ uri: savedAlbums[0]?.thumbnail || (savedAlbums[0] as any)?.cover }}
+                style={styles.cardImageThumb}
+              />
+            ) : (
+              <LinearGradient
+                colors={['#1E40AF', '#3B82F6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.cardIconBox}
+              >
+                <Disc size={22} color={COLORS.white} strokeWidth={2.3} />
+              </LinearGradient>
+            )}
+            <View style={styles.cardInfoCol}>
+              <Text style={styles.cardMainTitle}>Album đã lưu</Text>
+              <Text style={styles.cardSubTitle}>{savedAlbums.length} album</Text>
             </View>
-            <View style={styles.gridCardBottom}>
-              <Text numberOfLines={2} style={styles.gridCardTitle}>Album đã lưu</Text>
-              <Text style={styles.gridCardSub}>{savedAlbums.length} album</Text>
-            </View>
+            <ChevronRight size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -435,10 +460,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerAvatarBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    overflow: 'hidden',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    overflow: 'visible',
   },
 
   creativeHeroContent: {
@@ -475,45 +500,45 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: SPACING.xl,
   },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  bannerCardsContainer: {
     paddingHorizontal: SPACING.screenPadding,
-    gap: SPACING.md,
-    marginBottom: SPACING.lg,
-    justifyContent: 'space-between',
+    gap: 0,
+    marginBottom: SPACING.md,
   },
-  gridCard: {
-    width: '47.5%',
-    height: 116,
+  fullWidthCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 0,
+  },
+  cardIconBox: {
+    width: 64,
+    height: 64,
     borderRadius: LAYOUT.radiusLg,
-    padding: SPACING.md,
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  gridCardGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  gridIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: LAYOUT.radiusMd,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: SPACING.md,
   },
-  gridCardBottom: {
-    marginTop: SPACING.xs,
+  cardImageThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: LAYOUT.radiusLg,
+    backgroundColor: COLORS.bgSurfaceSecondary,
+    marginRight: SPACING.md,
   },
-  gridCardTitle: {
-    fontSize: TYPOGRAPHY.sizeBodySmall,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginBottom: 2,
+  cardInfoCol: {
+    flex: 1,
   },
-  gridCardSub: {
-    fontSize: TYPOGRAPHY.sizeMicro,
+  cardMainTitle: {
+    fontSize: TYPOGRAPHY.sizeBody,
+    fontWeight: '600',
+    color: COLORS.white,
+    letterSpacing: -0.1,
+  },
+  cardSubTitle: {
+    fontSize: TYPOGRAPHY.sizeCaption,
     color: COLORS.textSecondary,
+    marginTop: 2,
   },
   sectionHeading: {
     fontSize: TYPOGRAPHY.sizeMicro,

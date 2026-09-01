@@ -123,12 +123,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         ? Math.min(rawPosition, accurateDurationMs)
         : rawPosition;
 
-      set({
-        isPlaying: status.isPlaying,
-        positionMs: accuratePositionMs,
-        durationMs: accurateDurationMs,
-        isLoading: status.isBuffering,
-      });
+      const state = get();
+      const isPlayStateChanged = state.isPlaying !== status.isPlaying;
+      const isBufferingChanged = state.isLoading !== status.isBuffering;
+      const isDurationChanged = Math.abs(state.durationMs - accurateDurationMs) > 500;
+      const isPositionChanged = Math.abs(accuratePositionMs - state.positionMs) >= 250;
+
+      if (isPlayStateChanged || isBufferingChanged || isDurationChanged || isPositionChanged) {
+        set({
+          isPlaying: status.isPlaying,
+          positionMs: accuratePositionMs,
+          durationMs: accurateDurationMs,
+          isLoading: status.isBuffering,
+        });
+      }
     }
   });
 
@@ -439,7 +447,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       if (queue.length === 0) return;
 
+      // Kiểm tra xem có đang bật hẹn giờ đi ngủ theo phút không
+      let isSleepTimerCounting = false;
+      try {
+        const { useSleepTimerStore } = require('./sleepTimerStore');
+        const st = useSleepTimerStore.getState();
+        isSleepTimerCounting = st.isTimerActive && st.activeOption !== 'end_of_track';
+      } catch (_) {}
+
       if (queue.length === 1) {
+        // Nếu đang bật hẹn giờ đi ngủ theo phút hoặc có bật lặp lại -> Tiếp tục phát lại bài này
+        if (isSleepTimerCounting || repeatMode !== 'off') {
+          await seekTo(0);
+          await audioEngine.play();
+          set({ isPlaying: true });
+          return;
+        }
+
         try {
           const { useToastStore } = require('./toastStore');
           useToastStore.getState().showToast(
@@ -448,14 +472,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           );
         } catch (e) {}
 
-        if (repeatMode === 'off') {
-          await seekTo(0);
-          await audioEngine.pause();
-          set({ isPlaying: false });
-        } else {
-          await seekTo(0);
-          await audioEngine.play();
-        }
+        await seekTo(0);
+        await audioEngine.pause();
+        set({ isPlaying: false });
         return;
       }
 
@@ -471,7 +490,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           return;
         } else {
           // Đã nghe hết toàn bộ danh sách shuffle
-          if (repeatMode === 'all') {
+          if (repeatMode === 'all' || isSleepTimerCounting) {
             const currentSongId = get().currentSong?.id;
             const others = queue.filter((s) => s.id !== currentSongId);
             const newShuffled = [get().currentSong!, ...shuffleArray(others)].filter(Boolean) as UnifiedSong[];
@@ -500,7 +519,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         await playSong(nextSong, queue);
       } else {
         // Đã đến cuối danh sách
-        if (repeatMode === 'all') {
+        if (repeatMode === 'all' || isSleepTimerCounting) {
           // Lặp lại từ bài đầu tiên
           await playSong(queue[0], queue);
         } else {

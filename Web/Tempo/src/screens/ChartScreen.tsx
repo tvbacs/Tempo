@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Play, TrendingUp, Shuffle } from 'lucide-react';
+import { TrendingUp, Play, Pause, Shuffle } from 'lucide-react';
 import { UnifiedSong } from '../types/music';
 import { apiClient } from '../api/client';
 import { usePlayerStore } from '../store/playerStore';
@@ -7,62 +7,76 @@ import { TrackTable } from '../components/TrackTable';
 
 export const ChartScreen: React.FC = () => {
   const [songs, setSongs] = useState<UnifiedSong[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { playSong } = usePlayerStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const { currentSong, isPlaying, playSong, togglePlayPause, isShuffle, toggleShuffle } = usePlayerStore();
+
+  const isCurrentListPlaying =
+    isPlaying &&
+    Boolean(
+      currentSong &&
+        songs.some(
+          (s) => (s.encodeId || s.id) === (currentSong.encodeId || currentSong.id)
+        )
+    );
 
   useEffect(() => {
-    let isMounted = true;
     setIsLoading(true);
-    apiClient.getChart().then((data) => {
-      if (isMounted) {
-        setSongs(data);
-        setIsLoading(false);
-      }
+    apiClient.getChart().then((chartSongs) => {
+      setSongs(chartSongs || []);
+      setIsLoading(false);
+    }).catch(() => {
+      setIsLoading(false);
     });
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
-  const handlePlayAll = (shuffle: boolean = false) => {
+  const handlePlayClick = () => {
     if (songs.length === 0) return;
-    const list = shuffle ? [...songs].sort(() => Math.random() - 0.5) : songs;
-    playSong(list[0], list);
+    if (isCurrentListPlaying) {
+      togglePlayPause();
+    } else {
+      playSong(songs[0], songs);
+    }
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar select-none">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-b from-[#1E3A8A] via-[#172554] to-[#121212] p-8 flex items-end gap-6 flex-shrink-0">
-        <div className="w-52 h-52 rounded-md bg-gradient-to-br from-[#3B82F6] to-[#1E40AF] flex items-center justify-center text-white shadow-2xl flex-shrink-0">
-          <TrendingUp className="w-24 h-24" />
+    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar select-none bg-[#121212]">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-b from-[#2d2d38] via-[#1b1b22] to-[#121212] p-8 flex items-end gap-6 flex-shrink-0">
+        <div className="w-52 h-52 rounded-md bg-gradient-to-br from-[#FC475C] via-[#941A2D] to-[#252530] flex items-center justify-center text-white shadow-2xl flex-shrink-0">
+          <TrendingUp className="w-24 h-24 stroke-[2.5]" />
         </div>
 
         <div className="flex flex-col justify-end">
-          <span className="text-xs font-bold uppercase tracking-wider text-white mb-2">Bảng Xếp Hạng</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-2">Bảng Xếp Hạng</span>
           <h1 className="text-5xl font-black text-white tracking-tight mb-4">
             Tempo Chart Top 50
           </h1>
-          <p className="text-xs font-semibold text-white/80">
+          <p className="text-xs font-semibold text-white/90">
             Cập nhật theo thời gian thực từ Zing MP3 · {songs.length} bài hát hàng đầu
           </p>
         </div>
       </div>
 
       {/* Action Bar */}
-      <div className="px-8 py-6 flex items-center gap-6 bg-[#121212]/80 backdrop-blur-sm sticky top-0 z-10">
+      <div className="px-8 py-5 flex items-center gap-6 bg-[#121212]/90 backdrop-blur-md sticky top-0 z-10">
         <button
-          onClick={() => handlePlayAll(false)}
-          disabled={songs.length === 0}
-          className="w-14 h-14 rounded-full bg-[#1DB954] hover:bg-[#1ed760] hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-xl transition-all disabled:opacity-50"
+          onClick={handlePlayClick}
+          disabled={songs.length === 0 || isLoading}
+          className="w-14 h-14 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-2xl transition-all disabled:opacity-50 border-none cursor-pointer"
         >
-          <Play className="w-6 h-6 fill-black text-black ml-0.5" />
+          {isCurrentListPlaying ? (
+            <Pause className="w-6 h-6 fill-black text-black" />
+          ) : (
+            <Play className="w-6 h-6 fill-black text-black ml-0.5" />
+          )}
         </button>
 
         <button
-          onClick={() => handlePlayAll(true)}
-          title="Trộn bài"
-          className="text-text-secondary hover:text-white transition-colors"
+          onClick={toggleShuffle}
+          title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+          className={`transition-colors border-none bg-transparent cursor-pointer p-1 ${
+            isShuffle ? 'text-white font-bold scale-110' : 'text-[#b3b3b3] hover:text-white'
+          }`}
         >
           <Shuffle className="w-6 h-6" />
         </button>

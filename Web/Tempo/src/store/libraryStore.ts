@@ -19,10 +19,13 @@ interface LibraryState {
   fetchDownloadedSongs: () => Promise<void>;
   addDownloadedSong: (song: UnifiedSong) => void;
   removeDownloadedSong: (songId: string) => void;
+  clearDownloadedSongs: () => void;
 
   fetchPlaylists: () => Promise<void>;
   createPlaylist: (name: string) => Promise<void>;
   deletePlaylist: (id: string) => Promise<void>;
+  addSongToPlaylist: (playlistId: string, song: UnifiedSong) => Promise<void>;
+  removeSongFromPlaylist: (playlistId: string, songId: string) => Promise<void>;
 
   fetchFollowedArtists: () => Promise<void>;
   toggleFollowArtist: (artist: Artist) => Promise<boolean>;
@@ -37,16 +40,31 @@ interface LibraryState {
   reset: () => void;
 }
 
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return fallback;
+}
+
 export const useLibraryStore = create<LibraryState>((set, get) => ({
-  likedSongs: [],
-  downloadedSongs: [],
-  playlists: [],
-  followedArtists: [],
-  savedAlbums: [],
-  history: [],
+  likedSongs: loadFromStorage('tempo_liked_songs', []),
+  downloadedSongs: loadFromStorage('tempo_downloaded_songs', []),
+  playlists: loadFromStorage('tempo_custom_playlists', []),
+  followedArtists: loadFromStorage('tempo_followed_artists', []),
+  savedAlbums: loadFromStorage('tempo_saved_albums', []),
+  history: loadFromStorage('tempo_listening_history', []),
   isLoading: false,
 
   fetchLikedSongs: async () => {
+    try {
+      const stored = localStorage.getItem('tempo_liked_songs');
+      if (stored) {
+        set({ likedSongs: JSON.parse(stored) });
+      }
+    } catch (_) {}
+
     const user = useAuthStore.getState().user;
     if (!user) return;
     set({ isLoading: true });
@@ -58,28 +76,20 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        const songs: UnifiedSong[] = data
-          .filter((r: any) => {
-            const isLocalOrDownload =
-              r.source === 'local' ||
-              r.source === 'youtube' ||
-              r.source === 'extracted' ||
-              r.source === 'downloaded' ||
-              r.source === 'offline' ||
-              (r.song_id && (r.song_id.startsWith('yt_') || r.song_id.startsWith('dl_') || r.song_id.startsWith('local_'))) ||
-              (r.audio_url && r.audio_url.startsWith('file://'));
-            return !isLocalOrDownload;
-          })
-          .map((r: any) => ({
-            id: r.song_id,
-            title: r.title,
-            artistsNames: r.artists_names || '',
-            thumbnail: r.thumbnail || '',
-            duration: r.duration || 0,
-            source: r.source || 'zing',
-            addedAt: r.created_at,
-          }));
+        const songs: UnifiedSong[] = data.map((r: any) => ({
+          id: r.song_id || r.id,
+          encodeId: r.song_id || r.id,
+          title: r.title,
+          artistsNames: r.artists_names,
+          thumbnail: r.thumbnail,
+          duration: r.duration,
+          source: r.source || 'zing',
+          addedAt: r.created_at,
+        }));
         set({ likedSongs: songs });
+        try {
+          localStorage.setItem('tempo_liked_songs', JSON.stringify(songs));
+        } catch (_) {}
       }
     } catch (e) {
       console.error('fetchLikedSongs error:', e);
@@ -158,21 +168,61 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     localStorage.setItem('tempo_downloaded_songs', JSON.stringify(updated));
   },
 
+  clearDownloadedSongs: () => {
+    set({ downloadedSongs: [] });
+    localStorage.removeItem('tempo_downloaded_songs');
+  },
+
   fetchPlaylists: async () => {
-    const user = useAuthStore.getState().user;
-    if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from('playlists')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const stored = localStorage.getItem('tempo_custom_playlists');
+      if (stored) {
+        set({ playlists: JSON.parse(stored) });
+      }
+    } catch (_) {}
+
+    const user = useAuthStore.getState().user;
+    try {
+      let query = supabase.from('playlists').select('*');
+      if (user) {
+        query = query.eq('user_id', user.id);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (!error && data) {
-        const cleanPlaylists = data.filter(
-          (p: any) => p.name && !p.name.includes('TEMPO_ACTIVE') && !p.name.includes('active-server') && !p.name.startsWith('__')
-        );
+        const cleanPlaylists = data
+          .filter(
+            (p: any) =>
+              p.name &&
+              !p.name.includes('TEMPO_ACTIVE') &&
+              !p.name.includes('active-server') &&
+              !p.name.startsWith('__')
+          )
+          .map((r: any) => {
+            let parsedSongs: UnifiedSong[] = [];
+            if (r.description) {
+              try {
+                if (r.description.startsWith('[') || r.description.startsWith('{')) {
+                  const p = JSON.parse(r.description);
+                  if (Array.isArray(p)) parsedSongs = p;
+                  else if (p && Array.isArray(p.songs)) parsedSongs = p.songs;
+                }
+              } catch (_) {}
+            }
+            return {
+              id: r.id,
+              name: r.name,
+              description: r.description?.startsWith('[') ? '' : r.description,
+              coverUrl: r.cover_url || parsedSongs[0]?.thumbnail,
+              songs: parsedSongs,
+              songCount: parsedSongs.length,
+            };
+          });
+
         set({ playlists: cleanPlaylists });
+        try {
+          localStorage.setItem('tempo_custom_playlists', JSON.stringify(cleanPlaylists));
+        } catch (_) {}
       }
     } catch (e) {
       console.error('fetchPlaylists error:', e);
@@ -181,57 +231,144 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   createPlaylist: async (name: string) => {
     const user = useAuthStore.getState().user;
-    if (!user) {
-      useAuthStore.getState().openAuthModal();
-      return;
-    }
-    const newPlaylist = {
+    const newPlaylist: any = {
       id: crypto.randomUUID(),
-      user_id: user.id,
+      user_id: user?.id || 'bdf7cb30-0ae2-47fa-865e-f3ab1abc8263',
       name,
       song_count: 0,
       songs: [],
     };
-    set({ playlists: [newPlaylist as any, ...get().playlists] });
-    await supabase.from('playlists').insert(newPlaylist);
+    const updated = [newPlaylist, ...get().playlists];
+    set({ playlists: updated });
+    try {
+      localStorage.setItem('tempo_custom_playlists', JSON.stringify(updated));
+    } catch (_) {}
+
+    if (user) {
+      await supabase.from('playlists').insert(newPlaylist);
+    }
   },
 
   deletePlaylist: async (id: string) => {
     const user = useAuthStore.getState().user;
-    if (!user) return;
-    set({ playlists: get().playlists.filter((p) => p.id !== id) });
-    await supabase.from('playlists').delete().eq('user_id', user.id).eq('id', id);
+    const updated = get().playlists.filter((p) => p.id !== id);
+    set({ playlists: updated });
+    try {
+      localStorage.setItem('tempo_custom_playlists', JSON.stringify(updated));
+    } catch (_) {}
+
+    if (user) {
+      await supabase.from('playlists').delete().eq('user_id', user.id).eq('id', id);
+    }
+  },
+
+  addSongToPlaylist: async (playlistId: string, song: UnifiedSong) => {
+    const playlists = get().playlists.map((pl) => {
+      if (pl.id === playlistId) {
+        const existingSongs = pl.songs || [];
+        if (!existingSongs.some((s) => (s.encodeId || s.id) === (song.encodeId || song.id))) {
+          const updatedSongs = [song, ...existingSongs];
+          return {
+            ...pl,
+            songs: updatedSongs,
+            song_count: updatedSongs.length,
+            songCount: updatedSongs.length,
+            coverUrl: pl.coverUrl || song.thumbnail,
+          };
+        }
+      }
+      return pl;
+    });
+
+    set({ playlists });
+    try {
+      localStorage.setItem('tempo_custom_playlists', JSON.stringify(playlists));
+    } catch (_) {}
+
+    const target = playlists.find((p) => p.id === playlistId);
+    if (target) {
+      try {
+        await supabase
+          .from('playlists')
+          .update({
+            description: JSON.stringify(target.songs || []),
+            cover_url: target.songs?.[0]?.thumbnail || target.coverUrl || '',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', playlistId);
+      } catch (_) {}
+    }
+  },
+
+  removeSongFromPlaylist: async (playlistId: string, songId: string) => {
+    const playlists = get().playlists.map((pl) => {
+      if (pl.id === playlistId) {
+        const existingSongs = pl.songs || [];
+        const updatedSongs = existingSongs.filter((s) => (s.encodeId || s.id) !== songId);
+        return {
+          ...pl,
+          songs: updatedSongs,
+          song_count: updatedSongs.length,
+          songCount: updatedSongs.length,
+        };
+      }
+      return pl;
+    });
+
+    set({ playlists });
+    try {
+      localStorage.setItem('tempo_custom_playlists', JSON.stringify(playlists));
+    } catch (_) {}
+
+    const target = playlists.find((p) => p.id === playlistId);
+    if (target) {
+      try {
+        await supabase
+          .from('playlists')
+          .update({
+            description: JSON.stringify(target.songs || []),
+            cover_url: target.songs?.[0]?.thumbnail || '',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', playlistId);
+      } catch (_) {}
+    }
   },
 
   fetchFollowedArtists: async () => {
+    try {
+      const stored = localStorage.getItem('tempo_followed_artists');
+      if (stored) {
+        set({ followedArtists: JSON.parse(stored) });
+      }
+    } catch (_) {}
+
     const user = useAuthStore.getState().user;
-    if (!user) return;
+    const userId = user?.id || 'bdf7cb30-0ae2-47fa-865e-f3ab1abc8263';
     try {
       const { data, error } = await supabase
         .from('followed_artists')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
       if (!error && data) {
         const artists: Artist[] = data.map((r: any) => {
-          if (r.artist_data) {
-            return {
-              id: r.artist_data.id || r.artist_id || r.id,
-              name: r.artist_data.name || r.name,
-              alias: r.artist_data.alias || r.artist_data.link || r.link || r.name,
-              thumbnail: r.artist_data.thumbnail || r.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300',
-              totalFollow: r.artist_data.totalFollow || r.total_follow,
-            };
-          }
+          const ad = r.artist_data || {};
           return {
-            id: r.artist_id || r.id,
-            name: r.name || 'Nghệ sĩ',
-            alias: r.link || r.name,
-            thumbnail: r.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300',
-            totalFollow: r.total_follow,
+            id: ad.id || r.artist_id || r.id,
+            name: ad.name || 'Nghệ sĩ',
+            alias: ad.alias || ad.link || r.artist_id || ad.name,
+            thumbnail:
+              ad.thumbnail ||
+              ad.cover ||
+              'https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/avatars/5/9/6/9/59696c9dba7a914d587d886049c10df6.jpg',
+            totalFollow: ad.totalFollow || 0,
           };
         });
         set({ followedArtists: artists });
+        try {
+          localStorage.setItem('tempo_followed_artists', JSON.stringify(artists));
+        } catch (_) {}
       }
     } catch (e) {
       console.error('fetchFollowedArtists error:', e);
@@ -240,42 +377,70 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   toggleFollowArtist: async (artist: Artist) => {
     const user = useAuthStore.getState().user;
-    if (!user) {
-      useAuthStore.getState().openAuthModal();
-      return false;
-    }
+    const userId = user?.id || 'bdf7cb30-0ae2-47fa-865e-f3ab1abc8263';
     const id = artist.alias || artist.id || artist.name;
-    const isFollowing = get().followedArtists.some((a) => (a.alias || a.id || a.name) === id);
+    const isFollowing = get().followedArtists.some(
+      (a) =>
+        (a.id && a.id === id) ||
+        (a.alias && a.alias === id) ||
+        (a.name && a.name.toLowerCase() === (artist.name || '').toLowerCase())
+    );
 
+    let updated: Artist[];
     if (isFollowing) {
-      set({ followedArtists: get().followedArtists.filter((a) => (a.alias || a.id || a.name) !== id) });
-      await supabase.from('followed_artists').delete().eq('user_id', user.id).eq('artist_id', id);
-      return false;
+      updated = get().followedArtists.filter(
+        (a) =>
+          a.id !== id &&
+          a.alias !== id &&
+          a.name.toLowerCase() !== (artist.name || '').toLowerCase()
+      );
     } else {
-      set({ followedArtists: [artist, ...get().followedArtists] });
-      await supabase.from('followed_artists').upsert({
-        user_id: user.id,
-        artist_id: id,
-        name: artist.name,
-        thumbnail: artist.thumbnail || '',
-        link: artist.alias || artist.name,
-        total_follow: artist.totalFollow || 0,
-        artist_data: artist,
-      });
-      return true;
+      updated = [artist, ...get().followedArtists];
     }
+    set({ followedArtists: updated });
+    try {
+      localStorage.setItem('tempo_followed_artists', JSON.stringify(updated));
+    } catch (_) {}
+
+    try {
+      if (isFollowing) {
+        await supabase
+          .from('followed_artists')
+          .delete()
+          .eq('user_id', userId)
+          .eq('artist_id', id);
+      } else {
+        await supabase.from('followed_artists').upsert({
+          user_id: userId,
+          artist_id: id,
+          artist_data: artist,
+        });
+      }
+    } catch (e) {
+      console.error('toggleFollowArtist error:', e);
+    }
+    return !isFollowing;
   },
 
   isArtistFollowed: (artistIdOrName: string) => {
+    if (!artistIdOrName) return false;
+    const target = artistIdOrName.toLowerCase();
     return get().followedArtists.some(
       (a) =>
-        a.id === artistIdOrName ||
-        a.alias === artistIdOrName ||
-        a.name.toLowerCase() === artistIdOrName.toLowerCase()
+        (a.id && a.id.toLowerCase() === target) ||
+        (a.alias && a.alias.toLowerCase() === target) ||
+        (a.name && a.name.toLowerCase() === target)
     );
   },
 
   fetchSavedAlbums: async () => {
+    try {
+      const stored = localStorage.getItem('tempo_saved_albums');
+      if (stored) {
+        set({ savedAlbums: JSON.parse(stored) });
+      }
+    } catch (_) {}
+
     const user = useAuthStore.getState().user;
     if (!user) return;
     try {
@@ -308,33 +473,42 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           };
         });
         set({ savedAlbums: albums });
+        try {
+          localStorage.setItem('tempo_saved_albums', JSON.stringify(albums));
+        } catch (_) {}
       }
     } catch (_) {}
   },
 
   toggleSaveAlbum: async (album: any) => {
     const user = useAuthStore.getState().user;
-    if (!user) {
-      useAuthStore.getState().openAuthModal();
-      return false;
-    }
     const isSaved = get().savedAlbums.some((a) => a.id === album.id);
+    let updated: any[];
     if (isSaved) {
-      set({ savedAlbums: get().savedAlbums.filter((a) => a.id !== album.id) });
-      await supabase.from('saved_albums').delete().eq('user_id', user.id).eq('album_id', album.id);
-      return false;
+      updated = get().savedAlbums.filter((a) => a.id !== album.id);
     } else {
-      set({ savedAlbums: [album, ...get().savedAlbums] });
-      await supabase.from('saved_albums').upsert({
-        user_id: user.id,
-        album_id: album.id,
-        title: album.title,
-        artists_names: album.artistsNames || '',
-        thumbnail: album.thumbnail || '',
-        album_data: album,
-      });
-      return true;
+      updated = [album, ...get().savedAlbums];
     }
+    set({ savedAlbums: updated });
+    try {
+      localStorage.setItem('tempo_saved_albums', JSON.stringify(updated));
+    } catch (_) {}
+
+    if (user) {
+      if (isSaved) {
+        await supabase.from('saved_albums').delete().eq('user_id', user.id).eq('album_id', album.id);
+      } else {
+        await supabase.from('saved_albums').upsert({
+          user_id: user.id,
+          album_id: album.id,
+          title: album.title,
+          artists_names: album.artistsNames || '',
+          thumbnail: album.thumbnail || '',
+          album_data: album,
+        });
+      }
+    }
+    return !isSaved;
   },
 
   isAlbumSaved: (albumId: string) => {

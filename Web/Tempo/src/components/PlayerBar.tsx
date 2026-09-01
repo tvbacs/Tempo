@@ -6,6 +6,7 @@ import {
   SkipForward,
   Shuffle,
   Repeat,
+  Repeat1,
   Volume2,
   VolumeX,
   Mic2,
@@ -29,6 +30,7 @@ export const PlayerBar: React.FC = () => {
     volume,
     isShuffle,
     isRepeat,
+    repeatMode,
     isLyricsOpen,
     togglePlayPause,
     playNext,
@@ -82,7 +84,8 @@ export const PlayerBar: React.FC = () => {
   };
 
   return (
-    <footer className="h-20 bg-[#000000] border-none flex items-center justify-between px-4 select-none z-50 flex-shrink-0 relative">
+    <div className="flex flex-col flex-shrink-0 z-50 select-none">
+      <footer className="h-20 bg-[#000000] border-none flex items-center justify-between px-4 select-none z-50 flex-shrink-0 relative">
       {/* 1. Left Track Info (56x56 Cover + Title + Artist + Green Checkmark) */}
       <div className="flex items-center gap-3.5 w-72 min-w-0">
         <img
@@ -105,29 +108,32 @@ export const PlayerBar: React.FC = () => {
         {currentSong && (
           <button
             onClick={() => toggleLike(currentSong)}
-            title={liked ? 'Đã lưu vào Bài hát đã thích' : 'Lưu vào Bài hát đã thích'}
+            title={liked ? 'Bỏ lưu khỏi Bài hát đã thích' : 'Lưu vào Bài hát đã thích'}
             className="p-1.5 transition-transform hover:scale-110 border-none bg-transparent cursor-pointer flex-shrink-0"
           >
-            {liked ? (
-              <CheckCircle2 className="w-5 h-5 text-[#1ed760] fill-[#1ed760]" />
-            ) : (
-              <Heart className="w-5 h-5 text-[#b3b3b3] hover:text-white" />
-            )}
+            <Heart
+              className={`w-5 h-5 transition-colors ${
+                liked ? 'fill-[#FC475C] text-[#FC475C]' : 'text-[#b3b3b3] hover:text-white'
+              }`}
+            />
           </button>
         )}
       </div>
 
-      {/* 2. Center Controls & Scrub Bar (Spotify White Play Button Style) */}
+      {/* 2. Center Controls & Scrub Bar */}
       <div className="flex-1 max-w-2xl flex flex-col items-center gap-1.5 px-4">
         <div className="flex items-center gap-4">
           <button
             onClick={toggleShuffle}
-            title={isShuffle ? 'Tắt trộn bài' : 'Bật trộn bài'}
-            className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer ${
+            title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
+            className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer relative group ${
               isShuffle ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'
             }`}
           >
             <Shuffle className="w-4 h-4" />
+            {isShuffle && (
+              <span className="w-1 h-1 bg-[#1ed760] rounded-full absolute bottom-0 left-1/2 -translate-x-1/2" />
+            )}
           </button>
 
           <button
@@ -158,33 +164,49 @@ export const PlayerBar: React.FC = () => {
             <SkipForward className="w-5 h-5 fill-current" />
           </button>
 
-          <button
-            onClick={toggleRepeat}
-            title={isRepeat ? 'Tắt lặp lại' : 'Bật lặp lại'}
-            className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer ${
-              isRepeat ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'
-            }`}
-          >
-            <Repeat className="w-4 h-4" />
-          </button>
+          {repeatMode === 'one' ? (
+            <button
+              onClick={toggleRepeat}
+              title="Lặp lại: 1 bài (Bấm để tắt)"
+              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-[#1ed760] relative group"
+            >
+              <Repeat1 className="w-4 h-4 text-[#1ed760]" />
+              <span className="w-1 h-1 bg-[#1ed760] rounded-full absolute bottom-0 left-1/2 -translate-x-1/2" />
+            </button>
+          ) : repeatMode === 'all' ? (
+            <button
+              onClick={toggleRepeat}
+              title="Lặp lại: Toàn bộ danh sách (Bấm để lặp 1 bài)"
+              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-[#1ed760] relative group"
+            >
+              <Repeat className="w-4 h-4 text-[#1ed760]" />
+              <span className="w-1 h-1 bg-[#1ed760] rounded-full absolute bottom-0 left-1/2 -translate-x-1/2" />
+            </button>
+          ) : (
+            <button
+              onClick={toggleRepeat}
+              title="Bật lặp lại toàn bộ"
+              className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
+            >
+              <Repeat className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Seek Bar with Timestamps */}
         <div className="w-full flex items-center gap-2">
-          <span className="text-[11px] font-normal text-[#a7a7a7] w-8 text-right">
+          <span className="text-[11px] font-normal text-[#a7a7a7] w-8 text-right tabular-nums">
             {formatTime(positionSec)}
           </span>
           <div
             onClick={handleSeekClick}
             onMouseEnter={() => setIsHoveringProgress(true)}
             onMouseLeave={() => setIsHoveringProgress(false)}
-            className="flex-1 h-1 bg-[#4d4d4d] rounded-full relative cursor-pointer group py-1"
+            className="flex-1 h-3 flex items-center relative cursor-pointer group"
           >
-            <div className="h-1 bg-[#4d4d4d] rounded-full relative">
+            <div className="w-full h-1 group-hover:h-1.5 bg-[#4d4d4d] rounded-full relative transition-all">
               <div
-                className={`h-full rounded-full transition-colors ${
-                  isHoveringProgress ? 'bg-[#1ed760]' : 'bg-white'
-                }`}
+                className="h-full rounded-full bg-white transition-all"
                 style={{ width: `${progressPct}%` }}
               />
               <div
@@ -195,7 +217,7 @@ export const PlayerBar: React.FC = () => {
               />
             </div>
           </div>
-          <span className="text-[11px] font-normal text-[#a7a7a7] w-8">
+          <span className="text-[11px] font-normal text-[#a7a7a7] w-8 tabular-nums">
             {formatTime(durationSec)}
           </span>
         </div>
@@ -208,7 +230,7 @@ export const PlayerBar: React.FC = () => {
           <button
             onClick={requestTransferPlayback}
             title="Đang phát trên điện thoại - Bấm để chuyển về PC"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1ed760] text-black text-xs font-bold border-none cursor-pointer hover:scale-105 transition-transform"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-black text-xs font-bold border-none cursor-pointer hover:scale-105 transition-transform shadow"
           >
             <Smartphone className="w-3.5 h-3.5" />
             <span>PC</span>
@@ -225,19 +247,12 @@ export const PlayerBar: React.FC = () => {
 
         <button
           onClick={toggleLyrics}
-          title="Lời bài hát"
-          className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer ${
-            isLyricsOpen ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'
+          title={isLyricsOpen ? 'Đóng lời bài hát' : 'Xem lời bài hát'}
+          className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer rounded-full hover:bg-[#242424] ${
+            isLyricsOpen ? 'text-white font-bold bg-[#242424]' : 'text-[#b3b3b3] hover:text-white'
           }`}
         >
           <Mic2 className="w-4 h-4" />
-        </button>
-
-        <button
-          title="Hàng đợi"
-          className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
-        >
-          <ListMusic className="w-4 h-4" />
         </button>
 
         {/* Volume Slider */}
@@ -254,9 +269,7 @@ export const PlayerBar: React.FC = () => {
           </button>
           <div className="w-24 h-1 bg-[#4d4d4d] rounded-full relative cursor-pointer">
             <div
-              className={`h-full rounded-full transition-colors ${
-                isHoveringVolume ? 'bg-[#1ed760]' : 'bg-white'
-              }`}
+              className="h-full rounded-full bg-white transition-colors"
               style={{ width: `${volumePct}%` }}
             />
             <input
@@ -286,5 +299,29 @@ export const PlayerBar: React.FC = () => {
         </button>
       </div>
     </footer>
-  );
+
+    {/* Thanh trạng thái thiết bị đang nghe (Tempo Connect Bar) */}
+    <div className="h-6 bg-[#181818] hover:bg-[#202020] text-white text-[11px] font-medium flex items-center justify-between px-6 transition-colors border-t border-white/5">
+      <div className="flex items-center gap-2 text-white/90">
+        {isRemoteActive ? (
+          <Smartphone className="w-3.5 h-3.5 text-white" />
+        ) : (
+          <Laptop className="w-3.5 h-3.5 text-white" />
+        )}
+        <span>
+          {isRemoteActive
+            ? `Đang phát trên ${activeDeviceName || 'Điện thoại'}`
+            : 'Đang phát trên Máy tính (PC)'}
+        </span>
+      </div>
+
+      <button
+        onClick={isRemoteActive ? requestTransferPlayback : transferPlaybackToMobile}
+        className="text-[11px] font-bold text-white hover:underline cursor-pointer border-none bg-transparent p-0"
+      >
+        {isRemoteActive ? 'Chuyển phát về PC' : 'Chuyển phát sang Điện thoại'}
+      </button>
+    </div>
+  </div>
+);
 };

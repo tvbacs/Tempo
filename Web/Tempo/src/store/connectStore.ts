@@ -15,7 +15,7 @@ interface ConnectState {
 }
 
 const DEVICE_ID = 'web-player-pc';
-const DEVICE_NAME = 'Web Player (PC)';
+const DEVICE_NAME = 'Máy tính (PC)';
 let realtimeChannel: any = null;
 
 const isTargetedToThisDevice = (payload: any) => {
@@ -134,37 +134,55 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
       .on('broadcast', { event: 'playback_state' }, ({ payload }: { payload: any }) => {
         if (!payload) return;
 
-        // Nếu điện thoại đang phát
-        if (payload.activeDeviceId && payload.activeDeviceId !== DEVICE_ID) {
-          set({
-            activeDeviceId: payload.activeDeviceId,
-            activeDeviceName: payload.activeDeviceName || 'Điện thoại',
+        // Bỏ qua nếu là state của chính PC
+        if (!payload.activeDeviceId || payload.activeDeviceId === DEVICE_ID) return;
+
+        // Điện thoại đang phát → PC nhường ngay
+        const cleanDeviceName = (payload.activeDeviceName || 'Điện thoại').replace(/ này/g, '').trim();
+        set({
+          activeDeviceId: payload.activeDeviceId,
+          activeDeviceName: cleanDeviceName || 'Điện thoại',
+        });
+
+        const ps = usePlayerStore.getState();
+        // Dừng audio local nếu PC đang phát
+        if (ps.audioElement && !ps.audioElement.paused) {
+          ps.audioElement.pause();
+        }
+
+        // Cập nhật giao diện Web theo điện thoại (chỉ UI, không play audio)
+        if (payload.currentSong) {
+          usePlayerStore.setState({
+            currentSong: payload.currentSong,
+            isPlaying: payload.isPlaying,
+            positionSec: (payload.positionMs || 0) / 1000,
+            durationSec: (payload.durationMs || 0) / 1000,
           });
-
-          const ps = usePlayerStore.getState();
-          // Dừng audio local nếu điện thoại đang phát
-          if (ps.audioElement && !ps.audioElement.paused) {
-            ps.audioElement.pause();
-          }
-
-          // Cập nhật giao diện Web theo điện thoại
-          if (payload.currentSong) {
-            usePlayerStore.setState({
-              currentSong: payload.currentSong,
-              isPlaying: payload.isPlaying,
-              positionSec: (payload.positionMs || 0) / 1000,
-              durationSec: (payload.durationMs || 0) / 1000,
-            });
-          }
         }
       })
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
           set({ isOnline: true });
           get().broadcastPresence();
-          if (get().activeDeviceId === DEVICE_ID) {
-            get().broadcastState();
+
+          // Hỏi xem thiết bị nào đang phát — đợi 1.5s để nhận phản hồi
+          // Nếu không ai trả lời (mobile offline), PC mới broadcast state của mình
+          if (realtimeChannel && realtimeChannel.state === 'joined') {
+            try {
+              realtimeChannel.send({
+                type: 'broadcast',
+                event: 'playback_state_query',
+                payload: {},
+              });
+            } catch (_) {}
           }
+
+          setTimeout(() => {
+            // Chỉ broadcast nếu sau 1.5s vẫn là active device (mobile chưa trả lời)
+            if (get().activeDeviceId === DEVICE_ID) {
+              get().broadcastState();
+            }
+          }, 1500);
 
           // Gửi tín hiệu offline ngay khi người dùng đóng tab, reload hoặc tắt trình duyệt
           const notifyOffline = () => {

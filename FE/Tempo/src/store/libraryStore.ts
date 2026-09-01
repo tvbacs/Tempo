@@ -298,12 +298,33 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           .filter((r: any) => r.name && !r.name.includes('TEMPO_ACTIVE') && !r.name.includes('active-server') && !r.name.startsWith('__'))
           .map((r: any) => {
             const matchedLocal = localList.find((p) => p.id === r.id);
-            const validSongs = (matchedLocal?.songs || []).filter((s) => !isGhostOfflineSong(s));
+            let parsedSongs: UnifiedSong[] = [];
+            if (r.description) {
+              try {
+                if (r.description.startsWith('[') || r.description.startsWith('{')) {
+                  const p = JSON.parse(r.description);
+                  if (Array.isArray(p)) parsedSongs = p;
+                  else if (p && Array.isArray(p.songs)) parsedSongs = p.songs;
+                }
+              } catch (_) {}
+            }
+            const localSongs = (matchedLocal?.songs || []).filter((s) => !isGhostOfflineSong(s));
+            const validSongs = parsedSongs.length > 0 ? parsedSongs : localSongs;
+
+            // Nếu local có bài mà cloud chưa có trong description, sync lên cloud
+            if (localSongs.length > 0 && parsedSongs.length === 0 && userId) {
+              supabase.from('playlists').update({
+                description: JSON.stringify(localSongs),
+                cover_url: localSongs[0]?.thumbnail || r.cover_url || '',
+                updated_at: new Date().toISOString(),
+              }).eq('id', r.id).then(() => {}).catch(() => {});
+            }
+
             return {
               id: r.id,
               name: r.name,
-              description: r.description,
-              coverUrl: r.cover_url,
+              description: r.description?.startsWith('[') ? '' : r.description,
+              coverUrl: r.cover_url || validSongs[0]?.thumbnail,
               songs: validSongs,
               songCount: validSongs.length,
             };
@@ -419,6 +440,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         await supabase
           .from('playlists')
           .update({
+            description: JSON.stringify(updatedSongs),
             cover_url: updatedSongs[0]?.thumbnail || '',
             updated_at: new Date().toISOString(),
           })
@@ -431,6 +453,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   removeSongFromPlaylist: async (playlistId, songId) => {
+    const userId = uid();
     const pl = get().playlists.find((p) => p.id === playlistId);
     if (!pl) return;
 
@@ -447,6 +470,20 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
     set({ playlists: updated });
     await AsyncStorage.setItem(userKey(STORAGE_KEYS.PLAYLISTS), JSON.stringify(updated));
+
+    if (userId) {
+      try {
+        await supabase
+          .from('playlists')
+          .update({
+            description: JSON.stringify(updatedSongs),
+            cover_url: updatedSongs[0]?.thumbnail || '',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', playlistId);
+      } catch (e) {}
+    }
+
     useToastStore.getState().showToast('Đã xóa bài hát khỏi danh sách phát', 'info');
   },
 

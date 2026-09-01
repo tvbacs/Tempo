@@ -16,7 +16,8 @@ import { SearchView } from './screens/SearchView';
 import { LyricsView } from './screens/LyricsView';
 import { ChartScreen } from './screens/ChartScreen';
 import { UpgradeView } from './screens/UpgradeView';
-import { AuthScreen } from './screens/AuthScreen';
+import { PlaylistView } from './screens/PlaylistView';
+import { ArtistView } from './screens/ArtistView';
 
 import { usePlayerStore } from './store/playerStore';
 import { useAuthStore } from './store/authStore';
@@ -26,6 +27,8 @@ import { useConnectStore } from './store/connectStore';
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedPlaylist, setSelectedPlaylist] = useState<any | null>(null);
+  const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
 
   const { initAudio, isLyricsOpen, isAutoplayBlocked } = usePlayerStore();
   const { user, isLoading: isAuthLoading, initSession } = useAuthStore();
@@ -92,6 +95,16 @@ export const App: React.FC = () => {
     );
   }
 
+  const handleSelectPlaylist = (playlist: any) => {
+    setSelectedPlaylist(playlist);
+    setCurrentTab('playlist');
+  };
+
+  const handleSelectArtist = (artist: any) => {
+    setSelectedArtist(artist);
+    setCurrentTab('artist');
+  };
+
   const renderMainContent = () => {
     if (isLyricsOpen || currentTab === 'lyrics') {
       return <LyricsView />;
@@ -103,13 +116,47 @@ export const App: React.FC = () => {
 
     switch (currentTab) {
       case 'home':
-        return <HomeDiscoverView onSeeAllChart={() => setCurrentTab('chart')} />;
+        return (
+          <HomeDiscoverView
+            onSeeAllChart={() => setCurrentTab('chart')}
+            onSelectPlaylist={handleSelectPlaylist}
+            onSelectArtist={handleSelectArtist}
+          />
+        );
       case 'search':
         return <SearchView query={searchQuery} />;
       case 'library':
-        return <LibraryView />;
+        return (
+          <LibraryView
+            onSelectPlaylist={handleSelectPlaylist}
+            onSelectArtist={handleSelectArtist}
+          />
+        );
       case 'liked':
         return <LikedSongsView />;
+      case 'playlist':
+        return selectedPlaylist ? (
+          <PlaylistView
+            playlist={selectedPlaylist}
+            onBack={() => setCurrentTab('home')}
+          />
+        ) : (
+          <HomeDiscoverView
+            onSeeAllChart={() => setCurrentTab('chart')}
+            onSelectPlaylist={handleSelectPlaylist}
+            onSelectArtist={handleSelectArtist}
+          />
+        );
+      case 'artist':
+        return selectedArtist ? (
+          <ArtistView artist={selectedArtist} />
+        ) : (
+          <HomeDiscoverView
+            onSeeAllChart={() => setCurrentTab('chart')}
+            onSelectPlaylist={handleSelectPlaylist}
+            onSelectArtist={handleSelectArtist}
+          />
+        );
       case 'downloads':
         return <DownloaderHomeView onViewDownloads={() => setCurrentTab('library')} />;
       case 'upgrade':
@@ -119,7 +166,13 @@ export const App: React.FC = () => {
       case 'chart':
         return <ChartScreen />;
       default:
-        return <HomeDiscoverView onSeeAllChart={() => setCurrentTab('chart')} />;
+        return (
+          <HomeDiscoverView
+            onSeeAllChart={() => setCurrentTab('chart')}
+            onSelectPlaylist={handleSelectPlaylist}
+            onSelectArtist={handleSelectArtist}
+          />
+        );
     }
   };
 
@@ -140,7 +193,12 @@ export const App: React.FC = () => {
       {/* 2. 3-Column Layout Matching Spotify Reference */}
       <div className="flex-1 flex gap-2 px-2 pb-2 overflow-hidden">
         {/* Left Column: Navigation & Playlists */}
-        <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+        <Sidebar
+          currentTab={currentTab}
+          setCurrentTab={setCurrentTab}
+          onSelectPlaylist={handleSelectPlaylist}
+          onSelectArtist={handleSelectArtist}
+        />
 
         {/* Center Column: Main Interactive Screen */}
         <main className="flex-1 bg-[#121212] rounded-lg overflow-hidden flex flex-col relative border-none">
@@ -170,9 +228,9 @@ export const App: React.FC = () => {
               }).catch(() => {});
             }
           }}
-          className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] bg-[#1ed760] text-black px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-3 cursor-pointer animate-pulse hover:opacity-95 transition-all"
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] bg-[#FC475C] text-white px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-3 cursor-pointer animate-pulse hover:opacity-95 transition-all shadow-[#FC475C]/20"
         >
-          <Play className="w-5 h-5 fill-black text-black" />
+          <Play className="w-5 h-5 fill-white text-white" />
           <span className="text-sm font-bold">Trình duyệt đã tạm dừng · Nhấn vào đây để bật âm thanh</span>
         </div>
       )}

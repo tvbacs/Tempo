@@ -134,17 +134,12 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
   const displayList = recommendations.length > 0 ? recommendations : curatedSuggestions;
 
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-6 select-none pb-28">
+    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-6 select-none pb-28 bg-[#121212]">
       {/* 1. Top Hero Banner Card (Nhạc ngoại tuyến trên PC) */}
-      <div className="bg-[#181820] hover:bg-[#1B1B24] transition-colors rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-none shadow-md">
+      <div className="bg-[#181818] hover:bg-[#202020] transition-colors rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-none shadow-md">
         <div className="flex flex-col">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[10px] font-black text-[#10B981] uppercase tracking-wider">
-              NHẠC NGOẠI TUYẾN
-            </span>
-          </div>
-          <h2 className="text-base font-black text-white">Bài hát đã tải xuống</h2>
-          <p className="text-xs text-text-secondary">
+          <h2 className="text-base font-bold text-white">Bài hát đã tải xuống</h2>
+          <p className="text-xs text-[#b3b3b3] mt-1">
             {downloadedSongs.length > 0
               ? `${downloadedSongs.length} bài hát sẵn sàng nghe ngoại tuyến trên máy tính`
               : 'Chưa có bài hát nào được tải trên máy tính này'}
@@ -153,48 +148,42 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
 
         <button
           onClick={onViewDownloads}
-          className="self-start sm:self-center flex items-center gap-1.5 px-4 py-2 bg-white/10 hover:bg-white/15 active:scale-98 text-white rounded-md text-xs font-bold transition-all border-none cursor-pointer"
+          className="self-start sm:self-center flex items-center gap-1.5 px-4 py-2 bg-white/10 hover:bg-white/20 active:scale-98 text-white rounded-full text-xs font-bold transition-all border-none cursor-pointer"
         >
           <span>Xem danh sách</span>
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* 2. Universal Audio Converter & Link Extractor Card (Hỗ trợ YouTube, SoundCloud & TikTok) */}
-      <div className="bg-[#181820] rounded-lg p-5 flex flex-col border-none shadow-lg">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-[10px] font-extrabold text-[#FC475C] uppercase tracking-wider">
-            UNIVERSAL AUDIO CONVERTER
-          </span>
-        </div>
-
-        <h3 className="text-base font-extrabold text-white mb-1">
+      {/* 2. Link Extractor Card */}
+      <div className="bg-[#181818] rounded-lg p-5 flex flex-col border-none shadow-lg">
+        <h3 className="text-base font-bold text-white mb-1">
           Dán link để trích xuất nhạc
         </h3>
-        <p className="text-xs text-text-muted mb-4">
+        <p className="text-xs text-[#b3b3b3] mb-4">
           Hỗ trợ trích xuất chất lượng cao từ YouTube, SoundCloud & TikTok (MP3 đến 320kbps)
         </p>
 
         {/* Input & Extract Button Row */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 flex items-center bg-[#111117] rounded-md px-4 h-11 gap-3 border-none focus-within:ring-2 focus-within:ring-[#FC475C]/40">
-            <LinkIcon className="w-4 h-4 text-text-muted flex-shrink-0" />
+          <div className="flex-1 flex items-center bg-[#121212] rounded-md px-4 h-11 gap-3 border-none focus-within:ring-1 focus-within:ring-white/30">
+            <LinkIcon className="w-4 h-4 text-[#b3b3b3] flex-shrink-0" />
             <input
               type="text"
               value={inputUrl}
               onChange={(e) => setInputUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleExtract()}
               placeholder="Dán link YouTube, SoundCloud hoặc TikTok tại đây..."
-              className="w-full bg-transparent border-none outline-none text-xs text-white placeholder:text-text-muted"
+              className="w-full bg-transparent border-none outline-none text-xs text-white placeholder:text-[#b3b3b3]"
             />
           </div>
 
           <button
             onClick={() => handleExtract()}
             disabled={isExtracting || !inputUrl.trim()}
-            className="h-11 px-6 bg-gradient-to-r from-[#FC475C] to-[#FC655A] hover:opacity-90 active:scale-98 text-white rounded-md text-xs font-extrabold flex items-center gap-2 transition-all disabled:opacity-40 border-none flex-shrink-0 shadow-md shadow-primary/20 cursor-pointer"
+            className="h-11 px-6 bg-white hover:bg-white/90 active:scale-98 text-black rounded-md text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-40 border-none flex-shrink-0 shadow-md cursor-pointer"
           >
-            <Zap className="w-4 h-4 fill-white" />
+            <Zap className="w-4 h-4 fill-black text-black" />
             <span>{isExtracting ? 'Đang trích xuất...' : 'Trích xuất'}</span>
           </button>
         </div>
@@ -202,21 +191,21 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
 
       {/* 3. CARD TRÍCH XUẤT THÀNH CÔNG (Hiển thị bài vừa trích xuất) */}
       {extractedSong && (
-        <div className="bg-gradient-to-br from-[#1C1A29] via-[#181824] to-[#12121A] rounded-xl p-5 border border-[#FC475C]/30 shadow-xl flex flex-col gap-4 animate-in fade-in slide-in-from-top duration-300">
+        <div className="bg-[#181818] rounded-xl p-5 border border-white/10 shadow-xl flex flex-col gap-4 animate-in fade-in slide-in-from-top duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded bg-[#10B981]/20 text-[#10B981] text-[10px] font-black uppercase tracking-wider">
+              <span className="px-2 py-0.5 rounded bg-white/10 text-white text-[10px] font-bold uppercase tracking-wider">
                 TRÍCH XUẤT THÀNH CÔNG
               </span>
               {extractedSong.source && (
-                <span className="px-2 py-0.5 rounded bg-white/10 text-text-secondary text-[10px] font-bold uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded bg-white/5 text-[#b3b3b3] text-[10px] font-semibold uppercase tracking-wider">
                   {extractedSong.source}
                 </span>
               )}
             </div>
             <button
               onClick={() => setExtractedSong(null)}
-              className="text-text-muted hover:text-white text-xs border-none bg-transparent cursor-pointer"
+              className="text-[#b3b3b3] hover:text-white text-xs border-none bg-transparent cursor-pointer"
             >
               Đóng
             </button>
@@ -225,7 +214,7 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Left Track Info */}
             <div className="flex items-center gap-4 min-w-0 flex-1">
-              <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-[#111117] flex-shrink-0 shadow-md">
+              <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-[#242424] flex-shrink-0 shadow-md">
                 <img
                   src={
                     extractedSong.thumbnail ||
@@ -243,17 +232,17 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
               </div>
 
               <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-black text-white truncate mb-0.5">
+                <h4 className="text-sm font-bold text-white truncate mb-0.5">
                   {extractedSong.title}
                 </h4>
-                <p className="text-xs text-text-secondary truncate mb-2">
+                <p className="text-xs text-[#b3b3b3] truncate mb-2">
                   {extractedSong.artistsNames || 'Nghệ sĩ'}
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 rounded bg-[#FC475C]/15 text-[#FC475C] text-[10px] font-extrabold">
+                  <span className="px-1.5 py-0.5 rounded bg-white/10 text-white text-[10px] font-bold">
                     MP3 HQ
                   </span>
-                  <span className="text-[11px] text-text-muted font-medium">
+                  <span className="text-[11px] text-[#b3b3b3] font-medium">
                     {formatDuration(extractedSong.duration)}
                   </span>
                 </div>
@@ -271,16 +260,16 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
                     playSong(extractedSong, [extractedSong, ...recentExtracts]);
                   }
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FC475C] to-[#FC655A] hover:opacity-90 active:scale-95 text-white rounded-md text-xs font-extrabold transition-all border-none shadow-md shadow-primary/20 cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-white/90 active:scale-95 text-black rounded-md text-xs font-bold transition-all border-none shadow-md cursor-pointer"
               >
                 {isExtractedPlaying ? (
                   <>
-                    <Pause className="w-3.5 h-3.5 fill-white" />
+                    <Pause className="w-3.5 h-3.5 fill-black text-black" />
                     <span>Tạm dừng</span>
                   </>
                 ) : (
                   <>
-                    <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                    <Play className="w-3.5 h-3.5 fill-black text-black ml-0.5" />
                     <span>Nghe thử</span>
                   </>
                 )}
@@ -292,8 +281,8 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
                 disabled={downloadSuccess}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-bold transition-all border-none cursor-pointer ${
                   downloadSuccess
-                    ? 'bg-[#10B981] text-white'
-                    : 'bg-white/10 hover:bg-white/15 active:scale-95 text-white'
+                    ? 'bg-white text-black'
+                    : 'bg-white/10 hover:bg-white/20 active:scale-95 text-white'
                 }`}
               >
                 {downloadSuccess ? (
@@ -312,12 +301,12 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
               {/* Like */}
               <button
                 onClick={() => toggleLike(extractedSong)}
-                className={`p-2 rounded-md bg-white/10 hover:bg-white/15 transition-colors border-none cursor-pointer ${
-                  isLiked(extractedSong.id) ? 'text-[#FC475C]' : 'text-text-muted hover:text-white'
+                className={`p-2 rounded-md bg-white/10 hover:bg-white/20 transition-colors border-none cursor-pointer ${
+                  isLiked(extractedSong.id) ? 'text-white' : 'text-[#b3b3b3] hover:text-white'
                 }`}
               >
                 <Heart
-                  className={`w-4 h-4 ${isLiked(extractedSong.id) ? 'fill-[#FC475C]' : ''}`}
+                  className={`w-4 h-4 ${isLiked(extractedSong.id) ? 'fill-white' : ''}`}
                 />
               </button>
             </div>
@@ -340,10 +329,10 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
               <div
                 key={song.id}
                 onClick={() => playSong(song, displayList)}
-                className="bg-[#181820] hover:bg-[#22222D] p-3 rounded-lg cursor-pointer transition-all flex flex-col border-none group"
+                className="bg-[#181818] hover:bg-[#242424] p-3 rounded-lg cursor-pointer transition-all flex flex-col border-none group"
               >
                 {/* Artwork with duration badge */}
-                <div className="relative aspect-[4/3] w-full rounded-md overflow-hidden mb-3 bg-[#111117] shadow-sm">
+                <div className="relative aspect-[4/3] w-full rounded-md overflow-hidden mb-3 bg-[#242424] shadow-sm">
                   <img
                     src={thumbUrl}
                     alt={song.title}
@@ -366,10 +355,10 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
 
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1 pr-2">
-                    <h4 className="text-xs font-bold text-white truncate group-hover:text-[#FC475C] transition-colors">
+                    <h4 className="text-xs font-bold text-white truncate group-hover:underline transition-colors">
                       {song.title}
                     </h4>
-                    <p className="text-[11px] text-text-muted truncate mt-0.5">
+                    <p className="text-[11px] text-[#b3b3b3] truncate mt-0.5">
                       {song.artistsNames}
                     </p>
                   </div>
@@ -379,13 +368,13 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
                         e.stopPropagation();
                         toggleLike(song);
                       }}
-                      className={`p-1 border-none bg-transparent cursor-pointer ${liked ? 'text-[#FC475C]' : 'text-text-muted hover:text-white'}`}
+                      className={`p-1 border-none bg-transparent cursor-pointer ${liked ? 'text-white' : 'text-[#b3b3b3] hover:text-white'}`}
                     >
-                      <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-[#FC475C]' : ''}`} />
+                      <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-white' : ''}`} />
                     </button>
                     <button
                       onClick={(e) => e.stopPropagation()}
-                      className="p-1 text-text-muted hover:text-white border-none bg-transparent cursor-pointer"
+                      className="p-1 text-[#b3b3b3] hover:text-white border-none bg-transparent cursor-pointer"
                     >
                       <MoreVertical className="w-3.5 h-3.5" />
                     </button>

@@ -7,14 +7,18 @@ import { useLibraryStore } from '../store/libraryStore';
 
 interface HomeDiscoverViewProps {
   onSelectPlaylist?: (playlist: any) => void;
+  onSelectArtist?: (artist: any) => void;
   onSeeAllChart?: () => void;
 }
 
-export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({ onSelectPlaylist, onSeeAllChart }) => {
+export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
+  onSelectPlaylist,
+  onSelectArtist,
+  onSeeAllChart,
+}) => {
   const [chartSongs, setChartSongs] = useState<UnifiedSong[]>([]);
   const [newReleases, setNewReleases] = useState<UnifiedSong[]>([]);
   const [playlists, setPlaylists] = useState<any[]>([]);
-  const [filterTab, setFilterTab] = useState<'all' | 'music' | 'podcasts'>('all');
   const [isLoading, setIsLoading] = useState(true);
 
   const { playSong } = usePlayerStore();
@@ -42,44 +46,48 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({ onSelectPlay
     };
   }, []);
 
-  // Radio cards list matching user's Spotify screenshot
-  const radioCards = [
+  const verifiedVietnameseArtists = [
     {
-      id: 'r1',
-      name: 'Dangrangto',
-      tag: 'RADIO',
-      bgColor: '#8490a7',
-      artistImg: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
+      id: 'a1',
+      name: 'Sơn Tùng M-TP',
+      artistImg: 'https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/avatars/5/9/6/9/59696c9dba7a914d587d886049c10df6.jpg',
+      alias: 'son-tung-m-tp',
     },
     {
-      id: 'r2',
-      name: 'buitruonglinh',
-      tag: 'RADIO',
-      bgColor: '#6ec6b4',
-      artistImg: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
-    },
-    {
-      id: 'r3',
-      name: 'tlinh',
-      tag: 'RADIO',
-      bgColor: '#9d92b8',
-      artistImg: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300',
-    },
-    {
-      id: 'r4',
+      id: 'a2',
       name: 'Vũ.',
-      tag: 'RADIO',
-      bgColor: '#e39768',
-      artistImg: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300',
+      artistImg: 'https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/avatars/d/1/7/1/d17181fe947a2c205119a5a774863889.jpg',
+      alias: 'vu',
     },
     {
-      id: 'r5',
-      name: 'Obito',
-      tag: 'RADIO',
-      bgColor: '#9580a6',
-      artistImg: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300',
+      id: 'a3',
+      name: 'tlinh',
+      artistImg: 'https://photo-resize-zmp3.zmdcdn.me/w600_r1x1_jpeg/avatars/1/b/e/7/1be7b0f6f95b88917e86b98f156012b9.jpg',
+      alias: 'tlinh',
+    },
+    {
+      id: 'a4',
+      name: 'GREY D',
+      artistImg: 'https://photo-resize-zmp3.zmdcdn.me/w360_r1x1_jpeg/avatars/6/a/d/4/6ad41e27f0771a45bd43627f60221825.jpg',
+      alias: 'grey-d',
+    },
+    {
+      id: 'a5',
+      name: 'SOOBIN',
+      artistImg: 'https://photo-resize-zmp3.zmdcdn.me/w360_r1x1_jpeg/avatars/a/3/a/b/a3ab763366da3d3df96b55a20177285c.jpg',
+      alias: 'soobin',
+    },
+    {
+      id: 'a6',
+      name: 'HIEUTHUHAI',
+      artistImg: 'https://photo-resize-zmp3.zmdcdn.me/w360_r1x1_jpeg/avatars/c/0/7/4/c0742c35795d4d234bf86cc7258b5077.jpg',
+      alias: 'hieuthuhai',
     },
   ];
+
+  const popularArtists = React.useMemo(() => {
+    return verifiedVietnameseArtists;
+  }, []);
 
   if (isLoading) {
     return (
@@ -119,41 +127,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({ onSelectPlay
 
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 select-none space-y-7 bg-[#121212]">
-      {/* 1. Filter Chips: Tất cả, Âm nhạc, Podcasts */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setFilterTab('all')}
-          className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all border-none cursor-pointer ${
-            filterTab === 'all'
-              ? 'bg-white text-black font-bold'
-              : 'bg-[#242424] text-white hover:bg-[#2a2a2a]'
-          }`}
-        >
-          Tất cả
-        </button>
-        <button
-          onClick={() => setFilterTab('music')}
-          className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all border-none cursor-pointer ${
-            filterTab === 'music'
-              ? 'bg-white text-black font-bold'
-              : 'bg-[#242424] text-white hover:bg-[#2a2a2a]'
-          }`}
-        >
-          Âm nhạc
-        </button>
-        <button
-          onClick={() => setFilterTab('podcasts')}
-          className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all border-none cursor-pointer ${
-            filterTab === 'podcasts'
-              ? 'bg-white text-black font-bold'
-              : 'bg-[#242424] text-white hover:bg-[#2a2a2a]'
-          }`}
-        >
-          Podcasts
-        </button>
-      </div>
-
-      {/* 2. Top Quick-Access Grid (2 rows x 4 columns = 8 cards) */}
+      {/* 1. Top Quick-Access Grid (2 rows x 4 columns = 8 cards) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
         {quickItems.slice(0, 8).map((item) => (
           <div
@@ -175,7 +149,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({ onSelectPlay
             <span className="text-xs font-bold text-white truncate ml-3 flex-1">
               {item.title}
             </span>
-            <div className="w-8 h-8 rounded-full bg-[#1ed760] text-black shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-105 flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-white text-black shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-105 flex-shrink-0">
               <Play className="w-4 h-4 fill-black text-black ml-0.5" />
             </div>
           </div>
@@ -213,7 +187,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({ onSelectPlay
                     alt={song.title}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-[#1ed760] text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
+                  <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
                     <Play className="w-4 h-4 fill-black text-black ml-0.5" />
                   </div>
                 </div>
@@ -227,49 +201,52 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({ onSelectPlay
         </section>
       )}
 
-      {/* 4. Section: Radio Phổ Biến (Matching Screenshot 1 Pastel Cards) */}
+      {/* 4. Section: Nghệ sĩ phổ biến */}
       <section>
         <div className="flex items-center justify-between mb-3.5">
-          <h2 className="text-xl font-bold text-white">Radio phổ biến</h2>
+          <h2 className="text-xl font-bold text-white">Nghệ sĩ phổ biến</h2>
           <button className="text-xs font-bold text-[#b3b3b3] hover:text-white hover:underline border-none bg-transparent cursor-pointer">
             Hiện tất cả
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {radioCards.map((r, idx) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {popularArtists.map((artist, idx) => (
             <div
-              key={r.id}
+              key={artist.id || artist.name}
               onClick={() => {
-                if (chartSongs.length > idx) playSong(chartSongs[idx], chartSongs);
+                if (onSelectArtist) {
+                  onSelectArtist({ name: artist.name, thumbnail: artist.artistImg, alias: artist.alias || artist.name.toLowerCase() });
+                } else if (chartSongs.length > idx) {
+                  playSong(chartSongs[idx], chartSongs);
+                }
               }}
-              className="rounded-md p-3.5 cursor-pointer transition-transform hover:scale-[1.02] relative overflow-hidden flex flex-col justify-between aspect-square group shadow-lg"
-              style={{ backgroundColor: r.bgColor }}
+              className="bg-[#181818] hover:bg-[#242424] p-3.5 rounded-lg flex flex-col items-center text-center cursor-pointer transition-all group border-none relative"
             >
-              {/* Header Label: Logo + RADIO */}
-              <div className="flex items-center justify-between text-black/80">
-                <span className="text-[10px] font-black tracking-widest">{r.tag}</span>
-                <div className="w-2.5 h-2.5 rounded-full bg-black/40" />
-              </div>
-
-              {/* Artist Circular Thumbnail */}
-              <div className="self-center w-24 h-24 rounded-full overflow-hidden shadow-2xl bg-black/20 my-auto">
+              {/* Circular Avatar */}
+              <div className="relative w-full aspect-square rounded-full overflow-hidden mb-3 shadow-lg bg-[#282828]">
                 <img
-                  src={r.artistImg}
-                  alt={r.name}
-                  className="w-full h-full object-cover"
+                  src={artist.artistImg}
+                  alt={artist.name}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 />
-              </div>
-
-              {/* Artist Name at Bottom */}
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-black text-black truncate tracking-tight">
-                  {r.name}
-                </h3>
-                <div className="w-8 h-8 rounded-full bg-[#1ed760] text-black shadow-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-105">
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (chartSongs.length > idx) playSong(chartSongs[idx], chartSongs);
+                  }}
+                  className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-white text-black shadow-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-105"
+                >
                   <Play className="w-4 h-4 fill-black text-black ml-0.5" />
                 </div>
               </div>
+
+              {/* Artist Name & Tag */}
+              <h4 className="text-xs font-bold text-white truncate w-full group-hover:underline">
+                {artist.name}
+              </h4>
+              <span className="text-[11px] text-[#b3b3b3] mt-0.5">Nghệ sĩ</span>
             </div>
           ))}
         </div>
@@ -298,7 +275,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({ onSelectPlay
                     alt={song.title}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-[#1ed760] text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
+                  <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
                     <Play className="w-4 h-4 fill-black text-black ml-0.5" />
                   </div>
                 </div>
@@ -332,7 +309,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({ onSelectPlay
                     alt={p.title}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-[#1ed760] text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
+                  <div className="absolute right-2 bottom-2 w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-2xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105">
                     <Play className="w-4 h-4 fill-black text-black ml-0.5" />
                   </div>
                 </div>

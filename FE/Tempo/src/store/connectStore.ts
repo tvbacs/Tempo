@@ -53,7 +53,7 @@ interface ConnectState {
 
 export const THIS_DEVICE: ConnectedDevice = {
   deviceId: 'mobile-app',
-  deviceName: 'Điện thoại này',
+  deviceName: 'Điện thoại',
   type: 'mobile',
   isOnline: true,
 };

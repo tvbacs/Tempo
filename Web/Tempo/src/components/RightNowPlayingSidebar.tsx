@@ -3,10 +3,10 @@ import { CheckCircle2, Heart, MoreHorizontal, Download } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { apiClient } from '../api/client';
-import { Artist } from '../types/music';
+import { Artist, UnifiedSong } from '../types/music';
 
 export const RightNowPlayingSidebar: React.FC = () => {
-  const { currentSong, queue, currentIndex } = usePlayerStore();
+  const { currentSong, queue, currentIndex, repeatMode, isShuffle, playSong } = usePlayerStore();
   const { isLiked, toggleLike, isArtistFollowed, toggleFollowArtist } = useLibraryStore();
   const [artistDetail, setArtistDetail] = useState<Artist | null>(null);
 
@@ -25,7 +25,18 @@ export const RightNowPlayingSidebar: React.FC = () => {
     }
   }, [currentSong?.encodeId, currentSong?.id, currentSong?.artistsNames]);
 
-  const nextSong = currentIndex >= 0 && currentIndex + 1 < queue.length ? queue[currentIndex + 1] : null;
+  let nextSong: UnifiedSong | null = null;
+  let nextLabel = 'Tiếp theo trong danh sách';
+
+  if (repeatMode === 'one') {
+    nextSong = currentSong;
+    nextLabel = 'Tiếp theo (Lặp lại 1 bài)';
+  } else if (currentIndex >= 0 && currentIndex + 1 < queue.length) {
+    nextSong = queue[currentIndex + 1];
+  } else if (repeatMode === 'all' && queue.length > 0) {
+    nextSong = queue[0];
+    nextLabel = 'Tiếp theo (Lặp lại danh sách)';
+  }
 
   // If no song is playing, show the Spotify Windows App promo card matching Screenshot 1
   if (!currentSong) {
@@ -51,7 +62,7 @@ export const RightNowPlayingSidebar: React.FC = () => {
 
         <button
           onClick={() => {}}
-          className="w-full py-3 rounded-full bg-[#1ed760] hover:scale-105 active:scale-95 text-black font-bold text-sm transition-all border-none cursor-pointer flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-full bg-white hover:scale-105 active:scale-95 text-black font-bold text-sm transition-all border-none cursor-pointer flex items-center justify-center gap-2 shadow-lg"
         >
           <Download className="w-4 h-4 text-black" />
           <span>Tải ứng dụng miễn phí</span>
@@ -65,7 +76,7 @@ export const RightNowPlayingSidebar: React.FC = () => {
       {/* 1. Header: Context Title */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-bold text-white truncate max-w-[220px]">
-          {currentSong.album?.title || 'Bài hát đã thích'}
+          {currentSong.album?.title || 'Bài hát đang phát'}
         </h3>
         <button className="text-[#b3b3b3] hover:text-white p-1 border-none bg-transparent cursor-pointer">
           <MoreHorizontal className="w-4 h-4" />
@@ -85,7 +96,7 @@ export const RightNowPlayingSidebar: React.FC = () => {
         />
       </div>
 
-      {/* 3. Title & Artist with Green Checkmark */}
+      {/* 3. Title & Artist with Heart */}
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-bold text-white leading-tight truncate hover:underline cursor-pointer">
@@ -100,11 +111,11 @@ export const RightNowPlayingSidebar: React.FC = () => {
           onClick={() => toggleLike(currentSong)}
           className="p-1 border-none bg-transparent cursor-pointer flex-shrink-0 transition-transform hover:scale-110"
         >
-          {liked ? (
-            <CheckCircle2 className="w-5 h-5 text-[#1ed760] fill-[#1ed760]" />
-          ) : (
-            <Heart className="w-5 h-5 text-[#b3b3b3] hover:text-white" />
-          )}
+          <Heart
+            className={`w-5 h-5 transition-colors ${
+              liked ? 'fill-[#FC475C] text-[#FC475C]' : 'text-[#b3b3b3] hover:text-white'
+            }`}
+          />
         </button>
       </div>
 
@@ -158,20 +169,30 @@ export const RightNowPlayingSidebar: React.FC = () => {
 
       {/* 5. Next in Queue Card */}
       {nextSong && (
-        <div className="bg-[#242424] rounded-lg p-3">
+        <div
+          onClick={() => playSong(nextSong, queue)}
+          title={`Phát tiếp theo: ${nextSong.title}`}
+          className="bg-[#242424] hover:bg-[#2e2e2e] rounded-lg p-3 cursor-pointer transition-colors group"
+        >
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-bold text-white">Tiếp theo trong danh sách</h4>
+            <h4 className="text-xs font-bold text-white group-hover:text-[#1ed760] transition-colors">
+              {nextLabel}
+            </h4>
             <span className="text-[10px] font-bold text-[#b3b3b3]">Hàng đợi</span>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <img
-              src={nextSong.thumbnail}
-              alt={nextSong.title}
-              className="w-10 h-10 rounded-md object-cover flex-shrink-0"
-            />
+            <div className="relative w-10 h-10 rounded-md overflow-hidden bg-[#181818] flex-shrink-0">
+              <img
+                src={nextSong.thumbnail}
+                alt={nextSong.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
             <div className="min-w-0 flex-1">
-              <h5 className="text-xs font-bold text-white truncate">{nextSong.title}</h5>
+              <h5 className="text-xs font-bold text-white truncate group-hover:underline">
+                {nextSong.title}
+              </h5>
               <p className="text-[11px] text-[#b3b3b3] truncate">{nextSong.artistsNames}</p>
             </div>
           </div>

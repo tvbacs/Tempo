@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={onSearchFocus}
-            placeholder="Bạn muốn phát nội dung gì?"
+            placeholder="Tìm nhạc, ca sĩ"
             className="w-full bg-transparent border-none outline-none text-sm font-medium text-white placeholder:text-[#b3b3b3]"
           />
           {searchQuery ? (
@@ -97,22 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 3. Right Controls */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => setCurrentTab && setCurrentTab('upgrade')}
-          className="px-4 py-1.5 rounded-full bg-white hover:scale-105 active:scale-95 text-black text-xs font-bold transition-all border-none cursor-pointer"
-        >
-          Khám phá Premium
-        </button>
-
-        <button
-          onClick={() => setCurrentTab && setCurrentTab('downloads')}
-          className="flex items-center gap-1.5 text-xs font-bold text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
-        >
-          <Download className="w-4 h-4" />
-          <span>Cài đặt Ứng dụng</span>
-        </button>
-
+      <div className="flex items-center gap-3">
         <button
           title="Thông báo"
           className="w-9 h-9 rounded-full bg-[#1f1f1f] hover:scale-105 flex items-center justify-center text-[#b3b3b3] hover:text-white transition-all border-none cursor-pointer"

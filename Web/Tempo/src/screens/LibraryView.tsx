@@ -16,7 +16,12 @@ import { useLibraryStore } from '../store/libraryStore';
 import { usePlayerStore } from '../store/playerStore';
 import { UnifiedSong, Artist } from '../types/music';
 
-export const LibraryView: React.FC = () => {
+interface LibraryViewProps {
+  onSelectPlaylist?: (p: any) => void;
+  onSelectArtist?: (a: any) => void;
+}
+
+export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSelectArtist }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'liked' | 'downloaded' | 'artists' | 'albums' | 'playlists'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
@@ -28,6 +33,7 @@ export const LibraryView: React.FC = () => {
     downloadedSongs,
     fetchDownloadedSongs,
     removeDownloadedSong,
+    clearDownloadedSongs,
     followedArtists,
     fetchFollowedArtists,
     toggleFollowArtist,
@@ -341,7 +347,10 @@ export const LibraryView: React.FC = () => {
                 {followedArtists.slice(0, 6).map((artist) => (
                   <div
                     key={artist.id || artist.name}
-                    className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col items-center text-center transition-all group border-none"
+                    onClick={() => {
+                      if (onSelectArtist) onSelectArtist(artist);
+                    }}
+                    className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col items-center text-center transition-all group border-none cursor-pointer"
                   >
                     <img
                       src={artist.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200'}
@@ -378,6 +387,9 @@ export const LibraryView: React.FC = () => {
                 {savedAlbums.slice(0, 5).map((album) => (
                   <div
                     key={album.id}
+                    onClick={() => {
+                      if (onSelectPlaylist) onSelectPlaylist(album);
+                    }}
                     className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none cursor-pointer"
                   >
                     <div className="relative aspect-square rounded-md overflow-hidden mb-2.5 shadow-md bg-[#252530]">
@@ -431,7 +443,10 @@ export const LibraryView: React.FC = () => {
               {cleanPlaylists.slice(0, 4).map((pl) => (
                 <div
                   key={pl.id}
-                  className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none relative"
+                  onClick={() => {
+                    if (onSelectPlaylist) onSelectPlaylist(pl);
+                  }}
+                  className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none relative cursor-pointer"
                 >
                   <div className="w-full aspect-square rounded-md bg-[#252530] overflow-hidden mb-2.5 flex items-center justify-center shadow-md">
                     <img
@@ -524,13 +539,25 @@ export const LibraryView: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-extrabold text-white">Tất cả bài hát đã tải offline</h3>
             {downloadedSongs.length > 0 && (
-              <button
-                onClick={() => handlePlayAll(downloadedSongs)}
-                className="px-4 py-2 rounded-md bg-gradient-to-r from-[#10B981] to-[#059669] text-white text-xs font-bold flex items-center gap-1.5 border-none cursor-pointer shadow-md shadow-emerald-500/20"
-              >
-                <Play className="w-3.5 h-3.5 fill-white" />
-                <span>Phát toàn bộ</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (confirm('Bạn có chắc muốn xóa sạch toàn bộ danh sách bài hát đã tải ngoại tuyến?')) {
+                      clearDownloadedSongs();
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-md bg-[#242424] hover:bg-[#333333] text-[#b3b3b3] hover:text-white text-xs font-bold transition-colors border-none cursor-pointer"
+                >
+                  Xóa tất cả
+                </button>
+                <button
+                  onClick={() => handlePlayAll(downloadedSongs)}
+                  className="px-4 py-2 rounded-md bg-white hover:scale-105 active:scale-95 text-black text-xs font-bold flex items-center gap-1.5 border-none cursor-pointer shadow-md transition-transform"
+                >
+                  <Play className="w-3.5 h-3.5 fill-black text-black" />
+                  <span>Phát toàn bộ</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -585,7 +612,10 @@ export const LibraryView: React.FC = () => {
               {followedArtists.map((artist) => (
                 <div
                   key={artist.id || artist.name}
-                  className="bg-[#181820] hover:bg-[#20202B] p-4 rounded-lg flex flex-col items-center text-center transition-all group border-none"
+                  onClick={() => {
+                    if (onSelectArtist) onSelectArtist(artist);
+                  }}
+                  className="bg-[#181820] hover:bg-[#20202B] p-4 rounded-lg flex flex-col items-center text-center transition-all group border-none cursor-pointer"
                 >
                   <img
                     src={artist.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200'}
@@ -597,7 +627,10 @@ export const LibraryView: React.FC = () => {
                   </h4>
                   <span className="text-[10px] text-text-muted mb-3">Nghệ sĩ</span>
                   <button
-                    onClick={() => toggleFollowArtist(artist)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFollowArtist(artist);
+                    }}
                     className="px-3.5 py-1 rounded-full text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white border-none cursor-pointer transition-colors"
                   >
                     Đang theo dõi
@@ -622,6 +655,9 @@ export const LibraryView: React.FC = () => {
               {savedAlbums.map((album) => (
                 <div
                   key={album.id}
+                  onClick={() => {
+                    if (onSelectPlaylist) onSelectPlaylist(album);
+                  }}
                   className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none cursor-pointer"
                 >
                   <div className="relative aspect-square rounded-md overflow-hidden mb-2.5 shadow-md bg-[#252530]">
@@ -631,8 +667,8 @@ export const LibraryView: React.FC = () => {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <div className="w-10 h-10 rounded-full bg-[#FC475C] flex items-center justify-center text-white shadow-lg">
-                        <Play className="w-4 h-4 fill-white ml-0.5" />
+                      <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-lg">
+                        <Play className="w-4 h-4 fill-black text-black ml-0.5" />
                       </div>
                     </div>
                   </div>
@@ -675,7 +711,10 @@ export const LibraryView: React.FC = () => {
             {cleanPlaylists.map((pl) => (
               <div
                 key={pl.id}
-                className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none relative"
+                onClick={() => {
+                  if (onSelectPlaylist) onSelectPlaylist(pl);
+                }}
+                className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none relative cursor-pointer"
               >
                 <div className="w-full aspect-square rounded-md bg-[#252530] overflow-hidden mb-2.5 flex items-center justify-center shadow-md">
                   <img

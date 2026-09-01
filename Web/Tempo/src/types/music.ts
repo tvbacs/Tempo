@@ -41,5 +41,5 @@ export interface Artist {
 export interface LyricSentence {
   startMs: number;
   endMs: number;
-  words: string;
+  words: string | Array<{ startTime?: number; endTime?: number; data?: string; text?: string }>;
 }

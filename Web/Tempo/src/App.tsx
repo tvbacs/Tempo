@@ -49,10 +49,10 @@ export const App: React.FC = () => {
         silentAudio.play().catch(() => {});
       } catch (_) {}
 
-      // 2. Nếu đang có bài hát chờ phát từ điện thoại thì kích hoạt phát ngay
+      // 2. CHỈ phát nếu trước đó có lệnh phát nhưng bị trình duyệt chặn (isAutoplayBlocked === true)
       const ps = usePlayerStore.getState();
       const audio = ps.audioElement;
-      if (audio && ps.currentSong) {
+      if (ps.isAutoplayBlocked && audio && ps.currentSong && audio.src) {
         audio.play().then(() => {
           usePlayerStore.setState({ isPlaying: true, isAutoplayBlocked: false });
           useConnectStore.getState().broadcastState();

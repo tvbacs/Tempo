@@ -141,7 +141,11 @@ export const TrackTable: React.FC<TrackTableProps> = ({
                   <>
                     <span
                       className={`text-sm font-semibold group-hover:hidden ${
-                        isThisCurrent ? 'text-primary font-bold' : 'text-[#b3b3b3]'
+                        isThisPlaying
+                          ? 'text-primary font-bold'
+                          : isThisCurrent
+                          ? 'text-white font-bold'
+                          : 'text-[#b3b3b3]'
                       }`}
                     >
                       {index + 1}

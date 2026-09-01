@@ -236,9 +236,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
           {likedSongs.length > 0 && (
             <div className="mb-7">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
-                  <Heart className="w-4 h-4 text-[#FC475C] fill-[#FC475C]" />
-                  <span>Bài hát đã thích ({likedSongs.length})</span>
+                <h2 className="text-sm font-extrabold text-white">
+                  Bài hát đã thích ({likedSongs.length})
                 </h2>
                 <button
                   onClick={() => setActiveFilter('liked')}
@@ -286,9 +285,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
           {downloadedSongs.length > 0 && (
             <div className="mb-7">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
-                  <Download className="w-4 h-4 text-[#10B981]" />
-                  <span>Đã tải xuống offline ({downloadedSongs.length})</span>
+                <h2 className="text-sm font-extrabold text-white">
+                  Đã tải xuống offline ({downloadedSongs.length})
                 </h2>
                 <button
                   onClick={() => setActiveFilter('downloaded')}
@@ -327,9 +325,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
           {followedArtists.length > 0 && (
             <div className="mb-7">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#F59E0B]" />
-                  <span>Nghệ sĩ đang theo dõi ({followedArtists.length})</span>
+                <h2 className="text-sm font-extrabold text-white">
+                  Nghệ sĩ đang theo dõi ({followedArtists.length})
                 </h2>
                 <button
                   onClick={() => setActiveFilter('artists')}
@@ -367,9 +364,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
           {savedAlbums.length > 0 && (
             <div className="mb-7">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
-                  <Disc className="w-4 h-4 text-[#3B82F6]" />
-                  <span>Album đã lưu ({savedAlbums.length})</span>
+                <h2 className="text-sm font-extrabold text-white">
+                  Album đã lưu ({savedAlbums.length})
                 </h2>
                 <button
                   onClick={() => setActiveFilter('albums')}
@@ -408,9 +404,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
           {/* Row 5 Preview: Danh sách phát (Top 4 playlist) */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
-                <ListMusic className="w-4 h-4 text-[#FC475C]" />
-                <span>Danh sách phát của bạn ({cleanPlaylists.length})</span>
+              <h2 className="text-sm font-extrabold text-white">
+                Danh sách phát của bạn ({cleanPlaylists.length})
               </h2>
               {cleanPlaylists.length > 4 && (
                 <button

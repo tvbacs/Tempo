@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BadgeCheck, Play, Pause, Shuffle, Check, UserPlus, Loader2 } from 'lucide-react';
+import { BadgeCheck, Play, Pause, Shuffle, Check, UserPlus, Loader2, ArrowLeft } from 'lucide-react';
 import { Artist, UnifiedSong } from '../types/music';
 import { apiClient } from '../api/client';
 import { usePlayerStore } from '../store/playerStore';
@@ -8,9 +8,10 @@ import { TrackTable } from '../components/TrackTable';
 
 interface ArtistViewProps {
   artist: Artist | any;
+  onBack?: () => void;
 }
 
-export const ArtistView: React.FC<ArtistViewProps> = ({ artist }) => {
+export const ArtistView: React.FC<ArtistViewProps> = ({ artist, onBack }) => {
   const [artistData, setArtistData] = useState<Artist>(artist);
   const [topSongs, setTopSongs] = useState<UnifiedSong[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -67,6 +68,15 @@ export const ArtistView: React.FC<ArtistViewProps> = ({ artist }) => {
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar select-none bg-[#121212]">
       {/* Artist Hero Header */}
       <div className="relative h-72 bg-[#242424] overflow-hidden flex flex-col justify-end p-8 flex-shrink-0">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="absolute top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors border-none cursor-pointer z-20 flex items-center gap-1.5 text-xs font-bold"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Quay lại</span>
+          </button>
+        )}
         {artistData.cover || artistData.thumbnail ? (
           <img
             src={artistData.cover || artistData.thumbnail}

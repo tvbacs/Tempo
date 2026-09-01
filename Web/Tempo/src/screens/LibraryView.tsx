@@ -82,7 +82,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#121217] overflow-y-auto custom-scrollbar p-6 pb-32 select-none">
+    <div className="flex-1 flex flex-col h-full bg-[#121212] overflow-y-auto custom-scrollbar p-6 pb-32 select-none">
       {/* Top Header & Navigation Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 pb-5 border-b border-white/5">
         <div>
@@ -119,42 +119,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
         </button>
       </div>
 
-      {/* Filter Tabs & Search Bar */}
-      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
-        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
-          {[
-            { id: 'all', label: 'Tất cả' },
-            { id: 'liked', label: `Bài hát đã thích (${likedSongs.length})` },
-            { id: 'downloaded', label: `Đã tải (${downloadedSongs.length})` },
-            { id: 'artists', label: `Nghệ sĩ (${followedArtists.length})` },
-            { id: 'albums', label: `Album (${savedAlbums.length})` },
-            { id: 'playlists', label: `Danh sách phát (${cleanPlaylists.length})` },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFilter(tab.id as any)}
-              className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all border-none cursor-pointer ${
-                activeFilter === tab.id
-                  ? 'bg-white text-[#121217] shadow-sm'
-                  : 'bg-[#181820] text-text-secondary hover:bg-[#22222D] hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
 
-        <div className="flex items-center bg-[#181820] rounded-md px-3 h-8.5 gap-2 border-none">
-          <Search className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Lọc trong thư viện..."
-            className="w-44 bg-transparent border-none outline-none text-xs text-white placeholder:text-text-muted"
-          />
-        </div>
-      </div>
 
       {/* ========================================================================= */}
       {/* 1. MÀN HÌNH TỔNG QUAN (activeFilter === 'all'): Chỉ hiện Preview 4-5 item/row */}
@@ -166,69 +131,69 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
             {/* Card 1: Bài hát đã thích */}
             <div
               onClick={() => setActiveFilter('liked')}
-              className="bg-[#181820] hover:bg-[#20202B] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
+              className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
-              <div className="w-12 h-12 rounded-md bg-gradient-to-br from-[#FC475C] to-[#FC655A] flex items-center justify-center text-white shadow-md shadow-primary/25 flex-shrink-0">
-                <Heart className="w-6 h-6 fill-white" />
+              <div className="w-10 h-10 rounded-md bg-white/5 flex items-center justify-center text-[#b3b3b3] group-hover:text-primary flex-shrink-0 transition-colors">
+                <Heart className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-[#FC475C] transition-colors truncate">
+                <h3 className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate">
                   Bài hát đã thích
                 </h3>
-                <p className="text-[11px] text-text-muted">{likedSongs.length} bài hát</p>
+                <p className="text-[11px] text-[#b3b3b3]">{likedSongs.length} bài hát</p>
               </div>
-              <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-white transition-colors" />
+              <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white transition-colors" />
             </div>
 
             {/* Card 2: Đã tải xuống */}
             <div
               onClick={() => setActiveFilter('downloaded')}
-              className="bg-[#181820] hover:bg-[#20202B] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
+              className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
-              <div className="w-12 h-12 rounded-md bg-gradient-to-br from-[#10B981] to-[#059669] flex items-center justify-center text-white shadow-md shadow-emerald-500/20 flex-shrink-0">
-                <Download className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-md bg-white/5 flex items-center justify-center text-[#b3b3b3] group-hover:text-[#38bdf8] flex-shrink-0 transition-colors">
+                <Download className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-[#10B981] transition-colors truncate">
+                <h3 className="text-xs font-bold text-white group-hover:text-[#38bdf8] transition-colors truncate">
                   Bài hát đã tải
                 </h3>
-                <p className="text-[11px] text-text-muted">{downloadedSongs.length} bài hát</p>
+                <p className="text-[11px] text-[#b3b3b3]">{downloadedSongs.length} bài hát</p>
               </div>
-              <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-white transition-colors" />
+              <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white transition-colors" />
             </div>
 
             {/* Card 3: Nghệ sĩ theo dõi */}
             <div
               onClick={() => setActiveFilter('artists')}
-              className="bg-[#181820] hover:bg-[#20202B] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
+              className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
-              <div className="w-12 h-12 rounded-md bg-gradient-to-br from-[#F59E0B] to-[#D97706] flex items-center justify-center text-white shadow-md shadow-amber-500/20 flex-shrink-0">
-                <Users className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-md bg-white/5 flex items-center justify-center text-[#b3b3b3] group-hover:text-white flex-shrink-0 transition-colors">
+                <Users className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-[#F59E0B] transition-colors truncate">
+                <h3 className="text-xs font-bold text-white group-hover:text-white transition-colors truncate">
                   Nghệ sĩ theo dõi
                 </h3>
-                <p className="text-[11px] text-text-muted">{followedArtists.length} nghệ sĩ</p>
+                <p className="text-[11px] text-[#b3b3b3]">{followedArtists.length} nghệ sĩ</p>
               </div>
-              <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-white transition-colors" />
+              <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white transition-colors" />
             </div>
 
             {/* Card 4: Album đã lưu */}
             <div
               onClick={() => setActiveFilter('albums')}
-              className="bg-[#181820] hover:bg-[#20202B] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
+              className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
             >
-              <div className="w-12 h-12 rounded-md bg-gradient-to-br from-[#3B82F6] to-[#1D4ED8] flex items-center justify-center text-white shadow-md shadow-blue-500/20 flex-shrink-0">
-                <Disc className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-md bg-white/5 flex items-center justify-center text-[#b3b3b3] group-hover:text-white flex-shrink-0 transition-colors">
+                <Disc className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-[#3B82F6] transition-colors truncate">
+                <h3 className="text-xs font-bold text-white group-hover:text-white transition-colors truncate">
                   Album đã lưu
                 </h3>
-                <p className="text-[11px] text-text-muted">{savedAlbums.length} album</p>
+                <p className="text-[11px] text-[#b3b3b3]">{savedAlbums.length} album</p>
               </div>
-              <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-white transition-colors" />
+              <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white transition-colors" />
             </div>
           </div>
 
@@ -241,7 +206,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 </h2>
                 <button
                   onClick={() => setActiveFilter('liked')}
-                  className="text-xs font-bold text-[#FC475C] hover:underline border-none bg-transparent cursor-pointer"
+                  className="text-xs font-bold text-white hover:underline border-none bg-transparent cursor-pointer"
                 >
                   Xem tất cả ({likedSongs.length})
                 </button>
@@ -253,7 +218,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                   return (
                     <div
                       key={song.id}
-                      className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#181820] transition-colors group cursor-pointer"
+                      className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#181818] transition-colors group cursor-pointer"
                       onClick={() => playSong(song, likedSongs)}
                     >
                       <span className="text-xs font-bold text-text-muted w-5 text-center">{idx + 1}</span>
@@ -290,7 +255,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 </h2>
                 <button
                   onClick={() => setActiveFilter('downloaded')}
-                  className="text-xs font-bold text-[#10B981] hover:underline border-none bg-transparent cursor-pointer"
+                  className="text-xs font-bold text-white hover:underline border-none bg-transparent cursor-pointer"
                 >
                   Xem tất cả ({downloadedSongs.length})
                 </button>
@@ -300,7 +265,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 {downloadedSongs.slice(0, 4).map((song, idx) => (
                   <div
                     key={song.id}
-                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#181820] transition-colors group cursor-pointer"
+                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#181818] transition-colors group cursor-pointer"
                     onClick={() => playSong(song, downloadedSongs)}
                   >
                     <span className="text-xs font-bold text-text-muted w-5 text-center">{idx + 1}</span>
@@ -330,7 +295,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 </h2>
                 <button
                   onClick={() => setActiveFilter('artists')}
-                  className="text-xs font-bold text-[#F59E0B] hover:underline border-none bg-transparent cursor-pointer"
+                  className="text-xs font-bold text-white hover:underline border-none bg-transparent cursor-pointer"
                 >
                   Xem tất cả
                 </button>
@@ -343,7 +308,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                     onClick={() => {
                       if (onSelectArtist) onSelectArtist(artist);
                     }}
-                    className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col items-center text-center transition-all group border-none cursor-pointer"
+                    className="bg-[#181818] hover:bg-[#242424] p-3.5 rounded-lg flex flex-col items-center text-center transition-all group border-none cursor-pointer"
                   >
                     <img
                       src={artist.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200'}
@@ -369,7 +334,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 </h2>
                 <button
                   onClick={() => setActiveFilter('albums')}
-                  className="text-xs font-bold text-[#3B82F6] hover:underline border-none bg-transparent cursor-pointer"
+                  className="text-xs font-bold text-white hover:underline border-none bg-transparent cursor-pointer"
                 >
                   Xem tất cả
                 </button>
@@ -382,7 +347,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                     onClick={() => {
                       if (onSelectPlaylist) onSelectPlaylist(album);
                     }}
-                    className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none cursor-pointer"
+                    className="bg-[#181818] hover:bg-[#242424] p-3.5 rounded-lg flex flex-col transition-all group border-none cursor-pointer"
                   >
                     <div className="relative aspect-square rounded-md overflow-hidden mb-2.5 shadow-md bg-[#252530]">
                       <img
@@ -410,7 +375,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               {cleanPlaylists.length > 4 && (
                 <button
                   onClick={() => setActiveFilter('playlists')}
-                  className="text-xs font-bold text-[#FC475C] hover:underline border-none bg-transparent cursor-pointer"
+                  className="text-xs font-bold text-white hover:underline border-none bg-transparent cursor-pointer"
                 >
                   Xem tất cả ({cleanPlaylists.length})
                 </button>
@@ -421,7 +386,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               {/* Create Playlist Tile */}
               <div
                 onClick={() => setIsCreatingPlaylist(true)}
-                className="bg-[#181820]/60 hover:bg-[#181820] border-2 border-dashed border-white/10 hover:border-[#FC475C]/40 p-4 rounded-lg flex flex-col items-center justify-center min-h-[160px] cursor-pointer transition-all text-center group"
+                className="bg-[#181818]/60 hover:bg-[#181818] border-2 border-dashed border-white/10 hover:border-[#FC475C]/40 p-4 rounded-lg flex flex-col items-center justify-center min-h-[160px] cursor-pointer transition-all text-center group"
               >
                 <div className="w-11 h-11 rounded-full bg-[#FC475C]/15 group-hover:bg-[#FC475C] text-[#FC475C] group-hover:text-white flex items-center justify-center mb-2 transition-colors">
                   <Plus className="w-5 h-5" />
@@ -437,7 +402,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                   onClick={() => {
                     if (onSelectPlaylist) onSelectPlaylist(pl);
                   }}
-                  className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none relative cursor-pointer"
+                  className="bg-[#181818] hover:bg-[#242424] p-3.5 rounded-lg flex flex-col transition-all group border-none relative cursor-pointer"
                 >
                   <div className="w-full aspect-square rounded-md bg-[#252530] overflow-hidden mb-2.5 flex items-center justify-center shadow-md">
                     <img
@@ -491,7 +456,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                   return (
                     <div
                       key={song.id}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#181820] transition-colors group cursor-pointer"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#181818] transition-colors group cursor-pointer"
                       onClick={() => playSong(song, likedSongs)}
                     >
                       <span className="text-xs font-bold text-text-muted w-6 text-center">{idx + 1}</span>
@@ -517,7 +482,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 })}
             </div>
           ) : (
-            <div className="p-12 text-center bg-[#181820]/40 rounded-lg text-text-muted text-xs">
+            <div className="p-12 text-center bg-[#181818]/40 rounded-lg text-text-muted text-xs">
               Chưa có bài hát nào trong mục yêu thích.
             </div>
           )}
@@ -559,7 +524,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 .map((song, idx) => (
                   <div
                     key={song.id}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#181820] transition-colors group cursor-pointer"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#181818] transition-colors group cursor-pointer"
                     onClick={() => playSong(song, downloadedSongs)}
                   >
                     <span className="text-xs font-bold text-text-muted w-6 text-center">{idx + 1}</span>
@@ -587,7 +552,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 ))}
             </div>
           ) : (
-            <div className="p-12 text-center bg-[#181820]/40 rounded-lg text-text-muted text-xs">
+            <div className="p-12 text-center bg-[#181818]/40 rounded-lg text-text-muted text-xs">
               Chưa có bài hát nào được tải về.
             </div>
           )}
@@ -606,7 +571,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                   onClick={() => {
                     if (onSelectArtist) onSelectArtist(artist);
                   }}
-                  className="bg-[#181820] hover:bg-[#20202B] p-4 rounded-lg flex flex-col items-center text-center transition-all group border-none cursor-pointer"
+                  className="bg-[#181818] hover:bg-[#242424] p-4 rounded-lg flex flex-col items-center text-center transition-all group border-none cursor-pointer"
                 >
                   <img
                     src={artist.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200'}
@@ -630,7 +595,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               ))}
             </div>
           ) : (
-            <div className="p-12 text-center bg-[#181820]/40 rounded-lg text-text-muted text-xs">
+            <div className="p-12 text-center bg-[#181818]/40 rounded-lg text-text-muted text-xs">
               Bạn chưa theo dõi nghệ sĩ nào.
             </div>
           )}
@@ -649,7 +614,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                   onClick={() => {
                     if (onSelectPlaylist) onSelectPlaylist(album);
                   }}
-                  className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none cursor-pointer"
+                  className="bg-[#181818] hover:bg-[#242424] p-3.5 rounded-lg flex flex-col transition-all group border-none cursor-pointer"
                 >
                   <div className="relative aspect-square rounded-md overflow-hidden mb-2.5 shadow-md bg-[#252530]">
                     <img
@@ -671,7 +636,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               ))}
             </div>
           ) : (
-            <div className="p-12 text-center bg-[#181820]/40 rounded-lg text-text-muted text-xs">
+            <div className="p-12 text-center bg-[#181818]/40 rounded-lg text-text-muted text-xs">
               Chưa có album nào được lưu trong thư viện.
             </div>
           )}
@@ -689,7 +654,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
             {/* Create Playlist Tile */}
             <div
               onClick={() => setIsCreatingPlaylist(true)}
-              className="bg-[#181820]/60 hover:bg-[#181820] border-2 border-dashed border-white/10 hover:border-[#FC475C]/40 p-4 rounded-lg flex flex-col items-center justify-center min-h-[160px] cursor-pointer transition-all text-center group"
+              className="bg-[#181818]/60 hover:bg-[#181818] border-2 border-dashed border-white/10 hover:border-[#FC475C]/40 p-4 rounded-lg flex flex-col items-center justify-center min-h-[160px] cursor-pointer transition-all text-center group"
             >
               <div className="w-11 h-11 rounded-full bg-[#FC475C]/15 group-hover:bg-[#FC475C] text-[#FC475C] group-hover:text-white flex items-center justify-center mb-2 transition-colors">
                 <Plus className="w-5 h-5" />
@@ -705,7 +670,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 onClick={() => {
                   if (onSelectPlaylist) onSelectPlaylist(pl);
                 }}
-                className="bg-[#181820] hover:bg-[#20202B] p-3.5 rounded-lg flex flex-col transition-all group border-none relative cursor-pointer"
+                className="bg-[#181818] hover:bg-[#242424] p-3.5 rounded-lg flex flex-col transition-all group border-none relative cursor-pointer"
               >
                 <div className="w-full aspect-square rounded-md bg-[#252530] overflow-hidden mb-2.5 flex items-center justify-center shadow-md">
                   <img
@@ -743,7 +708,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <form
             onSubmit={handleCreatePlaylistSubmit}
-            className="bg-[#181820] rounded-lg p-6 w-full max-w-sm flex flex-col gap-4 border-none shadow-2xl"
+            className="bg-[#181818] rounded-lg p-6 w-full max-w-sm flex flex-col gap-4 border-none shadow-2xl"
           >
             <h3 className="text-base font-extrabold text-white">Tạo danh sách phát mới</h3>
             <input

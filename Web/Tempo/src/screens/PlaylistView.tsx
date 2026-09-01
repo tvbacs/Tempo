@@ -31,9 +31,50 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({ playlist, onBack }) 
   useEffect(() => {
     if (!targetPlaylist) return;
 
-    const playlistId = targetPlaylist.encodeId || targetPlaylist.id;
+    // 1. Nếu playlist/album đã có sẵn mảng songs (ví dụ daily_mix_1, playlist custom)
+    if (targetPlaylist.songs && Array.isArray(targetPlaylist.songs) && targetPlaylist.songs.length > 0) {
+      setSongs(targetPlaylist.songs);
+      setIsLoading(false);
+      return;
+    }
 
-    // Check if it is a user-created custom playlist from Supabase
+    const playlistId = targetPlaylist.encodeId || targetPlaylist.id || targetPlaylist.album_id;
+
+    // 2. Xử lý các chủ đề theme tĩnh từ mobile (theme_focus, theme_relax, theme_drive, theme_rain...)
+    if (playlistId === 'theme_focus') {
+      setIsLoading(true);
+      apiClient.search('Lofi Chill').then((res) => {
+        setSongs(res || []);
+        setIsLoading(false);
+      }).catch(() => setIsLoading(false));
+      return;
+    }
+    if (playlistId === 'theme_relax') {
+      setIsLoading(true);
+      apiClient.search('Acoustic Chill').then((res) => {
+        setSongs(res || []);
+        setIsLoading(false);
+      }).catch(() => setIsLoading(false));
+      return;
+    }
+    if (playlistId === 'theme_drive') {
+      setIsLoading(true);
+      apiClient.search('Lái Xe Thư Giãn').then((res) => {
+        setSongs(res || []);
+        setIsLoading(false);
+      }).catch(() => setIsLoading(false));
+      return;
+    }
+    if (playlistId === 'theme_rain') {
+      setIsLoading(true);
+      apiClient.search('Nhạc Mưa').then((res) => {
+        setSongs(res || []);
+        setIsLoading(false);
+      }).catch(() => setIsLoading(false));
+      return;
+    }
+
+    // 3. Nếu là playlist custom của user từ Supabase (có user_id)
     const isCustom = Boolean(
       (targetPlaylist as any).user_id ||
       playlists.some((p: any) => p.id === targetPlaylist.id && p.user_id)
@@ -46,7 +87,7 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({ playlist, onBack }) 
       return;
     }
 
-    // For official Zing MP3 album/playlist or server featured playlist
+    // 4. Lấy từ API Zing / Server Backend theo id
     if (playlistId) {
       setIsLoading(true);
       apiClient
@@ -54,14 +95,33 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({ playlist, onBack }) 
         .then((res) => {
           if (res && res.songs && res.songs.length > 0) {
             setSongs(res.songs);
+            setIsLoading(false);
+          } else if (targetPlaylist.title) {
+            apiClient.search(targetPlaylist.title).then((searchSongs) => {
+              setSongs(searchSongs.length > 0 ? searchSongs : (targetPlaylist.songs || []));
+              setIsLoading(false);
+            }).catch(() => {
+              setSongs(targetPlaylist.songs || []);
+              setIsLoading(false);
+            });
           } else {
             setSongs(targetPlaylist.songs || []);
+            setIsLoading(false);
           }
-          setIsLoading(false);
         })
         .catch(() => {
-          setSongs(targetPlaylist.songs || []);
-          setIsLoading(false);
+          if (targetPlaylist.title) {
+            apiClient.search(targetPlaylist.title).then((searchSongs) => {
+              setSongs(searchSongs.length > 0 ? searchSongs : (targetPlaylist.songs || []));
+              setIsLoading(false);
+            }).catch(() => {
+              setSongs(targetPlaylist.songs || []);
+              setIsLoading(false);
+            });
+          } else {
+            setSongs(targetPlaylist.songs || []);
+            setIsLoading(false);
+          }
         });
     } else {
       setSongs(targetPlaylist.songs || []);

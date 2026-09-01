@@ -29,6 +29,7 @@ export const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedPlaylist, setSelectedPlaylist] = useState<any | null>(null);
   const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
+  const [previousTab, setPreviousTab] = useState<string>('home');
 
   const { initAudio, isLyricsOpen, isAutoplayBlocked } = usePlayerStore();
   const { user, isLoading: isAuthLoading, initSession } = useAuthStore();
@@ -96,11 +97,13 @@ export const App: React.FC = () => {
   }
 
   const handleSelectPlaylist = (playlist: any) => {
+    setPreviousTab(currentTab);
     setSelectedPlaylist(playlist);
     setCurrentTab('playlist');
   };
 
   const handleSelectArtist = (artist: any) => {
+    setPreviousTab(currentTab);
     setSelectedArtist(artist);
     setCurrentTab('artist');
   };
@@ -138,7 +141,7 @@ export const App: React.FC = () => {
         return selectedPlaylist ? (
           <PlaylistView
             playlist={selectedPlaylist}
-            onBack={() => setCurrentTab('home')}
+            onBack={() => setCurrentTab(previousTab || 'library')}
           />
         ) : (
           <HomeDiscoverView
@@ -149,7 +152,10 @@ export const App: React.FC = () => {
         );
       case 'artist':
         return selectedArtist ? (
-          <ArtistView artist={selectedArtist} />
+          <ArtistView
+            artist={selectedArtist}
+            onBack={() => setCurrentTab(previousTab || 'home')}
+          />
         ) : (
           <HomeDiscoverView
             onSeeAllChart={() => setCurrentTab('chart')}

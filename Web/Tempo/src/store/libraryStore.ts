@@ -454,6 +454,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           if (r.album_data) {
             return {
               id: r.album_data.id || r.album_id || r.id,
+              encodeId: r.album_data.id || r.album_id || r.id,
               title: r.album_data.title || r.title || 'Album',
               artistsNames: r.album_data.artistsNames || r.artists_names || '',
               thumbnail:
@@ -461,15 +462,18 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
                 r.album_data.coverUrl ||
                 r.thumbnail ||
                 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400',
-              songCount: r.album_data.songCount || r.song_count || 0,
+              songCount: r.album_data.songCount || r.album_data.songs?.length || r.song_count || 0,
+              songs: r.album_data.songs || [],
             };
           }
           return {
             id: r.album_id || r.id,
+            encodeId: r.album_id || r.id,
             title: r.title || 'Album',
             artistsNames: r.artists_names || '',
             thumbnail: r.thumbnail || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400',
             songCount: r.song_count || 0,
+            songs: [],
           };
         });
         set({ savedAlbums: albums });

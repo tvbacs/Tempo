@@ -111,12 +111,14 @@ export const apiClient = {
 
   async getPlaylist(id: string): Promise<{ title: string; songs: UnifiedSong[] } | null> {
     try {
-      const url = await getApiUrl(`/api/music/playlist/${id}`);
+      const cleanId = id.startsWith('zing_') ? id.replace('zing_', '') : id;
+      const url = await getApiUrl(`/api/music/playlist/${cleanId}`);
       const res = await fetch(url);
       const json = await res.json();
+      const rawSongs = json.data?.songs || json.data?.song?.items || [];
       return {
         title: json.data?.title || 'Playlist',
-        songs: json.data?.song?.items || [],
+        songs: Array.isArray(rawSongs) ? rawSongs : [],
       };
     } catch (e) {
       return null;

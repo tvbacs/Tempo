@@ -31,25 +31,26 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({ playlist, onBack }) 
   useEffect(() => {
     if (!targetPlaylist) return;
 
-    // Check if it is a user-created custom playlist
+    const playlistId = targetPlaylist.encodeId || targetPlaylist.id;
+
+    // Check if it is a user-created custom playlist from Supabase
     const isCustom = Boolean(
-      targetPlaylist.user_id ||
-      playlists.some((p) => p.id === targetPlaylist.id) ||
-      !targetPlaylist.encodeId
+      (targetPlaylist as any).user_id ||
+      playlists.some((p: any) => p.id === targetPlaylist.id && p.user_id)
     );
 
     if (isCustom) {
-      // Use user's exact playlist songs without random searches
+      // Use user's exact playlist songs without server re-fetch
       setSongs(targetPlaylist.songs || []);
       setIsLoading(false);
       return;
     }
 
-    // For official Zing MP3 album/playlist
-    if (targetPlaylist.encodeId) {
+    // For official Zing MP3 album/playlist or server featured playlist
+    if (playlistId) {
       setIsLoading(true);
       apiClient
-        .getPlaylist(targetPlaylist.encodeId)
+        .getPlaylist(playlistId)
         .then((res) => {
           if (res && res.songs && res.songs.length > 0) {
             setSongs(res.songs);

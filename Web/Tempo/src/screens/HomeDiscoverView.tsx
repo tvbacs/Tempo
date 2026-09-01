@@ -104,26 +104,15 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
     thumb?: string;
     isLiked?: boolean;
     onClick: () => void;
-  }> = [
-    {
-      id: 'liked',
-      title: 'Bài hát đã thích',
-      thumb: 'liked_icon',
-      isLiked: true,
-      onClick: () => {
-        if (likedSongs.length > 0) playSong(likedSongs[0], likedSongs);
-      },
+  }> = chartSongs.slice(0, 8).map((s) => ({
+    id: s.encodeId || s.id,
+    title: s.title,
+    thumb: s.thumbnail || s.thumbnailM,
+    isLiked: false,
+    onClick: () => {
+      playSong(s, chartSongs);
     },
-    ...chartSongs.slice(0, 7).map((s) => ({
-      id: s.encodeId || s.id,
-      title: s.title,
-      thumb: s.thumbnail || s.thumbnailM,
-      isLiked: false,
-      onClick: () => {
-        playSong(s, chartSongs);
-      },
-    })),
-  ];
+  }));
 
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 select-none space-y-7 bg-[#121212]">

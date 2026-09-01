@@ -144,12 +144,12 @@ export const PlayerBar: React.FC = () => {
             onClick={toggleShuffle}
             title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
             className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer relative group ${
-              isShuffle ? 'text-[#1ed760]' : 'text-[#b3b3b3] hover:text-white'
+              isShuffle ? 'text-primary' : 'text-[#b3b3b3] hover:text-white'
             }`}
           >
             <Shuffle className="w-4 h-4" />
             {isShuffle && (
-              <span className="w-1 h-1 bg-[#1ed760] rounded-full absolute bottom-0 left-1/2 -translate-x-1/2" />
+              <span className="w-1 h-1 bg-primary rounded-full absolute bottom-0 left-1/2 -translate-x-1/2 shadow-sm" />
             )}
           </button>
 
@@ -188,19 +188,19 @@ export const PlayerBar: React.FC = () => {
             <button
               onClick={toggleRepeat}
               title="Lặp lại: 1 bài (Bấm để tắt)"
-              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-[#1ed760] relative group"
+              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-primary relative group"
             >
-              <Repeat1 className="w-4 h-4 text-[#1ed760]" />
-              <span className="w-1 h-1 bg-[#1ed760] rounded-full absolute bottom-0 left-1/2 -translate-x-1/2" />
+              <Repeat1 className="w-4 h-4 text-primary" />
+              <span className="w-1 h-1 bg-primary rounded-full absolute bottom-0 left-1/2 -translate-x-1/2 shadow-sm" />
             </button>
           ) : repeatMode === 'all' ? (
             <button
               onClick={toggleRepeat}
               title="Lặp lại: Toàn bộ danh sách (Bấm để lặp 1 bài)"
-              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-[#1ed760] relative group"
+              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-primary relative group"
             >
-              <Repeat className="w-4 h-4 text-[#1ed760]" />
-              <span className="w-1 h-1 bg-[#1ed760] rounded-full absolute bottom-0 left-1/2 -translate-x-1/2" />
+              <Repeat className="w-4 h-4 text-primary" />
+              <span className="w-1 h-1 bg-primary rounded-full absolute bottom-0 left-1/2 -translate-x-1/2 shadow-sm" />
             </button>
           ) : (
             <button

@@ -57,24 +57,24 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={() => setCurrentTab && setCurrentTab('home')}
           title="Trang chủ"
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border-none cursor-pointer flex-shrink-0 ${
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all border-none cursor-pointer flex-shrink-0 ${
             currentTab === 'home'
-              ? 'bg-[#1f1f1f] text-white hover:scale-105'
-              : 'bg-[#1f1f1f] text-[#b3b3b3] hover:text-white hover:scale-105'
+              ? 'bg-white text-black shadow-lg scale-105'
+              : 'bg-[#1f1f1f] text-[#b3b3b3] hover:text-white hover:bg-[#282828] hover:scale-105'
           }`}
         >
-          <Home className="w-5 h-5 fill-current" />
+          <Home className="w-4 h-4 fill-current" />
         </button>
 
         {/* Search Bar with Browse Folder Icon on Right */}
-        <div className="flex-1 flex items-center bg-[#1f1f1f] hover:bg-[#2a2a2a] focus-within:bg-[#2a2a2a] focus-within:ring-2 focus-within:ring-white rounded-full px-4 h-12 gap-3 transition-all border-none">
+        <div className="flex-1 flex items-center bg-[#1f1f1f] hover:bg-[#2a2a2a] focus-within:bg-[#2a2a2a] focus-within:ring-2 focus-within:ring-white rounded-full px-3.5 h-10 gap-2.5 transition-all border-none">
           <Search className="w-5 h-5 text-[#b3b3b3] flex-shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={onSearchFocus}
-            placeholder="Tìm nhạc, ca sĩ"
+            placeholder="Bạn muốn nghe gì?"
             className="w-full bg-transparent border-none outline-none text-sm font-medium text-white placeholder:text-[#b3b3b3]"
           />
           {searchQuery ? (

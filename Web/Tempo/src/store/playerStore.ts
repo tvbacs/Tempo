@@ -22,6 +22,27 @@ const _saved = loadPlayerState();
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
+const SETTINGS_KEY = 'tempo_player_settings';
+interface PlayerSettings {
+  volume: number;
+  isShuffle: boolean;
+  repeatMode: RepeatMode;
+}
+function savePlayerSettings(settings: Partial<PlayerSettings>) {
+  try {
+    const current = loadPlayerSettings();
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...current, ...settings }));
+  } catch (_) {}
+}
+function loadPlayerSettings(): PlayerSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return { volume: 0.8, isShuffle: false, repeatMode: 'off' };
+}
+const _savedSettings = loadPlayerSettings();
+
 function generateShuffledQueue(current: UnifiedSong | null, originalQueue: UnifiedSong[]): UnifiedSong[] {
   if (originalQueue.length <= 1) return [...originalQueue];
   const others = originalQueue.filter(
@@ -77,14 +98,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   loadingSongId: null,
   isAutoplayBlocked: false,
   queue: _saved.queue,
-  shuffledQueue: [],
+  shuffledQueue: _savedSettings.isShuffle ? generateShuffledQueue(_saved.song, _saved.queue) : [],
   currentIndex: _saved.currentIndex,
   positionSec: 0,
   durationSec: _saved.song?.duration || 0,
-  volume: 0.8,
-  isShuffle: false,
-  isRepeat: false,
-  repeatMode: 'off',
+  volume: _savedSettings.volume ?? 0.8,
+  isShuffle: _savedSettings.isShuffle ?? false,
+  isRepeat: (_savedSettings.repeatMode ?? 'off') !== 'off',
+  repeatMode: _savedSettings.repeatMode ?? 'off',
   lyrics: [],
   isLyricsOpen: false,
   audioElement: null,
@@ -425,6 +446,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const audio = get().audioElement;
     if (audio) audio.volume = vol;
     set({ volume: vol });
+    savePlayerSettings({ volume: vol });
   },
 
   toggleShuffle: () => {
@@ -432,6 +454,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { currentSong, queue } = get();
     const shuffledQueue = nextVal ? generateShuffledQueue(currentSong, queue) : [];
     set({ isShuffle: nextVal, shuffledQueue });
+    savePlayerSettings({ isShuffle: nextVal });
     const connect = useConnectStore.getState();
     if (connect.activeDeviceId !== 'web-player-pc') {
       connect.sendCommand('set_shuffle', { isShuffle: nextVal });
@@ -447,6 +470,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     else if (current === 'one') nextMode = 'off';
 
     set({ repeatMode: nextMode, isRepeat: nextMode !== 'off' });
+    savePlayerSettings({ repeatMode: nextMode });
     const connect = useConnectStore.getState();
     if (connect.activeDeviceId !== 'web-player-pc') {
       connect.sendCommand('set_repeat', { repeatMode: nextMode, isRepeat: nextMode !== 'off' });
@@ -454,14 +478,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     useConnectStore.getState().broadcastState();
   },
 
-  setShuffle: (val) => set({ isShuffle: val }),
-  setRepeatMode: (mode: RepeatMode) => set({ repeatMode: mode, isRepeat: mode !== 'off' }),
+  setShuffle: (val) => {
+    set({ isShuffle: val });
+    savePlayerSettings({ isShuffle: val });
+  },
+  setRepeatMode: (mode: RepeatMode) => {
+    set({ repeatMode: mode, isRepeat: mode !== 'off' });
+    savePlayerSettings({ repeatMode: mode });
+  },
   setRepeat: (val: boolean | RepeatMode) => {
-    if (typeof val === 'string') {
-      set({ repeatMode: val, isRepeat: val !== 'off' });
-    } else {
-      set({ repeatMode: val ? 'all' : 'off', isRepeat: val });
-    }
+    const mode = typeof val === 'string' ? val : (val ? 'all' : 'off');
+    set({ repeatMode: mode, isRepeat: mode !== 'off' });
+    savePlayerSettings({ repeatMode: mode });
   },
   toggleLyrics: () => set({ isLyricsOpen: !get().isLyricsOpen }),
   setLyricsOpen: (open) => set({ isLyricsOpen: open }),

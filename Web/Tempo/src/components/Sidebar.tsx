@@ -49,14 +49,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="w-80 bg-[#121212] rounded-lg flex flex-col p-3 select-none flex-shrink-0 border-none overflow-hidden">
-      {/* 1. Header: Thư viện (Tối giản) */}
-      <div className="flex items-center px-2 py-2 mb-2">
+      {/* 1. Header: Nút Thư viện */}
+      <div className="px-1 mb-2">
         <button
           onClick={() => setCurrentTab('library')}
-          className="flex items-center gap-3 text-[#b3b3b3] hover:text-white font-bold text-base transition-colors border-none bg-transparent cursor-pointer p-0"
+          title="Xem toàn bộ thư viện của bạn"
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border-none cursor-pointer group ${
+            currentTab === 'library'
+              ? 'bg-[#242424] text-white font-bold'
+              : 'bg-transparent text-[#b3b3b3] hover:text-white hover:bg-[#1a1a1a]'
+          }`}
         >
-          <LibraryIcon className="w-6 h-6" />
-          <span>Thư viện</span>
+          <div className="flex items-center gap-3">
+            <LibraryIcon
+              className={`w-5 h-5 transition-colors ${
+                currentTab === 'library' ? 'text-primary' : 'text-[#b3b3b3] group-hover:text-white'
+              }`}
+            />
+            <span className="text-sm font-bold tracking-tight">Thư viện của bạn</span>
+          </div>
+          <ChevronRight
+            className={`w-4 h-4 transition-transform group-hover:translate-x-0.5 ${
+              currentTab === 'library' ? 'text-primary' : 'text-[#727272] group-hover:text-white'
+            }`}
+          />
         </button>
       </div>
 

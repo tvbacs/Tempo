@@ -86,7 +86,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
       {/* Top Header & Navigation Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 pb-5 border-b border-white/5">
         <div>
-          {activeFilter !== 'all' ? (
+          {activeFilter !== 'all' && (
             <button
               onClick={() => setActiveFilter('all')}
               className="flex items-center gap-1.5 text-xs font-bold text-text-muted hover:text-white mb-2 transition-colors border-none bg-transparent cursor-pointer p-0"
@@ -94,10 +94,6 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               <ArrowLeft className="w-4 h-4" />
               <span>Quay lại Thư viện</span>
             </button>
-          ) : (
-            <span className="text-[10px] font-black text-[#FC475C] uppercase tracking-wider block mb-1">
-              BỘ SƯU TẬP CỦA BẠN
-            </span>
           )}
 
           <h1 className="text-2xl font-black text-white">

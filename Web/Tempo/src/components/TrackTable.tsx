@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Clock, Heart } from 'lucide-react';
+import { Play, Pause, Clock, CheckCircle2, Heart } from 'lucide-react';
 import { UnifiedSong } from '../types/music';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
@@ -26,7 +26,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
   };
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Vừa xong';
+    if (!dateStr) return '2 ngày trước';
     try {
       const d = new Date(dateStr);
       return d.toLocaleDateString('vi-VN');
@@ -37,7 +37,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
 
   if (songs.length === 0) {
     return (
-      <div className="py-16 text-center text-text-muted text-sm">
+      <div className="py-16 text-center text-[#b3b3b3] text-sm">
         Chưa có bài hát nào trong danh sách này
       </div>
     );
@@ -46,7 +46,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
   return (
     <div className="w-full select-none">
       {/* Table Header */}
-      <div className="grid grid-cols-[16px_1fr_1fr_120px_60px] gap-4 px-4 py-2 border-b border-white/5 text-xs font-bold text-text-muted uppercase tracking-wider">
+      <div className="grid grid-cols-[16px_1fr_1fr_120px_60px] gap-4 px-4 py-2 border-b border-white/10 text-xs font-bold text-[#b3b3b3] uppercase tracking-wider mb-2">
         <span className="text-center">#</span>
         <span>Tiêu đề</span>
         {showAlbum ? <span>Album</span> : <span />}
@@ -57,7 +57,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
       </div>
 
       {/* Table Rows */}
-      <div className="flex flex-col py-1">
+      <div className="flex flex-col gap-0.5">
         {songs.map((song, index) => {
           const isThisCurrent = (currentSong?.encodeId || currentSong?.id) === (song.encodeId || song.id);
           const isThisPlaying = isThisCurrent && isPlaying;
@@ -67,24 +67,29 @@ export const TrackTable: React.FC<TrackTableProps> = ({
             <div
               key={song.encodeId || song.id || index}
               onDoubleClick={() => playSong(song, songs)}
-              className={`grid grid-cols-[16px_1fr_1fr_120px_60px] gap-4 px-4 py-2 rounded-md hover:bg-white/10 items-center transition-colors group ${
-                isThisCurrent ? 'bg-white/5' : ''
+              className={`grid grid-cols-[16px_1fr_1fr_120px_60px] gap-4 px-4 py-2 rounded-md hover:bg-[#2a2a2a] items-center transition-colors group cursor-pointer ${
+                isThisCurrent ? 'bg-[#242424]' : ''
               }`}
             >
-              {/* Index / Play / Equalizer */}
+              {/* Index / Play Button */}
               <div className="flex items-center justify-center">
-                <span className={`text-sm font-semibold group-hover:hidden ${isThisCurrent ? 'text-primary font-bold' : 'text-text-muted'}`}>
+                <span
+                  className={`text-sm font-semibold group-hover:hidden ${
+                    isThisCurrent ? 'text-[#1ed760] font-bold' : 'text-[#b3b3b3]'
+                  }`}
+                >
                   {index + 1}
                 </span>
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (isThisCurrent) {
                       togglePlayPause();
                     } else {
                       playSong(song, songs);
                     }
                   }}
-                  className="hidden group-hover:flex text-white hover:scale-110 transition-transform"
+                  className="hidden group-hover:flex text-white hover:scale-110 transition-transform border-none bg-transparent cursor-pointer p-0"
                 >
                   {isThisPlaying ? (
                     <Pause className="w-4 h-4 fill-white" />
@@ -102,37 +107,43 @@ export const TrackTable: React.FC<TrackTableProps> = ({
                   className="w-10 h-10 rounded object-cover flex-shrink-0 bg-[#282828]"
                 />
                 <div className="min-w-0 flex-1">
-                  <h4 className={`text-sm font-bold truncate ${isThisCurrent ? 'text-primary' : 'text-white'}`}>
+                  <h4
+                    className={`text-sm font-bold truncate ${
+                      isThisCurrent ? 'text-[#1ed760]' : 'text-white'
+                    }`}
+                  >
                     {song.title}
                   </h4>
-                  <p className="text-xs text-text-secondary truncate mt-0.5 hover:underline cursor-pointer">
+                  <p className="text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer">
                     {song.artistsNames}
                   </p>
                 </div>
               </div>
 
               {/* Album */}
-              <div className="min-w-0 truncate text-xs text-text-secondary hover:underline cursor-pointer">
+              <div className="min-w-0 truncate text-xs text-[#b3b3b3] hover:underline hover:text-white cursor-pointer">
                 {song.album?.title || song.title}
               </div>
 
               {/* Date Added */}
-              <div className="text-xs text-text-secondary truncate">
+              <div className="text-xs text-[#b3b3b3] truncate">
                 {formatDate(song.addedAt)}
               </div>
 
-              {/* Heart & Duration */}
-              <div className="flex items-center justify-end gap-3 text-xs text-text-secondary font-medium">
+              {/* Heart/Checkmark & Duration */}
+              <div className="flex items-center justify-end gap-3 text-xs text-[#b3b3b3] font-medium">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleLike(song);
                   }}
-                  className={`transition-all hover:scale-110 ${
-                    liked ? 'text-primary' : 'opacity-0 group-hover:opacity-100 text-text-muted hover:text-white'
-                  }`}
+                  className="border-none bg-transparent cursor-pointer p-0 transition-transform hover:scale-110"
                 >
-                  <Heart className={`w-4 h-4 ${liked ? 'fill-primary' : ''}`} />
+                  {liked ? (
+                    <CheckCircle2 className="w-4 h-4 text-[#1ed760] fill-[#1ed760]" />
+                  ) : (
+                    <Heart className="w-4 h-4 opacity-0 group-hover:opacity-100 text-[#b3b3b3] hover:text-white" />
+                  )}
                 </button>
                 <span className="w-9 text-right">{formatTime(song.duration)}</span>
               </div>

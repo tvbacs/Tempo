@@ -1,14 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Crown, Bell, User, X, LogOut, ShieldCheck, Mail } from 'lucide-react';
+import { Search, Bell, X, LogOut, ShieldCheck, Mail, Home, Download, Folder } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onSearchFocus: () => void;
+  currentTab?: string;
+  setCurrentTab?: (tab: string) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ searchQuery, setSearchQuery, onSearchFocus }) => {
+export const Header: React.FC<HeaderProps> = ({
+  searchQuery,
+  setSearchQuery,
+  onSearchFocus,
+  currentTab = 'home',
+  setCurrentTab,
+}) => {
   const { user, signOut, openAuthModal } = useAuthStore();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -30,38 +38,85 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, setSearchQuery, onS
   };
 
   return (
-    <header className="h-16 flex items-center justify-between px-8 bg-[#0B0B0E] border-none select-none flex-shrink-0 relative z-30">
-      {/* Search Input Box */}
-      <div className="flex-1 max-w-xl">
-        <div className="flex items-center bg-[#181820] rounded-md px-4 h-10 gap-3 focus-within:ring-2 focus-within:ring-[#FC475C]/40 transition-all border-none">
-          <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
+    <header className="h-16 flex items-center justify-between px-6 bg-[#000000] border-none select-none flex-shrink-0 relative z-30">
+      {/* 1. Left Logo */}
+      <div
+        onClick={() => setCurrentTab && setCurrentTab('home')}
+        className="flex items-center gap-2 cursor-pointer group"
+      >
+        <img
+          src="/logo.png"
+          alt="Tempo Logo"
+          className="w-8 h-8 rounded-full object-contain drop-shadow"
+        />
+      </div>
+
+      {/* 2. Center Search & Home Button (Spotify Pill Style) */}
+      <div className="flex items-center gap-2 max-w-lg w-full">
+        {/* Home Circle Button */}
+        <button
+          onClick={() => setCurrentTab && setCurrentTab('home')}
+          title="Trang chủ"
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border-none cursor-pointer flex-shrink-0 ${
+            currentTab === 'home'
+              ? 'bg-[#1f1f1f] text-white hover:scale-105'
+              : 'bg-[#1f1f1f] text-[#b3b3b3] hover:text-white hover:scale-105'
+          }`}
+        >
+          <Home className="w-5 h-5 fill-current" />
+        </button>
+
+        {/* Search Bar with Browse Folder Icon on Right */}
+        <div className="flex-1 flex items-center bg-[#1f1f1f] hover:bg-[#2a2a2a] focus-within:bg-[#2a2a2a] focus-within:ring-2 focus-within:ring-white rounded-full px-4 h-12 gap-3 transition-all border-none">
+          <Search className="w-5 h-5 text-[#b3b3b3] flex-shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={onSearchFocus}
-            placeholder="Tìm bài hát, nghệ sĩ hoặc link YouTube..."
-            className="w-full bg-transparent border-none outline-none text-xs font-medium text-white placeholder:text-text-muted"
+            placeholder="Bạn muốn phát nội dung gì?"
+            className="w-full bg-transparent border-none outline-none text-sm font-medium text-white placeholder:text-[#b3b3b3]"
           />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="text-text-muted hover:text-white p-1 border-none bg-transparent cursor-pointer">
-              <X className="w-3.5 h-3.5" />
+          {searchQuery ? (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="text-[#b3b3b3] hover:text-white p-1 border-none bg-transparent cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={() => setCurrentTab && setCurrentTab('library')}
+              title="Duyệt thư viện"
+              className="text-[#b3b3b3] hover:text-white p-1 border-none bg-transparent cursor-pointer"
+            >
+              <Folder className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
 
-      {/* Right Controls */}
-      <div className="flex items-center gap-3.5 ml-6">
+      {/* 3. Right Controls */}
+      <div className="flex items-center gap-4">
         <button
-          onClick={() => {}}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-md bg-gradient-to-r from-[#FC475C]/20 to-[#FC655A]/20 hover:from-[#FC475C]/30 hover:to-[#FC655A]/30 text-white text-xs font-bold transition-all border-none cursor-pointer"
+          onClick={() => setCurrentTab && setCurrentTab('upgrade')}
+          className="px-4 py-1.5 rounded-full bg-white hover:scale-105 active:scale-95 text-black text-xs font-bold transition-all border-none cursor-pointer"
         >
-          <Crown className="w-4 h-4 text-[#FC475C]" />
-          <span>Nâng cấp Premium</span>
+          Khám phá Premium
         </button>
 
-        <button className="w-9 h-9 rounded-md bg-[#181820] hover:bg-[#22222D] flex items-center justify-center text-text-secondary hover:text-white transition-colors border-none cursor-pointer">
+        <button
+          onClick={() => setCurrentTab && setCurrentTab('downloads')}
+          className="flex items-center gap-1.5 text-xs font-bold text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
+        >
+          <Download className="w-4 h-4" />
+          <span>Cài đặt Ứng dụng</span>
+        </button>
+
+        <button
+          title="Thông báo"
+          className="w-9 h-9 rounded-full bg-[#1f1f1f] hover:scale-105 flex items-center justify-center text-[#b3b3b3] hover:text-white transition-all border-none cursor-pointer"
+        >
           <Bell className="w-4 h-4" />
         </button>
 
@@ -69,37 +124,35 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, setSearchQuery, onS
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-2 border-none bg-transparent cursor-pointer p-0"
+              className="w-9 h-9 rounded-full bg-[#535353] hover:scale-105 flex items-center justify-center text-white text-xs font-bold border-none cursor-pointer p-0 transition-transform"
             >
-              <div className="w-9 h-9 rounded-md bg-gradient-to-tr from-[#FC475C] to-[#FC655A] flex items-center justify-center text-white text-xs font-black shadow-md shadow-primary/25 hover:opacity-90 transition-opacity">
-                {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
-              </div>
+              {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
             </button>
 
             {/* Profile Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-[#181820] rounded-lg shadow-2xl p-3 flex flex-col gap-2 border border-white/5 z-50 animate-in fade-in zoom-in-95 duration-100">
-                <div className="flex items-center gap-3 p-2 bg-[#121217] rounded-md">
-                  <div className="w-10 h-10 rounded-md bg-gradient-to-tr from-[#FC475C] to-[#FC655A] flex items-center justify-center text-white text-sm font-black flex-shrink-0">
+              <div className="absolute right-0 mt-2 w-64 bg-[#282828] rounded-lg shadow-2xl p-2 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95 duration-100 border-none">
+                <div className="flex items-center gap-3 p-2 bg-[#1f1f1f] rounded-md">
+                  <div className="w-9 h-9 rounded-full bg-[#535353] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                     {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="text-xs font-bold text-white truncate">
                       {user.email ? user.email.split('@')[0] : 'Người dùng'}
                     </h4>
-                    <p className="text-[11px] text-text-muted truncate flex items-center gap-1">
-                      <Mail className="w-3 h-3 text-text-muted flex-shrink-0" />
+                    <p className="text-[11px] text-[#b3b3b3] truncate flex items-center gap-1">
+                      <Mail className="w-3 h-3 text-[#b3b3b3] flex-shrink-0" />
                       <span className="truncate">{user.email}</span>
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 px-2 py-1.5 text-[11px] font-bold text-[#10B981] bg-[#10B981]/10 rounded-md">
+                <div className="flex items-center gap-2 px-2 py-1.5 text-[11px] font-bold text-[#1ed760] bg-[#1ed760]/10 rounded-md">
                   <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
                   <span>Tài khoản đã xác thực</span>
                 </div>
 
-                <div className="h-px bg-white/5 my-1" />
+                <div className="h-px bg-white/10 my-1" />
 
                 <button
                   onClick={handleSignOut}
@@ -114,9 +167,9 @@ export const Header: React.FC<HeaderProps> = ({ searchQuery, setSearchQuery, onS
         ) : (
           <button
             onClick={openAuthModal}
-            className="w-9 h-9 rounded-md bg-[#181820] hover:bg-[#22222D] flex items-center justify-center text-text-secondary hover:text-white transition-colors border-none cursor-pointer"
+            className="px-4 py-1.5 rounded-full bg-white hover:scale-105 text-black text-xs font-bold transition-transform border-none cursor-pointer"
           >
-            <User className="w-4 h-4" />
+            Đăng nhập
           </button>
         )}
       </div>

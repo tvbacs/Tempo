@@ -87,6 +87,33 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
 
     set({ audioElement: audio });
+
+    // Tích hợp phím tắt bàn phím Space / ArrowLeft / ArrowRight / Mute
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', (e: KeyboardEvent) => {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+          return;
+        }
+
+        if (e.code === 'Space') {
+          e.preventDefault();
+          get().togglePlayPause();
+        } else if (e.code === 'ArrowRight') {
+          e.preventDefault();
+          const { positionSec, durationSec } = get();
+          get().seekTo(Math.min(durationSec, positionSec + 5));
+        } else if (e.code === 'ArrowLeft') {
+          e.preventDefault();
+          const { positionSec } = get();
+          get().seekTo(Math.max(0, positionSec - 5));
+        } else if (e.code === 'KeyM') {
+          e.preventDefault();
+          const currentVol = get().volume;
+          get().setVolume(currentVol > 0 ? 0 : 0.8);
+        }
+      });
+    }
   },
 
   playSong: async (song, newQueue, startPosSec = 0) => {
@@ -113,6 +140,32 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
 
     useLibraryStore.getState().recordHistory(song);
+
+    // Update Browser MediaSession (Lock Screen / Media Keys)
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: song.title || 'Tempo Track',
+          artist: song.artistsNames || 'Tempo Artist',
+          album: song.album?.title || 'Tempo Web Player',
+          artwork: [
+            {
+              src: song.thumbnail || song.thumbnailM || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500',
+              sizes: '512x512',
+              type: 'image/jpeg',
+            },
+          ],
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => get().togglePlayPause());
+        navigator.mediaSession.setActionHandler('pause', () => get().togglePlayPause());
+        navigator.mediaSession.setActionHandler('nexttrack', () => get().playNext());
+        navigator.mediaSession.setActionHandler('previoustrack', () => get().playPrev());
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+          if (details.seekTime !== undefined) get().seekTo(details.seekTime);
+        });
+      } catch (_) {}
+    }
 
     // Fetch lyrics
     apiClient.getLyrics(song.encodeId || song.id).then(lyrics => set({ lyrics }));

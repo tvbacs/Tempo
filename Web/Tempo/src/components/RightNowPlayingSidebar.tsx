@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, MoreHorizontal } from 'lucide-react';
+import { CheckCircle2, Heart, MoreHorizontal, Download } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { apiClient } from '../api/client';
@@ -27,111 +27,141 @@ export const RightNowPlayingSidebar: React.FC = () => {
 
   const nextSong = currentIndex >= 0 && currentIndex + 1 < queue.length ? queue[currentIndex + 1] : null;
 
+  // If no song is playing, show the Spotify Windows App promo card matching Screenshot 1
+  if (!currentSong) {
+    return (
+      <aside className="w-80 bg-[#121212] rounded-lg p-5 flex flex-col justify-between select-none flex-shrink-0 border-none">
+        <div className="flex flex-col gap-4">
+          <div className="w-full aspect-video rounded-md bg-[#181818] overflow-hidden flex items-center justify-center p-4">
+            <img
+              src="/logo.png"
+              alt="Tempo App Preview"
+              className="w-16 h-16 object-contain drop-shadow"
+            />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-white leading-snug">
+              Tải Tempo xuống cho Windows & Điện thoại
+            </h3>
+            <p className="text-xs text-[#b3b3b3] mt-2 leading-relaxed">
+              Tận hưởng âm thanh chất lượng cao, trải nghiệm nghe nhạc ngoại tuyến không cần kết nối mạng và bảng tin bạn bè sống động.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => {}}
+          className="w-full py-3 rounded-full bg-[#1ed760] hover:scale-105 active:scale-95 text-black font-bold text-sm transition-all border-none cursor-pointer flex items-center justify-center gap-2"
+        >
+          <Download className="w-4 h-4 text-black" />
+          <span>Tải ứng dụng miễn phí</span>
+        </button>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="w-80 bg-[#121217] rounded-lg p-4 flex flex-col select-none flex-shrink-0 border-none overflow-y-auto custom-scrollbar">
-      {/* Top Header: Playlist / Track Context Title */}
-      <div className="flex items-center justify-between mb-3.5">
-        <h3 className="text-xs font-black text-white truncate max-w-[200px]">
-          {currentSong?.album?.title || (currentSong ? `${currentSong.title} Radio` : 'Đang phát')}
+    <aside className="w-80 bg-[#121212] rounded-lg p-4 flex flex-col select-none flex-shrink-0 border-none overflow-y-auto custom-scrollbar">
+      {/* 1. Header: Context Title */}
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-bold text-white truncate max-w-[220px]">
+          {currentSong.album?.title || 'Bài hát đã thích'}
         </h3>
-        <button className="text-text-muted hover:text-white p-1">
+        <button className="text-[#b3b3b3] hover:text-white p-1 border-none bg-transparent cursor-pointer">
           <MoreHorizontal className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Large Track Artwork */}
-      <div className="w-full aspect-square rounded-md overflow-hidden bg-[#181820] mb-3.5 relative group shadow-lg">
+      {/* 2. Large Track Artwork */}
+      <div className="w-full aspect-square rounded-md overflow-hidden bg-[#181818] mb-3.5 relative group shadow-2xl">
         <img
           src={
-            currentSong?.thumbnailM ||
-            currentSong?.thumbnail ||
+            currentSong.thumbnailM ||
+            currentSong.thumbnail ||
             'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500'
           }
-          alt={currentSong?.title || 'Cover'}
-          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
+          alt={currentSong.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
       </div>
 
-      {/* Track Title & Artist Names with Heart button */}
-      <div className="flex items-start justify-between gap-3 mb-5">
+      {/* 3. Title & Artist with Green Checkmark */}
+      <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0 flex-1">
-          <h2 className="text-base font-black text-white leading-tight truncate">
-            {currentSong?.title || 'Chưa chọn bài hát'}
+          <h2 className="text-base font-bold text-white leading-tight truncate hover:underline cursor-pointer">
+            {currentSong.title}
           </h2>
-          <p className="text-xs font-medium text-text-secondary truncate mt-1">
-            {currentSong?.artistsNames || 'Tempo Music'}
+          <p className="text-xs font-medium text-[#b3b3b3] truncate mt-1 hover:underline hover:text-white cursor-pointer">
+            {currentSong.artistsNames}
           </p>
         </div>
 
-        {currentSong && (
-          <button
-            onClick={() => toggleLike(currentSong)}
-            className="p-1 text-text-muted hover:text-white transition-transform hover:scale-110 flex-shrink-0 mt-0.5"
-          >
-            <Heart className={`w-4 h-4 ${liked ? 'fill-[#FC475C] text-[#FC475C]' : ''}`} />
-          </button>
-        )}
+        <button
+          onClick={() => toggleLike(currentSong)}
+          className="p-1 border-none bg-transparent cursor-pointer flex-shrink-0 transition-transform hover:scale-110"
+        >
+          {liked ? (
+            <CheckCircle2 className="w-5 h-5 text-[#1ed760] fill-[#1ed760]" />
+          ) : (
+            <Heart className="w-5 h-5 text-[#b3b3b3] hover:text-white" />
+          )}
+        </button>
       </div>
 
-      {/* Credits Section: "Người tham gia thực hiện" (Matching Spotify Reference) */}
-      <div className="bg-[#181820] rounded-md p-3.5 mb-3.5 border-none">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-xs font-extrabold text-white">Người tham gia thực hiện</h4>
-          <span className="text-[10px] font-bold text-text-muted hover:text-white cursor-pointer">
-            Hiện tất cả
-          </span>
+      {/* 4. "Giới thiệu về nghệ sĩ" Section matching Screenshot 2 */}
+      <div className="bg-[#242424] rounded-lg overflow-hidden mb-3 relative group">
+        <div className="w-full h-44 relative bg-[#181818]">
+          <img
+            src={
+              artistDetail?.thumbnail ||
+              currentSong.thumbnailM ||
+              currentSong.thumbnail ||
+              'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500'
+            }
+            alt={artistName}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#242424] via-transparent to-black/30 p-3 flex flex-col justify-between">
+            <span className="text-xs font-bold text-white shadow-sm">Giới thiệu về nghệ sĩ</span>
+            <div>
+              <h4 className="text-sm font-black text-white">{artistName}</h4>
+              <span className="text-[11px] text-[#b3b3b3]">
+                {artistDetail?.totalFollow ? `${(artistDetail.totalFollow / 1000).toFixed(0)}k người nghe hàng tháng` : 'Nghệ sĩ nổi bật'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Main Artist Row with Follow Button */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="min-w-0 flex-1">
-            <h5 className="text-xs font-bold text-white truncate">{artistName}</h5>
-            <span className="text-[10px] font-medium text-text-muted">Nghệ Sĩ Chính</span>
-          </div>
-
+        <div className="p-3 pt-2 flex items-center justify-between">
+          <p className="text-xs text-[#b3b3b3] line-clamp-2 leading-relaxed flex-1 pr-2">
+            Theo dõi {artistName} để nhận thông báo khi có bài hát mới phát hành.
+          </p>
           <button
             onClick={() => {
-              if (currentSong) {
-                toggleFollowArtist({
-                  id: artistDetail?.id || artistName,
-                  name: artistName,
-                  alias: artistDetail?.alias || artistName,
-                  thumbnail: artistDetail?.thumbnail || currentSong.thumbnail,
-                });
-              }
+              toggleFollowArtist({
+                id: artistDetail?.id || artistName,
+                name: artistName,
+                alias: artistDetail?.alias || artistName,
+                thumbnail: artistDetail?.thumbnail || currentSong.thumbnail,
+              });
             }}
-            className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all border cursor-pointer ${
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-all border cursor-pointer flex-shrink-0 ${
               isFollowed
-                ? 'bg-transparent border-white/20 text-text-secondary hover:border-white hover:text-white'
+                ? 'bg-transparent border-white/20 text-[#b3b3b3] hover:border-white hover:text-white'
                 : 'bg-transparent border-white/30 text-white hover:border-white hover:scale-105'
             }`}
           >
             {isFollowed ? 'Đang theo dõi' : 'Theo dõi'}
           </button>
         </div>
-
-        {/* Composer / Producer Row */}
-        <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
-          <div className="min-w-0">
-            <h6 className="text-[11px] font-semibold text-white truncate">
-              {artistDetail?.name || currentSong?.artistsNames || 'Đang cập nhật'}
-            </h6>
-            <span className="text-[10px] text-text-muted">Người Soạn Nhạc & Lời</span>
-          </div>
-
-          <div className="min-w-0">
-            <h6 className="text-[11px] font-semibold text-white truncate">Tempo Studio Atmos</h6>
-            <span className="text-[10px] text-text-muted">Nhà Sản Xuất & Master 320kbps</span>
-          </div>
-        </div>
       </div>
 
-      {/* Next in Queue Section (Nếu có bài tiếp theo) */}
+      {/* 5. Next in Queue Card */}
       {nextSong && (
-        <div className="bg-[#181820] rounded-md p-3.5 border-none">
-          <div className="flex items-center justify-between mb-2.5">
-            <h4 className="text-xs font-extrabold text-white">Tiếp theo trong danh sách</h4>
-            <span className="text-[10px] font-bold text-text-muted">Hàng đợi</span>
+        <div className="bg-[#242424] rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-bold text-white">Tiếp theo trong danh sách</h4>
+            <span className="text-[10px] font-bold text-[#b3b3b3]">Hàng đợi</span>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -142,7 +172,7 @@ export const RightNowPlayingSidebar: React.FC = () => {
             />
             <div className="min-w-0 flex-1">
               <h5 className="text-xs font-bold text-white truncate">{nextSong.title}</h5>
-              <p className="text-[10px] text-text-muted truncate">{nextSong.artistsNames}</p>
+              <p className="text-[11px] text-[#b3b3b3] truncate">{nextSong.artistsNames}</p>
             </div>
           </div>
         </div>

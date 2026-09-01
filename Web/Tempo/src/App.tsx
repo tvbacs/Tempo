@@ -86,15 +86,10 @@ export const App: React.FC = () => {
 
   if (isAuthLoading) {
     return (
-      <div className="flex h-screen w-screen bg-[#0B0B0E] items-center justify-center text-white">
-        <div className="w-8 h-8 rounded-full border-2 border-[#FC475C] border-t-transparent animate-spin" />
+      <div className="flex h-screen w-screen bg-[#000000] items-center justify-center text-white">
+        <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin" />
       </div>
     );
-  }
-
-  // Bắt buộc đăng nhập đồng bộ dữ liệu với Mobile
-  if (!user) {
-    return <AuthScreen />;
   }
 
   const renderMainContent = () => {
@@ -129,7 +124,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#0B0B0E] text-white overflow-hidden select-none font-sans">
+    <div className="flex flex-col h-screen w-screen bg-[#000000] text-white overflow-hidden select-none font-sans">
       {/* 1. Top Header */}
       <Header
         searchQuery={searchQuery}
@@ -138,19 +133,21 @@ export const App: React.FC = () => {
           if (q.trim()) setCurrentTab('search');
         }}
         onSearchFocus={() => setCurrentTab('search')}
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
       />
 
-      {/* 2. 3-Column Layout Matching User Mockup */}
-      <div className="flex-1 flex gap-3 px-4 pb-3 overflow-hidden">
+      {/* 2. 3-Column Layout Matching Spotify Reference */}
+      <div className="flex-1 flex gap-2 px-2 pb-2 overflow-hidden">
         {/* Left Column: Navigation & Playlists */}
         <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
 
-        {/* Center Column: Main Interactive Screen (Borderless Dark Card with reduced radius) */}
-        <main className="flex-1 bg-[#121217] rounded-lg overflow-hidden flex flex-col relative border-none">
+        {/* Center Column: Main Interactive Screen */}
+        <main className="flex-1 bg-[#121212] rounded-lg overflow-hidden flex flex-col relative border-none">
           {renderMainContent()}
         </main>
 
-        {/* Right Column: Downloads Queue on 'downloads' tab, otherwise Spotify-style Now Playing & Artist View */}
+        {/* Right Column: Spotify-style Now Playing & Artist View */}
         {currentTab === 'downloads' ? <RightQueueSidebar /> : <RightNowPlayingSidebar />}
       </div>
 
@@ -160,7 +157,7 @@ export const App: React.FC = () => {
       {/* 4. Global Auth Modal */}
       <AuthModal />
 
-      {/* 5. Autoplay Unlock Floating Notification (Spotify Style) */}
+      {/* 5. Autoplay Unlock Floating Notification */}
       {isAutoplayBlocked && (
         <div
           onClick={() => {
@@ -173,10 +170,10 @@ export const App: React.FC = () => {
               }).catch(() => {});
             }
           }}
-          className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] bg-[#FC475C] text-white px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-3 cursor-pointer animate-pulse hover:opacity-95 transition-all"
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] bg-[#1ed760] text-black px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-3 cursor-pointer animate-pulse hover:opacity-95 transition-all"
         >
-          <Play className="w-5 h-5 fill-white" />
-          <span className="text-sm">Trình duyệt đã tạm dừng · Nhấn vào đây để bật âm thanh</span>
+          <Play className="w-5 h-5 fill-black text-black" />
+          <span className="text-sm font-bold">Trình duyệt đã tạm dừng · Nhấn vào đây để bật âm thanh</span>
         </div>
       )}
     </div>

@@ -280,7 +280,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   togglePlayPause: () => {
+    if (!get().audioElement) {
+      get().initAudio();
+    }
     const audio = get().audioElement;
+    const { currentSong, queue, positionSec } = get();
+
+    // 1. Nếu chưa có bài hát nào được chọn thì không làm gì
+    if (!currentSong) return;
+
+    // 2. Nếu audio chưa được gán src (ví dụ bài hát được khôi phục từ localStorage khi mới vào web)
+    if (!audio || !audio.src) {
+      get().playSong(currentSong, queue.length > 0 ? queue : [currentSong], positionSec);
+      return;
+    }
+
     const connect = useConnectStore.getState();
     const isRemote = connect.activeDeviceId !== 'web-player-pc';
 
@@ -290,11 +304,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
-    if (!audio || !audio.src) return;
     if (audio.paused) {
-      audio.play();
+      audio.play().then(() => {
+        set({ isPlaying: true, isAutoplayBlocked: false });
+        useConnectStore.getState().broadcastState();
+      }).catch(() => {
+        // Nếu link stream cũ bị hết hạn, tự động fetch link mới và phát tiếp
+        get().playSong(currentSong, queue, audio.currentTime || positionSec);
+      });
     } else {
       audio.pause();
+      set({ isPlaying: false });
+      useConnectStore.getState().broadcastState();
     }
   },
 

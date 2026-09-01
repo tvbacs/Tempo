@@ -153,7 +153,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (isThisCurrent) {
+                        if (isThisPlaying) {
                           togglePlayPause();
                         } else {
                           playSong(song, songs);

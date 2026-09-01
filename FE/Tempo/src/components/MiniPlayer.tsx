@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   tooltipBubble: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: LAYOUT.radiusLg,
     paddingHorizontal: 12,
     paddingVertical: 6,
     flexDirection: 'row',

@@ -67,13 +67,13 @@ export const COLORS = {
 };
 
 export const LAYOUT = {
-  // Radii - Sleek & Modern (Reduced curvature)
-  radiusXs: 3,
-  radiusSm: 6,
-  radiusMd: 8,
-  radiusLg: 10,
-  radiusXl: 14,
-  radiusCard: 8,
+  // Radii - Sleek & Modern Even-Number Tokens (Minimalist curvature)
+  radiusXs: 2,
+  radiusSm: 4,
+  radiusMd: 4,
+  radiusLg: 6,
+  radiusXl: 8,
+  radiusCard: 4,
   radiusFull: 9999,
   
   // Borders (Strictly Zero Borders across the entire design)

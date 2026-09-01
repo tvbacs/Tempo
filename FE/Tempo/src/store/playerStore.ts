@@ -104,23 +104,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
   // Listen to engine playback updates
   audioEngine.setStatusCallback((status) => {
     if (status.isLoaded) {
-      // Ưu tiên duration chuẩn xác từ metadata
       const engineDurationMs = status.durationMillis || 0;
       const song = get().currentSong;
       const metaDurationMs = song?.duration ? song.duration * 1000 : 0;
 
-      // Ưu tiên metaDurationMs để tránh AVPlayer ước lượng bitrate sai (bị x2 thời lượng), chỉ dùng engine nếu không có meta hoặc lệch dưới 6s
-      let accurateDurationMs = metaDurationMs;
-      if (!accurateDurationMs || accurateDurationMs <= 0) {
-        accurateDurationMs = engineDurationMs;
-      } else if (engineDurationMs > 1000 && Math.abs(engineDurationMs - metaDurationMs) < 6000) {
-        accurateDurationMs = engineDurationMs;
+      // Chọn duration hiển thị UI:
+      // - Nếu engine chưa có → dùng metadata
+      // - Nếu engine có và lớn gấp 1.8 lần metadata → AVPlayer x2 bug, dùng metadata
+      // - Còn lại: dùng engine (bao gồm cả khi engine > metadata bình thường)
+      let accurateDurationMs = engineDurationMs;
+      if (engineDurationMs <= 0 && metaDurationMs > 0) {
+        accurateDurationMs = metaDurationMs;
+      } else if (engineDurationMs > 0 && metaDurationMs > 0 && engineDurationMs > metaDurationMs * 1.8) {
+        accurateDurationMs = metaDurationMs;
       }
 
-      // Clamp position — không bao giờ để position > duration
+      // KHÔNG clamp position vào accurateDurationMs — nếu engine đang chạy quá metadata
+      // thì đó là dữ liệu hợp lệ, clamp cứng sẽ đóng băng thanh tiến trình
       const rawPosition = status.positionMillis || 0;
-      const accuratePositionMs = accurateDurationMs > 0
-        ? Math.min(rawPosition, accurateDurationMs)
+      const accuratePositionMs = (accurateDurationMs > 0 && rawPosition > accurateDurationMs * 1.05)
+        ? accurateDurationMs  // chỉ clamp khi vượt quá 105% (tức là thực sự bất thường)
         : rawPosition;
 
       const state = get();

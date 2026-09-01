@@ -256,29 +256,38 @@ class AudioEngine {
 
         const curTime = status.currentTime || 0;
         const rawDur = status.duration || 0;
-        const metaDur = (song.duration && song.duration > 0) ? song.duration : 0;
+        const metaDurSec = (song.duration && song.duration > 0) ? song.duration : 0;
 
-        // Effective duration: ưu tiên metadata nếu có, hoặc dùng rawDur từ engine
-        const dur = (metaDur > 0 && (rawDur <= 0 || Math.abs(rawDur - metaDur) < 15))
-          ? metaDur
-          : (rawDur || metaDur);
+        // Luôn dùng rawDur (thực tế từ stream) để phát hiện kết thúc bài.
+        // metaDur chỉ dùng khi engine chưa report ra duration (rawDur=0) hoặc
+        // khi rawDur lớn hơn metaDur quá nhiều (AVPlayer x2 bitrate bug).
+        // KHÔNG dùng metaDur khi metaDur < rawDur — tránh kích hoạt next bài sớm.
+        let dur = rawDur;
+        if (rawDur <= 0 && metaDurSec > 0) {
+          // Engine chưa report duration → fallback về metadata
+          dur = metaDurSec;
+        } else if (rawDur > 0 && metaDurSec > 0 && rawDur > metaDurSec * 1.8) {
+          // AVPlayer x2 bitrate estimation bug → dùng metadata
+          dur = metaDurSec;
+        }
+        // Mọi trường hợp còn lại: rawDur > metaDur hoặc rawDur ≈ metaDur → dùng rawDur
 
         const pState = (status.playbackState || '').toLowerCase();
 
         // 1. Tín hiệu Native trực tiếp (didJustFinish hoặc state=ended)
         const nativeEnded = status.didJustFinish === true || pState === 'ended';
 
-        // 2. Chạm ngưỡng cuối bài (trong vòng 1.2s cuối cùng của bài)
-        const reachEndThreshold = dur > 2 && curTime > 0 && curTime >= (dur - 1.2);
+        // 2. Chạm ngưỡng cuối bài (trong vòng 1.5s cuối cùng của bài thực tế)
+        const reachEndThreshold = dur > 2 && curTime > 0 && curTime >= (dur - 1.5);
 
-        // 3. Đứng hoặc dừng ở đoạn cuối bài (>= dur - 2.5s hoặc >= 96% thời lượng)
+        // 3. Dừng/đứng hình sau khi đã qua 96% thời lượng thực tế
         let isStalledNearEnd = false;
-        if (dur > 5 && (curTime >= (dur - 2.5) || curTime >= dur * 0.96)) {
+        if (dur > 5 && curTime >= dur * 0.96) {
           if (!status.playing || pState === 'idle' || pState === 'paused' || pState === 'stopped') {
             isStalledNearEnd = true;
           } else if (lastTrackPosition >= 0 && Math.abs(curTime - lastTrackPosition) < 0.25) {
             nearEndStallCount++;
-            if (nearEndStallCount >= 1) {
+            if (nearEndStallCount >= 2) {
               isStalledNearEnd = true;
             }
           } else {
@@ -293,7 +302,7 @@ class AudioEngine {
 
         if (isReachedEnd && !this.isStopping && !this.hasTriggeredEndForCurrentTrack) {
           this.hasTriggeredEndForCurrentTrack = true;
-          console.log(`[AudioEngine] Track finished -> Advancing next track (native=${nativeEnded}, reachEnd=${reachEndThreshold}, stalled=${isStalledNearEnd}, pos=${curTime.toFixed(1)}s/${dur.toFixed(1)}s)`);
+          console.log(`[AudioEngine] Track finished -> next (native=${nativeEnded}, reachEnd=${reachEndThreshold}, stalled=${isStalledNearEnd}, pos=${curTime.toFixed(2)}s / rawDur=${rawDur.toFixed(2)}s / metaDur=${metaDurSec.toFixed(2)}s)`);
           if (this.onTrackEndedCallback) {
             this.onTrackEndedCallback();
           }

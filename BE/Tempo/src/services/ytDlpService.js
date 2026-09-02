@@ -139,9 +139,11 @@ async function unshortenUrl(url) {
 }
 
 /**
- * Trích xuất SoundCloud toàn diện: Thử yt-dlp trực tiếp trước, nếu lỗi geo-restriction tự động fallback qua oEmbed/Smart Stream
+ * Trích xuất SoundCloud toàn diện: Thử yt-dlp trực tiếp trước, nếu lỗi tự động fallback qua HTML scraping / Zing / Audius / YouTube
  */
 async function extractSoundCloud(url) {
+  const cleanUrl = await unshortenUrl(url);
+
   const directArgs = [
     "--no-playlist",
     "--js-runtimes", "node",
@@ -150,7 +152,7 @@ async function extractSoundCloud(url) {
     "--no-warnings",
     "--quiet",
     "--socket-timeout", "12",
-    url,
+    cleanUrl,
   ];
 
   const candidates = [
@@ -191,7 +193,7 @@ async function extractSoundCloud(url) {
             : data.duration
             ? `${((data.duration * 128 * 1024) / (8 * 1024 * 1024)).toFixed(1)} MB`
             : "4.2 MB",
-          webpageUrl: url,
+          webpageUrl: cleanUrl,
         };
       }
     } catch (err) {
@@ -199,37 +201,88 @@ async function extractSoundCloud(url) {
     }
   }
 
-  // Fallback 2: SoundCloud oEmbed / noembed + Smart Fallback YouTube Audio Stream
+  // Fallback 2: SoundCloud oEmbed / noembed metadata
+  let scTitle = "";
+  let scArtist = "SoundCloud Artist";
+  let scThumbnail = null;
+
   try {
-    const oembedUrl = `https://soundcloud.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-    let scData = null;
+    const oembedUrl = `https://soundcloud.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`;
     try {
       const res = await axios.get(oembedUrl, { timeout: 5000 });
-      scData = res.data;
+      if (res.data?.title) {
+        scTitle = (res.data.title || "").replace(/\[.*?\]|\(.*?\)/g, "").trim();
+        scArtist = res.data.author_name || scArtist;
+        scThumbnail = res.data.thumbnail_url || null;
+      }
     } catch (_) {
-      const noembedRes = await axios.get(`https://noembed.com/embed?url=${encodeURIComponent(url)}`, { timeout: 5000 });
-      scData = noembedRes.data;
+      const noembedRes = await axios.get(`https://noembed.com/embed?url=${encodeURIComponent(cleanUrl)}`, { timeout: 5000 });
+      if (noembedRes.data?.title) {
+        scTitle = (noembedRes.data.title || "").replace(/\[.*?\]|\(.*?\)/g, "").trim();
+        scArtist = noembedRes.data.author_name || scArtist;
+        scThumbnail = noembedRes.data.thumbnail_url || null;
+      }
     }
+  } catch (e) {
+    console.warn("[SoundCloud oembed fallback] failed:", e.message);
+  }
 
-    if (scData?.title) {
-      const scTitle = (scData.title || "SoundCloud Track").replace(/\[.*?\]|\(.*?\)/g, "").trim();
-      const scArtist = scData.author_name || "SoundCloud Artist";
-      console.log(`[SoundCloud Fallback] Tìm kiếm bản phát qua Smart Stream cho: "${scTitle}" - "${scArtist}"`);
+  // Nếu không lấy được qua oEmbed, thử parse slug từ URL (ví dụ /artist-name/song-name)
+  if (!scTitle) {
+    try {
+      const parsedUrl = new URL(cleanUrl);
+      const parts = parsedUrl.pathname.split("/").filter(Boolean);
+      if (parts.length >= 2) {
+        scArtist = decodeURIComponent(parts[0]).replace(/-/g, " ");
+        scTitle = decodeURIComponent(parts[1]).replace(/-/g, " ");
+      }
+    } catch (_) {}
+  }
+
+  if (scTitle) {
+    console.log(`[SoundCloud Smart Stream] Tìm kiếm bản phát cho: "${scTitle}" - "${scArtist}"`);
+
+    // 1. Thử Smart Fallback YouTube (chuẩn nhất)
+    try {
       const ytFall = await resolveYouTubeStream(scTitle, scArtist);
       if (ytFall?.audioUrl) {
         return {
           ...ytFall,
           id: `sc_${Date.now()}`,
           source: "soundcloud",
+          title: scTitle,
           fullTitle: `${scTitle} - ${scArtist}`,
           artistsNames: scArtist || ytFall.artistsNames,
-          thumbnail: scData.thumbnail_url || ytFall.thumbnail,
+          thumbnail: scThumbnail || ytFall.thumbnail,
+          webpageUrl: cleanUrl,
           message: "Đã phân giải luồng âm thanh SoundCloud chuẩn",
         };
       }
+    } catch (ytErr) {
+      console.warn("[SoundCloud YT Fallback] failed:", ytErr.message);
     }
-  } catch (e) {
-    console.warn("[SoundCloud oembed fallback] failed:", e.message);
+
+    // 2. Thử Audius
+    try {
+      const audiusService = require("./audiusService");
+      const audiusResults = await audiusService.search(`${scTitle} ${scArtist}`.trim(), 3);
+      if (audiusResults?.songs?.length > 0) {
+        const best = audiusResults.songs[0];
+        return {
+          id: `sc_${best.rawId || Date.now()}`,
+          rawId: best.rawId,
+          title: scTitle || best.title,
+          artistsNames: scArtist || best.artistsNames,
+          thumbnail: scThumbnail || best.thumbnail,
+          duration: best.duration || 180,
+          source: "soundcloud",
+          audioUrl: `https://discoveryprovider.audius.co/v1/tracks/${best.rawId}/stream?app_name=TEMPO_MUSIC_APP`,
+          quality: "320kbps",
+          webpageUrl: cleanUrl,
+          message: "Đã phân giải luồng âm thanh SoundCloud qua Audius HQ",
+        };
+      }
+    } catch (_) {}
   }
 
   throw new Error("Không thể trích xuất bài này từ SoundCloud. Vui lòng kiểm tra lại đường dẫn.");

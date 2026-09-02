@@ -1,7 +1,3 @@
-/**
- * LibraryScreen - Thư viện cá nhân với Full-Bleed Creative Diagonal Capsule Hero (Full Tai Thỏ)
- * Strictly follows STANDARDS.md - Accent #FC475C -> #FC655A, NO EMOJIS, NO BORDERS
- */
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -24,10 +20,14 @@ import {
   Disc,
   ListMusic,
   ChevronRight,
+  Clock,
+  Crown,
 } from 'lucide-react-native';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { useLibraryStore, CustomPlaylist } from '../store/libraryStore';
 import { useDownloadStore } from '../store/downloadStore';
+import { usePlayerStore } from '../store/playerStore';
+import { useAuthStore } from '../store/authStore';
 import { useNavStore } from '../store/navStore';
 import { AppAvatarBadge } from '../components/AppAvatarBadge';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
@@ -35,6 +35,14 @@ import { PlaylistOptionsModal } from '../components/PlaylistOptionsModal';
 import { AddSongsModal } from '../components/AddSongsModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const formatDuration = (ms: number): string => {
+  if (!ms || ms <= 0) return '';
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, '0')}`;
+};
 
 export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -57,9 +65,13 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     fetchFollowedArtists,
     savedAlbums,
     fetchSavedAlbums,
+    history,
+    fetchHistory,
   } = useLibraryStore();
 
   const { downloadedSongs, fetchDownloads } = useDownloadStore();
+  const { playSong } = usePlayerStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     fetchLikedSongs();
@@ -67,7 +79,12 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     fetchPlaylists();
     fetchFollowedArtists();
     fetchSavedAlbums();
-  }, [fetchLikedSongs, fetchDownloads, fetchPlaylists, fetchFollowedArtists, fetchSavedAlbums]);
+    fetchHistory();
+  }, [fetchLikedSongs, fetchDownloads, fetchPlaylists, fetchFollowedArtists, fetchSavedAlbums, fetchHistory]);
+
+  const userPlaylists = playlists.filter(
+    (pl) => pl.name && !pl.name.includes('TEMPO_ACTIVE') && !pl.name.includes('active-server') && !pl.name.startsWith('__')
+  );
 
   return (
     <View style={styles.safeArea}>
@@ -77,108 +94,46 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Full-Bleed Creative Diagonal Capsule Hero Section (Tràn Viền & Full Tai Thỏ) */}
-        <View style={[styles.creativeHeroCard, { paddingTop: Math.max(insets.top, 24) }]}>
-          {/* Diagonal Pill Floating Capsule Images */}
-          <View style={styles.diagonalPillContainer} pointerEvents="none">
-            {/* Pill 1 - Top Left */}
-            <View style={[styles.diagonalPill, styles.pill1]}>
-              <Image
-                source={{
-                  uri:
-                    likedSongs[0]?.thumbnail ||
-                    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80',
-                }}
-                style={styles.pillImage}
-                resizeMode="cover"
-              />
-            </View>
+        {/* Top SoundCloud-style Header Section */}
+        <View style={[styles.heroHeaderRow, { paddingTop: Math.max(insets.top, 20), paddingBottom: SPACING.md }]}>
+          <View style={styles.headerLeftGroup}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('Profile')}
+              style={styles.headerAvatarBtn}
+            >
+              <AppAvatarBadge size={38} />
+            </TouchableOpacity>
 
-            {/* Pill 2 - Center High */}
-            <View style={[styles.diagonalPill, styles.pill2]}>
-              <Image
-                source={{
-                  uri:
-                    playlists[0]?.coverUrl ||
-                    playlists[0]?.songs?.[0]?.thumbnail ||
-                    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80',
-                }}
-                style={styles.pillImage}
-                resizeMode="cover"
-              />
-            </View>
-
-            {/* Pill 3 - Bottom Right */}
-            <View style={[styles.diagonalPill, styles.pill3]}>
-              <Image
-                source={{
-                  uri:
-                    savedAlbums[0]?.thumbnail ||
-                    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80',
-                }}
-                style={styles.pillImage}
-                resizeMode="cover"
-              />
-            </View>
-          </View>
-
-          {/* Floating Colorful Accent Deco Squares (Figma Inspiration) */}
-          <View style={[styles.decoDot, { top: insets.top + 30, left: 18, backgroundColor: '#EC4899' }]} />
-          <View style={[styles.decoDot, { top: insets.top + 65, left: 24, backgroundColor: '#06B6D4' }]} />
-          <View style={[styles.decoDot, { top: insets.top + 100, left: 16, backgroundColor: '#8B5CF6' }]} />
-          <View style={[styles.decoDot, { top: insets.top + 50, left: 56, backgroundColor: '#F97316' }]} />
-          <View style={[styles.decoDot, { top: insets.top + 85, left: 50, backgroundColor: '#EAB308' }]} />
-
-          {/* Smooth Dark Gradient Fade */}
-          <LinearGradient
-            colors={[
-              'rgba(10, 10, 14, 0.2)',
-              'rgba(10, 10, 14, 0.72)',
-              COLORS.bgPrimary,
-            ]}
-            locations={[0, 0.55, 1]}
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-
-          {/* Top Floating Header Row */}
-          <View style={styles.heroHeaderRow}>
-            <Text style={styles.title}>Thư viện</Text>
-
-            <View style={styles.headerRightRow}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setShowCreateModal(true)}
-                style={styles.headerIconBtn}
-                hitSlop={{ top: SPACING.sm, bottom: SPACING.sm, left: SPACING.sm, right: SPACING.sm }}
-              >
-                <Plus size={20} color={COLORS.white} />
-              </TouchableOpacity>
-
+            {!user?.isVip ? (
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('Profile')}
-                style={styles.headerAvatarBtn}
+                onPress={() => navigation.navigate('Upgrade')}
+                style={styles.proUpgradeBadge}
               >
-                <AppAvatarBadge size={42} />
+                <LinearGradient
+                  colors={['#FC475C', '#FC655A']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.proUpgradeGradient}
+                >
+                  <Crown size={11} color={COLORS.white} fill={COLORS.white} style={{ marginRight: 3 }} />
+                  <Text style={styles.proUpgradeText}>Nâng cấp VIP</Text>
+                </LinearGradient>
               </TouchableOpacity>
-            </View>
+            ) : null}
+
+            <Text style={styles.title}>Thư viện</Text>
           </View>
 
-          {/* Hero Bottom Content */}
-          <View style={styles.creativeHeroContent}>
-            <View style={styles.heroBadgeRow}>
-              <Text style={styles.heroBadgeText}>BỘ SƯU TẬP CỦA BẠN</Text>
-            </View>
-            <Text style={styles.creativeHeroTitle}>Không Gian Âm Nhạc</Text>
-          </View>
+          <View style={styles.headerRightRow} />
         </View>
 
-        {/* Clean Modern Quick Action Items */}
+        {/* SoundCloud-style Clean Vertical Navigation Rows */}
         <View style={styles.bannerCardsContainer}>
-          {/* Item 1: Bài hát đã thích */}
+          {/* Row 1: Bài hát đã thích */}
           <TouchableOpacity
-            activeOpacity={0.75}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('LikedSongs')}
             style={styles.fullWidthCard}
           >
@@ -188,23 +143,27 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               end={{ x: 1, y: 1 }}
               style={styles.cardIconBox}
             >
-              <Heart size={22} color={COLORS.white} fill={COLORS.white} />
+              <Heart size={20} color={COLORS.white} fill={COLORS.white} />
             </LinearGradient>
             <View style={styles.cardInfoCol}>
               <Text style={styles.cardMainTitle}>Bài hát đã thích</Text>
               <Text style={styles.cardSubTitle}>{likedSongs.length} bài hát</Text>
             </View>
-            <ChevronRight size={20} color={COLORS.textMuted} />
+            <ChevronRight size={18} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          {/* Item 2: Bài hát đã tải về */}
+          {/* Row 2: Bài hát đã tải về */}
           <TouchableOpacity
-            activeOpacity={0.75}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('DownloadedSongs')}
             style={styles.fullWidthCard}
           >
-            {downloadedSongs[0]?.thumbnail ? (
-              <Image source={{ uri: downloadedSongs[0].thumbnail }} style={styles.cardImageThumb} />
+            {downloadedSongs.length > 0 && downloadedSongs[0]?.thumbnail ? (
+              <Image
+                source={{ uri: downloadedSongs[0].thumbnail }}
+                style={[styles.cardIconBox, { borderRadius: LAYOUT.radiusMd }]}
+                resizeMode="cover"
+              />
             ) : (
               <LinearGradient
                 colors={['#065F46', '#10B981']}
@@ -212,26 +171,27 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 end={{ x: 1, y: 1 }}
                 style={styles.cardIconBox}
               >
-                <Download size={22} color={COLORS.white} strokeWidth={2.3} />
+                <Download size={20} color={COLORS.white} strokeWidth={2.3} />
               </LinearGradient>
             )}
             <View style={styles.cardInfoCol}>
               <Text style={styles.cardMainTitle}>Bài hát đã tải</Text>
               <Text style={styles.cardSubTitle}>{downloadedSongs.length} bài hát · Nghe ngoại tuyến</Text>
             </View>
-            <ChevronRight size={20} color={COLORS.textMuted} />
+            <ChevronRight size={18} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          {/* Item 3: Nghệ sĩ đã theo dõi */}
+          {/* Row 3: Nghệ sĩ đã theo dõi */}
           <TouchableOpacity
-            activeOpacity={0.75}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('FollowedArtists')}
             style={styles.fullWidthCard}
           >
-            {(followedArtists[0]?.thumbnail || (followedArtists[0] as any)?.cover || (followedArtists[0] as any)?.avatar) ? (
+            {followedArtists.length > 0 && (followedArtists[0]?.thumbnail || (followedArtists[0] as any)?.imageUrl) ? (
               <Image
-                source={{ uri: followedArtists[0]?.thumbnail || (followedArtists[0] as any)?.cover || (followedArtists[0] as any)?.avatar }}
-                style={[styles.cardImageThumb, { borderRadius: LAYOUT.radiusFull }]}
+                source={{ uri: followedArtists[0].thumbnail || (followedArtists[0] as any).imageUrl }}
+                style={[styles.cardIconBox, { borderRadius: LAYOUT.radiusFull }]}
+                resizeMode="cover"
               />
             ) : (
               <LinearGradient
@@ -240,26 +200,27 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 end={{ x: 1, y: 1 }}
                 style={styles.cardIconBox}
               >
-                <Users size={22} color={COLORS.white} strokeWidth={2.3} />
+                <Users size={20} color={COLORS.white} strokeWidth={2.3} />
               </LinearGradient>
             )}
             <View style={styles.cardInfoCol}>
               <Text style={styles.cardMainTitle}>Nghệ sĩ theo dõi</Text>
               <Text style={styles.cardSubTitle}>{followedArtists.length} nghệ sĩ</Text>
             </View>
-            <ChevronRight size={20} color={COLORS.textMuted} />
+            <ChevronRight size={18} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          {/* Item 4: Album đã lưu */}
+          {/* Row 4: Album đã lưu */}
           <TouchableOpacity
-            activeOpacity={0.75}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('SavedAlbums')}
             style={styles.fullWidthCard}
           >
-            {(savedAlbums[0]?.thumbnail || (savedAlbums[0] as any)?.cover) ? (
+            {savedAlbums.length > 0 && (savedAlbums[0]?.thumbnail || (savedAlbums[0] as any)?.coverUrl) ? (
               <Image
-                source={{ uri: savedAlbums[0]?.thumbnail || (savedAlbums[0] as any)?.cover }}
-                style={styles.cardImageThumb}
+                source={{ uri: savedAlbums[0].thumbnail || (savedAlbums[0] as any).coverUrl }}
+                style={[styles.cardIconBox, { borderRadius: LAYOUT.radiusSm }]}
+                resizeMode="cover"
               />
             ) : (
               <LinearGradient
@@ -268,77 +229,134 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 end={{ x: 1, y: 1 }}
                 style={styles.cardIconBox}
               >
-                <Disc size={22} color={COLORS.white} strokeWidth={2.3} />
+                <Disc size={20} color={COLORS.white} strokeWidth={2.3} />
               </LinearGradient>
             )}
             <View style={styles.cardInfoCol}>
               <Text style={styles.cardMainTitle}>Album đã lưu</Text>
               <Text style={styles.cardSubTitle}>{savedAlbums.length} album</Text>
             </View>
-            <ChevronRight size={20} color={COLORS.textMuted} />
+            <ChevronRight size={18} color={COLORS.textMuted} />
           </TouchableOpacity>
         </View>
 
-        {/* Section Heading: Playlists */}
-        <Text style={styles.sectionHeading}>DANH SÁCH PHÁT CỦA BẠN</Text>
-
-        {playlists.filter((pl) => pl.name && !pl.name.includes('TEMPO_ACTIVE') && !pl.name.includes('active-server') && !pl.name.startsWith('__')).length > 0 ? (
-          playlists.filter((pl) => pl.name && !pl.name.includes('TEMPO_ACTIVE') && !pl.name.includes('active-server') && !pl.name.startsWith('__')).map((pl) => {
-            const coverImage =
-              pl.songs?.[0]?.thumbnail ||
-              pl.coverUrl ||
-              'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300';
-
-            return (
+        {/* Section: Danh sách phát — Horizontal Scroll Vertical Cards */}
+        <View style={styles.playlistSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeadingTitle}>Danh sách phát</Text>
+            {userPlaylists.length > 0 && (
               <TouchableOpacity
-                key={pl.id}
-                activeOpacity={0.85}
-                style={styles.libraryRow}
-                onPress={() => {
-                  navigation.navigate('PlaylistDetail', {
-                    id: pl.id,
-                    title: pl.name,
-                    thumbnail: coverImage,
-                    initialSongs: pl.songs,
-                  });
-                }}
+                activeOpacity={0.7}
+                onPress={() => setShowCreateModal(true)}
               >
-                <Image source={{ uri: coverImage }} style={styles.playlistThumbImage} />
-                <View style={styles.itemInfo}>
-                  <Text numberOfLines={1} style={styles.itemTitle}>{pl.name}</Text>
-                  <Text style={styles.itemSub}>
-                    Danh sách phát · {pl.songCount || pl.songs?.length || 0} bài hát
-                  </Text>
-                </View>
-
-                {/* 3 dots action button */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  hitSlop={{ top: SPACING.md, bottom: SPACING.md, left: SPACING.md, right: SPACING.md }}
-                  onPress={() => setSelectedPlaylistForOptions(pl)}
-                  style={styles.playlistOptionsBtn}
-                >
-                  <MoreHorizontal size={20} color={COLORS.textSecondary} />
-                </TouchableOpacity>
+                <Text style={styles.seeAllText}>+ Tạo mới</Text>
               </TouchableOpacity>
-            );
-          })
-        ) : (
-          /* Clean Empty State */
-          <View style={styles.emptyPlaylistState}>
-            <ListMusic size={42} color={COLORS.textMuted} />
-            <Text style={styles.emptyPlaylistTitle}>Chưa có danh sách phát nào</Text>
-            <Text style={styles.emptyPlaylistSub}>
-              Tạo danh sách phát riêng để lưu trữ và phân loại các bài hát yêu thích theo gu của bạn.
-            </Text>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setShowCreateModal(true)}
-              style={styles.createPlaylistActionBtn}
+            )}
+          </View>
+
+          {userPlaylists.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.playlistHScrollContent}
             >
-              <Plus size={16} color={COLORS.white} style={{ marginRight: 4 }} />
-              <Text style={styles.createPlaylistActionText}>Tạo danh sách phát ngay</Text>
-            </TouchableOpacity>
+              {userPlaylists.map((pl) => {
+                const coverImage =
+                  pl.songs?.[0]?.thumbnail ||
+                  pl.coverUrl ||
+                  'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300';
+
+                return (
+                  <TouchableOpacity
+                    key={pl.id}
+                    activeOpacity={0.85}
+                    style={styles.playlistVertCard}
+                    onPress={() => {
+                      navigation.navigate('PlaylistDetail', {
+                        id: pl.id,
+                        title: pl.name,
+                        thumbnail: coverImage,
+                        initialSongs: pl.songs,
+                      });
+                    }}
+                    onLongPress={() => setSelectedPlaylistForOptions(pl)}
+                  >
+                    <Image source={{ uri: coverImage }} style={styles.playlistVertImg} resizeMode="cover" />
+                    <Text numberOfLines={2} style={styles.playlistVertTitle}>{pl.name}</Text>
+                    <Text numberOfLines={1} style={styles.playlistVertSub}>
+                      {pl.songCount || pl.songs?.length || 0} bài hát
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          ) : (
+            /* Clean Empty State */
+            <View style={styles.emptyPlaylistState}>
+              <ListMusic size={38} color={COLORS.textMuted} />
+              <Text style={styles.emptyPlaylistTitle}>Chưa có danh sách phát nào</Text>
+              <Text style={styles.emptyPlaylistSub}>
+                Tạo danh sách phát riêng để lưu trữ và phân loại các bài hát yêu thích theo gu của bạn.
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setShowCreateModal(true)}
+                style={styles.createPlaylistActionBtn}
+              >
+                <Plus size={16} color={COLORS.white} style={{ marginRight: 4 }} />
+                <Text style={styles.createPlaylistActionText}>Tạo danh sách phát ngay</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* Section: Gần đây nghe (SoundCloud Listening History Style) */}
+        {history.length > 0 && (
+          <View style={styles.historySection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeadingTitle}>Gần đây nghe</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('SeeAll', { type: 'history', title: 'Lịch sử nghe' })}
+              >
+                <Text style={styles.seeAllText}>Xem tất cả</Text>
+              </TouchableOpacity>
+            </View>
+
+            {history.slice(0, 5).map((item, index) => {
+              const song = item.song;
+              if (!song) return null;
+              return (
+                <TouchableOpacity
+                  key={`${song.id || index}_${item.updatedAt || index}`}
+                  activeOpacity={0.8}
+                  onPress={() => playSong(song, history.map((h) => h.song).filter(Boolean))}
+                  style={styles.historyRow}
+                >
+                  <Image
+                    source={{
+                      uri: song.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200',
+                    }}
+                    style={styles.historyThumb}
+                  />
+                  <View style={styles.historyInfoCol}>
+                    <Text numberOfLines={1} style={styles.historySongTitle}>
+                      {song.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.historyArtist}>
+                      {song.artistsNames || 'Nhiều nghệ sĩ'}
+                    </Text>
+                  </View>
+                  {(item.durationMs || (song as any).duration) ? (
+                    <Text style={styles.historyDuration}>
+                      {formatDuration(item.durationMs || ((song as any).duration * 1000))}
+                    </Text>
+                  ) : (
+                    <Clock size={14} color={COLORS.textMuted} style={{ marginRight: 4 }} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -442,10 +460,15 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
     zIndex: 3,
   },
+  headerLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm + 2,
+  },
   title: {
-    fontSize: TYPOGRAPHY.sizeHero,
+    fontSize: TYPOGRAPHY.sizeHero - 2,
     fontWeight: '800',
-    color: COLORS.white,
+    color: '#EEEEF2',
     letterSpacing: -0.5,
   },
   headerRightRow: {
@@ -457,43 +480,32 @@ const styles = StyleSheet.create({
     width: LAYOUT.iconButtonMd,
     height: LAYOUT.iconButtonMd,
     borderRadius: LAYOUT.radiusFull,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerAvatarBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     overflow: 'visible',
   },
-
-  creativeHeroContent: {
-    paddingHorizontal: SPACING.screenPadding,
-    paddingBottom: SPACING.md,
-    paddingTop: SPACING.sm,
-    zIndex: 2,
+  proUpgradeBadge: {
+    borderRadius: LAYOUT.radiusFull,
+    overflow: 'hidden',
   },
-  heroBadgeRow: {
-    marginBottom: 4,
+  proUpgradeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: LAYOUT.radiusFull,
   },
-  heroBadgeText: {
+  proUpgradeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: COLORS.accentPrimary,
-    letterSpacing: 0.5,
-  },
-  creativeHeroTitle: {
-    fontSize: TYPOGRAPHY.sizeHeading,
-    fontWeight: '900',
     color: COLORS.white,
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  creativeHeroSubtitle: {
-    fontSize: TYPOGRAPHY.sizeCaption,
-    color: COLORS.textLightMuted,
-    lineHeight: 16,
+    letterSpacing: 0.2,
   },
 
   container: {
@@ -505,27 +517,21 @@ const styles = StyleSheet.create({
   bannerCardsContainer: {
     paddingHorizontal: SPACING.screenPadding,
     gap: 0,
+    marginTop: SPACING.md,
     marginBottom: SPACING.md,
   },
   fullWidthCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingHorizontal: 0,
   },
   cardIconBox: {
-    width: 64,
-    height: 64,
-    borderRadius: LAYOUT.radiusLg,
+    width: 68,
+    height: 68,
+    borderRadius: LAYOUT.radiusMd,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  cardImageThumb: {
-    width: 64,
-    height: 64,
-    borderRadius: LAYOUT.radiusLg,
-    backgroundColor: COLORS.bgSurfaceSecondary,
     marginRight: SPACING.md,
   },
   cardInfoCol: {
@@ -534,7 +540,7 @@ const styles = StyleSheet.create({
   cardMainTitle: {
     fontSize: TYPOGRAPHY.sizeBody,
     fontWeight: '600',
-    color: COLORS.white,
+    color: '#EEEEF2',
     letterSpacing: -0.1,
   },
   cardSubTitle: {
@@ -542,25 +548,78 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 2,
   },
-  sectionHeading: {
-    fontSize: TYPOGRAPHY.sizeMicro,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: TYPOGRAPHY.letterSpacingWide,
-    paddingHorizontal: SPACING.screenPadding,
+
+  // History Section (SoundCloud Style)
+  historySection: {
     marginTop: SPACING.sm,
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.screenPadding,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: SPACING.sm,
+  },
+  sectionHeadingTitle: {
+    fontSize: TYPOGRAPHY.sizeHeading - 4,
+    fontWeight: '800',
+    color: '#EEEEF2',
+    letterSpacing: -0.2,
+  },
+  seeAllText: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    fontWeight: '700',
+    color: COLORS.accentPrimary,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+  },
+  historyThumb: {
+    width: 68,
+    height: 68,
+    borderRadius: LAYOUT.radiusSm,
+    backgroundColor: COLORS.bgSurfaceSecondary,
+    marginRight: SPACING.md,
+  },
+  historyInfoCol: {
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  historySongTitle: {
+    fontSize: TYPOGRAPHY.sizeBodySmall,
+    fontWeight: '600',
+    color: '#EEEEF2',
+    marginBottom: 2,
+  },
+  historyArtist: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    color: COLORS.textSecondary,
+  },
+  historyDuration: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    color: COLORS.textMuted,
+    marginLeft: SPACING.xs,
+    minWidth: 32,
+    textAlign: 'right',
+  },
+
+  // Playlist Section
+  playlistSection: {
+    paddingHorizontal: SPACING.screenPadding,
+    marginTop: SPACING.xs,
   },
   libraryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.screenPadding,
-    paddingVertical: SPACING.sm + 2,
+    paddingVertical: SPACING.sm,
     marginBottom: 2,
   },
   playlistThumbImage: {
-    width: LAYOUT.avatarMd,
-    height: LAYOUT.avatarMd,
+    width: 68,
+    height: 68,
     borderRadius: LAYOUT.radiusSm,
     backgroundColor: COLORS.bgSurfaceSecondary,
     marginRight: SPACING.md,
@@ -572,10 +631,39 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: TYPOGRAPHY.sizeBodySmall,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: '#EEEEF2',
     marginBottom: 2,
   },
   itemSub: {
+    fontSize: TYPOGRAPHY.sizeCaption,
+    color: COLORS.textSecondary,
+  },
+
+  // Horizontal scroll vertical card (playlist)
+  playlistHScrollContent: {
+    paddingLeft: 2,
+    paddingRight: SPACING.screenPadding,
+    gap: SPACING.md,
+    paddingBottom: SPACING.xs,
+  },
+  playlistVertCard: {
+    width: 130,
+  },
+  playlistVertImg: {
+    width: 130,
+    height: 130,
+    borderRadius: LAYOUT.radiusMd,
+    backgroundColor: COLORS.bgSurfaceSecondary,
+    marginBottom: SPACING.xs + 2,
+  },
+  playlistVertTitle: {
+    fontSize: TYPOGRAPHY.sizeBodySmall,
+    fontWeight: '700',
+    color: '#EEEEF2',
+    lineHeight: 17,
+    marginBottom: 2,
+  },
+  playlistVertSub: {
     fontSize: TYPOGRAPHY.sizeCaption,
     color: COLORS.textSecondary,
   },
@@ -585,14 +673,14 @@ const styles = StyleSheet.create({
   emptyPlaylistState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.xxxl,
+    paddingVertical: SPACING.xxl,
     paddingHorizontal: SPACING.xl,
     gap: SPACING.xs + 2,
   },
   emptyPlaylistTitle: {
     fontSize: TYPOGRAPHY.sizeBody,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: '#EEEEF2',
     marginTop: SPACING.xs,
   },
   emptyPlaylistSub: {

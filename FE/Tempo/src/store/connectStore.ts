@@ -77,6 +77,12 @@ const safeBroadcast = (event: string, payload: any) => {
   }
 };
 
+const isTargetedToThisDevice = (payload: any) => {
+  const targetDeviceId = payload?.targetDeviceId ?? payload?.data?.targetDeviceId;
+  if (!targetDeviceId) return true;
+  return targetDeviceId === THIS_DEVICE.deviceId;
+};
+
 const handleRemoteDeviceLost = async (lostDeviceId: string, store: any) => {
   const currentActive = store.getState().activeDevice;
   if (currentActive.deviceId !== lostDeviceId && lostDeviceId !== '') return;

@@ -27,12 +27,15 @@ export const getActiveApiUrl = async (forceRefresh = false): Promise<string> => 
   // 2. Nếu không force refresh, dùng cache đã load trước
   if (!forceRefresh && currentApiUrl) {
     // Vẫn query Supabase ngầm để cập nhật nếu URL thay đổi (không block)
-    supabase
-      .from('playlists')
-      .select('description')
-      .eq('name', '__TEMPO_ACTIVE_SERVER__')
-      .maybeSingle()
-      .then(({ data }) => {
+    Promise.resolve(
+      supabase
+        .from('playlists')
+        .select('description')
+        .eq('name', '__TEMPO_ACTIVE_SERVER__')
+        .maybeSingle()
+    )
+      .then((res: any) => {
+        const data = res?.data;
         if (data?.description && data.description.startsWith('http')) {
           const liveUrl = data.description.trim().replace(/\/+$/, '');
           const fullApiUrl = liveUrl.endsWith('/api') ? liveUrl : `${liveUrl}/api`;

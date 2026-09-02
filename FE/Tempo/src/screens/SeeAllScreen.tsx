@@ -200,18 +200,6 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
             style={StyleSheet.absoluteFillObject}
           />
           <View style={styles.heroBannerContent}>
-            <View style={styles.heroBadgeRow}>
-              <View style={styles.heroBadge}>
-                {type === "chart" ? (
-                  <Flame size={12} color={COLORS.accentPrimary} />
-                ) : (
-                  <Sparkles size={12} color={COLORS.accentPrimary} />
-                )}
-                <Text style={styles.heroBadgeText}>
-                  {type === "chart" ? "TOP 1 THỊNH HÀNH" : "BÀI HÁT NỔI BẬT"}
-                </Text>
-              </View>
-            </View>
 
             <Text numberOfLines={1} style={styles.heroSongTitle}>
               {songs[0]?.title}

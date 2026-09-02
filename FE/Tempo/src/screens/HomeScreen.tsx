@@ -14,7 +14,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  RefreshControl,
   ActivityIndicator,
   StyleSheet,
   Dimensions,
@@ -125,6 +124,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const { playSong, currentSong } = usePlayerStore();
   const {
@@ -241,6 +241,17 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const handleRefresh = () => {
     setRefreshing(true);
     loadData();
+  };
+
+  const handleRetry = async () => {
+    if (isRetrying) return;
+    setIsRetrying(true);
+    try {
+      await loadData();
+    } catch (_) {
+    } finally {
+      setIsRetrying(false);
+    }
   };
 
   const handlePlaySong = (song: UnifiedSong, queue?: UnifiedSong[], context?: any) => {
@@ -588,75 +599,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="transparent"
-            colors={["transparent"]}
-            progressBackgroundColor="transparent"
-          />
-        }
+        scrollEventThrottle={16}
+        onScrollEndDrag={(e) => {
+          if (e.nativeEvent.contentOffset.y < -60) {
+            handleRefresh();
+          }
+        }}
       >
-        {/* Full-Bleed Creative Hero (Full Tai Thỏ Edge-to-Edge) */}
-        <View style={[styles.heroSection, { paddingTop: Math.max(insets.top, 24) }]}>
-          {/* Diagonal Pill Floating Capsule Background Images */}
-          <View style={styles.diagonalPillContainer} pointerEvents="none">
-            <View style={[styles.diagonalPill, styles.pill1]}>
-              <Image
-                source={{
-                  uri:
-                    topChartSongs[0]?.thumbnail ||
-                    "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80",
-                }}
-                style={styles.pillImage}
-                resizeMode="cover"
-              />
-            </View>
-            <View style={[styles.diagonalPill, styles.pill2]}>
-              <Image
-                source={{
-                  uri:
-                    topChartSongs[1]?.thumbnail ||
-                    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80",
-                }}
-                style={styles.pillImage}
-                resizeMode="cover"
-              />
-            </View>
-            <View style={[styles.diagonalPill, styles.pill3]}>
-              <Image
-                source={{
-                  uri:
-                    topChartSongs[2]?.thumbnail ||
-                    "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
-                }}
-                style={styles.pillImage}
-                resizeMode="cover"
-              />
-            </View>
-          </View>
-
-          {/* Floating Colorful Accent Deco Squares */}
-          <View style={[styles.decoDot, { top: insets.top + 32, left: 20, backgroundColor: "#EC4899" }]} />
-          <View style={[styles.decoDot, { top: insets.top + 68, left: 28, backgroundColor: "#06B6D4" }]} />
-          <View style={[styles.decoDot, { top: insets.top + 104, left: 18, backgroundColor: "#8B5CF6" }]} />
-          <View style={[styles.decoDot, { top: insets.top + 52, left: 60, backgroundColor: "#F97316" }]} />
-          <View style={[styles.decoDot, { top: insets.top + 88, left: 54, backgroundColor: "#EAB308" }]} />
-
-          {/* Smooth Dark Gradient Overlay */}
-          <LinearGradient
-            colors={[
-              "rgba(10, 10, 14, 0.45)",
-              "rgba(10, 10, 14, 0.88)",
-              COLORS.bgPrimary,
-            ]}
-            locations={[0, 0.55, 1]}
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-
-          {/* Modern Profile Header Floating on Top of Hero */}
+        {/* Full-Bleed Clean Hero (Full Tai Thỏ Edge-to-Edge) */}
+        <View style={[styles.heroSection, { paddingTop: Math.max(insets.top, 20) }]}>
+          {/* Modern Profile Header */}
           <View style={styles.header}>
             <TouchableOpacity
               activeOpacity={0.85}
@@ -922,14 +874,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </View>
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => {
-                  setIsLoading(true);
-                  loadData();
-                }}
+                onPress={handleRetry}
+                disabled={isRetrying}
                 style={styles.offlineRetryBtn}
               >
-                <RefreshCw size={12} color={COLORS.white} style={{ marginRight: 4 }} />
-                <Text style={styles.offlineRetryBtnText}>Thử lại</Text>
+                {isRetrying ? (
+                  <ActivityIndicator size="small" color={COLORS.white} style={{ marginRight: 4 }} />
+                ) : (
+                  <RefreshCw size={12} color={COLORS.white} style={{ marginRight: 4 }} />
+                )}
+                <Text style={styles.offlineRetryBtnText}>{isRetrying ? 'Đang kết nối...' : 'Thử lại'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -1608,7 +1562,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: TYPOGRAPHY.sizeSubheading,
     fontWeight: "800",
-    color: COLORS.white,
+    color: "#EEEEF2",
   },
   headerIconBtn: {
     width: LAYOUT.iconButtonMd,
@@ -1687,7 +1641,7 @@ const styles = StyleSheet.create({
   heroLikedTitle: {
     fontSize: 14,
     fontWeight: "800",
-    color: COLORS.white,
+    color: "#EEEEF2",
     lineHeight: 18,
   },
   heroLikedSub: {
@@ -1746,7 +1700,7 @@ const styles = StyleSheet.create({
   horizontalCardTitle: {
     fontSize: 12,
     fontWeight: "700",
-    color: COLORS.white,
+    color: "#EEEEF2",
     lineHeight: 15,
   },
   horizontalCardSub: {
@@ -1772,7 +1726,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: TYPOGRAPHY.sizeHeading - 2,
     fontWeight: "800",
-    color: COLORS.textPrimary,
+    color: "#E8E8ED",
     letterSpacing: -0.3,
   },
   seeAllText: {

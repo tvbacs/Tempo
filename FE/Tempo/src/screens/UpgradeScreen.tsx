@@ -49,11 +49,10 @@ const PLANS: PlanItem[] = [
     subPrice: 'Khoảng 41.000 đ / tháng',
     featured: true,
     features: [
-      'Trích xuất bài hát không giới hạn từ YouTube, TikTok & SoundCloud',
-      'Mở khóa toàn bộ kho nhạc bản quyền Zing MP3 & Quốc tế',
-      'Tự do Bật / Tắt chế độ Trộn bài (Shuffle) bất kỳ lúc nào',
-      'Tải nhạc không giới hạn để nghe ngoại tuyến không cần mạng',
-      'Chất lượng âm thanh trung thực Lossless 320kbps',
+      'Trích xuất bài hát không giới hạn',
+      'Tải nhạc ngoại tuyến không giới hạn',
+      'Tự do Bật / Tắt chế độ Trộn bài',
+      'Chất lượng âm thanh Lossless 320kbps',
     ],
   },
   {
@@ -65,11 +64,10 @@ const PLANS: PlanItem[] = [
     period: '/ tháng',
     subPrice: 'Thanh toán hàng tháng · Hủy bất cứ lúc nào',
     features: [
-      'Trích xuất bài hát không giới hạn mọi nền tảng',
-      'Mở khóa kho nhạc bản quyền Zing MP3',
-      'Tự do bật/tắt chế độ Trộn bài',
-      'Tải nhạc nghe ngoại tuyến không giới hạn',
-      'Âm thanh chất lượng cao 320kbps',
+      'Trích xuất bài hát không giới hạn',
+      'Tải nhạc ngoại tuyến không giới hạn',
+      'Tự do Bật / Tắt chế độ Trộn bài',
+      'Chất lượng âm thanh Lossless 320kbps',
     ],
   },
   {
@@ -82,11 +80,11 @@ const PLANS: PlanItem[] = [
     period: ' trọn đời',
     subPrice: 'Sở hữu vĩnh viễn không bao giờ hết hạn',
     features: [
-      'Đặc quyền VIP trọn đời vĩnh viễn không cần gia hạn',
-      'Trích xuất & tải nhạc không giới hạn trọn đời',
-      'Toàn quyền truy cập mọi tính năng mới trong tương lai',
-      'Ưu tiên kết nối máy chủ tốc độ cao nhất',
-      'Âm thanh Lossless 320kbps chất lượng phòng thu',
+      'Trích xuất bài hát không giới hạn',
+      'Tải nhạc ngoại tuyến không giới hạn',
+      'Tự do Bật / Tắt chế độ Trộn bài',
+      'Toàn quyền truy cập mọi tính năng mới',
+      'Chất lượng âm thanh Lossless 320kbps',
     ],
   },
 ];

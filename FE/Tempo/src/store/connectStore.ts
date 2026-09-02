@@ -77,11 +77,56 @@ const safeBroadcast = (event: string, payload: any) => {
   }
 };
 
-const isTargetedToThisDevice = (payload: any) => {
-  const targetDeviceId = payload?.targetDeviceId ?? payload?.data?.targetDeviceId;
-  // Không có target = broadcast chung (chấp nhận)
-  if (!targetDeviceId) return true;
-  return targetDeviceId === THIS_DEVICE.deviceId;
+const handleRemoteDeviceLost = async (lostDeviceId: string, store: any) => {
+  const currentActive = store.getState().activeDevice;
+  if (currentActive.deviceId !== lostDeviceId && lostDeviceId !== '') return;
+
+  const remote = store.getState().remotePlayback;
+  const { usePlayerStore } = require('./playerStore');
+  const ps = usePlayerStore.getState();
+
+  const songToPlay = remote?.currentSong || ps.currentSong;
+  const posToPlay = remote?.positionMs ?? ps.positionMs;
+  const queueToPlay = remote?.queue?.length ? remote.queue : ps.queue;
+  const wasPlaying = Boolean(remote?.isPlaying);
+
+  const remaining = store.getState().availableDevices.filter((d: any) => d.deviceId !== lostDeviceId);
+  store.setState({
+    activeDevice: THIS_DEVICE,
+    remotePlayback: null,
+    availableDevices: remaining,
+  });
+
+  if (songToPlay) {
+    if (wasPlaying) {
+      // Khi PC ngắt kết nối mà nhạc đang phát -> Tự động nạp và phát tiếp trên điện thoại
+      usePlayerStore.setState({
+        currentSong: songToPlay,
+        queue: queueToPlay,
+        positionMs: posToPlay,
+        isPlaying: true,
+        isLoading: true,
+      });
+      const success = await audioEngine.loadAndPlay(songToPlay);
+      usePlayerStore.setState({ isLoading: false, isPlaying: success });
+      if (posToPlay > 0) {
+        await audioEngine.seekTo(posToPlay);
+      }
+    } else {
+      // Nếu trước đó đang pause -> Giữ trạng thái pause đúng trên mobile (icon play, không để icon pause ảo)
+      usePlayerStore.setState({
+        currentSong: songToPlay,
+        queue: queueToPlay,
+        positionMs: posToPlay,
+        isPlaying: false,
+        isLoading: false,
+      });
+    }
+  } else {
+    usePlayerStore.setState({ isPlaying: false, isLoading: false });
+  }
+
+  useToastStore.getState().showToast('Mất kết nối với Máy tính · Đã chuyển về Điện thoại', 'info');
 };
 
 export const useConnectStore = create<ConnectState>((set, get) => ({
@@ -120,12 +165,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         })
         .on('broadcast', { event: 'device_offline' }, ({ payload }: { payload: { deviceId: string } }) => {
           if (!payload?.deviceId) return;
-          const remaining = get().availableDevices.filter((d) => d.deviceId !== payload.deviceId);
-          const wasActive = get().activeDevice.deviceId === payload.deviceId;
-          set({
-            availableDevices: remaining,
-            ...(wasActive ? { activeDevice: THIS_DEVICE, remotePlayback: null } : {}),
-          });
+          handleRemoteDeviceLost(payload.deviceId, useConnectStore);
         })
         .on('broadcast', { event: 'device_presence_query' }, () => {
           safeBroadcast('device_presence', THIS_DEVICE);
@@ -345,34 +385,41 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
     const { usePlayerStore } = require('./playerStore');
     const playerState = usePlayerStore.getState();
 
-    // Lấy bài hát và thời gian đang phát hiện tại (ưu tiên remotePlayback nếu chuyển từ PC về Mobile)
-    const currentActiveSong = get().remotePlayback?.currentSong || playerState.currentSong;
-    const currentActivePos = get().remotePlayback?.positionMs ?? playerState.positionMs;
-    const currentActiveQueue = get().remotePlayback?.queue?.length ? get().remotePlayback!.queue : playerState.queue;
-
-    set({
-      activeDevice: device,
-      isConnectModalVisible: false,
-    });
-
     // ==========================================
     // 1. CHUYỂN MOBILE → PC (Web Player)
     // ==========================================
     if (device.type === 'web' || device.deviceId !== THIS_DEVICE.deviceId) {
+      // Khi chuyển từ Mobile sang PC: BẮT BUỘC LẤY BÀI ĐANG PHÁT TRÊN MOBILE (playerState)
+      const songToTransfer = playerState.currentSong;
+      const posToTransfer = playerState.positionMs;
+      const queueToTransfer = playerState.queue;
+
       // Mobile dừng audio thật
       await audioEngine.stopAndUnload();
-
-      // Mobile KHÔNG được tự nhận đang phát
       usePlayerStore.setState({ isPlaying: false });
 
-      if (currentActiveSong) {
+      set({
+        activeDevice: device,
+        isConnectModalVisible: false,
+        remotePlayback: songToTransfer ? {
+          deviceId: device.deviceId,
+          deviceName: device.deviceName,
+          currentSong: songToTransfer,
+          queue: queueToTransfer,
+          isPlaying: true,
+          positionMs: posToTransfer,
+          durationMs: songToTransfer.duration ? songToTransfer.duration * 1000 : 0,
+        } : null,
+      });
+
+      if (songToTransfer) {
         safeBroadcast('command', {
           command: 'transfer_playback',
           targetDeviceId: device.deviceId,
           data: {
-            song: currentActiveSong,
-            queue: currentActiveQueue,
-            positionMs: currentActivePos,
+            song: songToTransfer,
+            queue: queueToTransfer,
+            positionMs: posToTransfer,
           },
         });
       }
@@ -384,9 +431,14 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
     // ==========================================
     // 2. CHUYỂN PC → MOBILE
     // ==========================================
+    const songFromPC = get().remotePlayback?.currentSong || playerState.currentSong;
+    const posFromPC = get().remotePlayback?.positionMs ?? playerState.positionMs;
+    const queueFromPC = get().remotePlayback?.queue?.length ? get().remotePlayback!.queue : playerState.queue;
+
     set({
       activeDevice: THIS_DEVICE,
       remotePlayback: null,
+      isConnectModalVisible: false,
     });
 
     // Gửi lệnh dừng nhắm đúng target là PC trước đó
@@ -397,16 +449,18 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
       });
     }
 
-    if (currentActiveSong) {
+    if (songFromPC) {
       usePlayerStore.setState({
-        currentSong: currentActiveSong,
-        queue: currentActiveQueue,
-        positionMs: currentActivePos,
+        currentSong: songFromPC,
+        queue: queueFromPC,
+        positionMs: posFromPC,
         isPlaying: true,
+        isLoading: true,
       });
-      await audioEngine.loadAndPlay(currentActiveSong);
-      if (currentActivePos > 0) {
-        await audioEngine.seekTo(currentActivePos);
+      const success = await audioEngine.loadAndPlay(songFromPC);
+      usePlayerStore.setState({ isLoading: false, isPlaying: success });
+      if (posFromPC > 0) {
+        await audioEngine.seekTo(posFromPC);
       }
     }
 
@@ -454,14 +508,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
     const isAlive = found && found.isOnline && (!found.lastSeen || Date.now() - found.lastSeen < 12000);
 
     if (!isAlive) {
-      // Thiết bị đã chết / offline không phản hồi -> Tự động chuyển quyền về Điện thoại
-      const remaining = get().availableDevices.filter((d) => d.deviceId !== active.deviceId);
-      set({
-        activeDevice: THIS_DEVICE,
-        remotePlayback: null,
-        availableDevices: remaining,
-      });
-      useToastStore.getState().showToast('Máy tính không phản hồi · Đã chuyển phát về Điện thoại', 'info');
+      await handleRemoteDeviceLost(active.deviceId, useConnectStore);
       return false;
     }
 

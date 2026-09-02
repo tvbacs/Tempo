@@ -110,93 +110,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
             {likedSongs.length} bài yêu thích · {downloadedSongs.length} bài đã tải · {followedArtists.length} nghệ sĩ theo dõi · {savedAlbums.length} album
           </p>
         </div>
-
-        <button
-          onClick={() => setIsCreatingPlaylist(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FC475C] to-[#FC655A] hover:opacity-90 active:scale-98 text-white rounded-md text-xs font-bold transition-all border-none cursor-pointer shadow-md shadow-primary/20"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Tạo danh sách phát</span>
-        </button>
       </div>
-
-
 
       {/* ========================================================================= */}
       {/* 1. MÀN HÌNH TỔNG QUAN (activeFilter === 'all'): Chỉ hiện Preview 4-5 item/row */}
       {/* ========================================================================= */}
       {activeFilter === 'all' && (
         <>
-          {/* 4 Quick Action Cards (Bấm vào để mở toàn bộ data) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {/* Card 1: Bài hát đã thích */}
-            <div
-              onClick={() => onSelectTab ? onSelectTab('liked') : setActiveFilter('liked')}
-              className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
-            >
-              <div className="w-10 h-10 rounded-md bg-[#FC475C]/15 flex items-center justify-center text-[#FC475C] flex-shrink-0 transition-transform group-hover:scale-105">
-                <Heart className="w-5 h-5 fill-current" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate">
-                  Bài hát đã thích
-                </h3>
-                <p className="text-[11px] text-[#b3b3b3]">{likedSongs.length} bài hát</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white transition-colors" />
-            </div>
-
-            {/* Card 2: Đã tải xuống */}
-            <div
-              onClick={() => onSelectTab ? onSelectTab('downloads') : setActiveFilter('downloaded')}
-              className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
-            >
-              <div className="w-10 h-10 rounded-md bg-[#10B981]/15 flex items-center justify-center text-[#10B981] flex-shrink-0 transition-transform group-hover:scale-105">
-                <Download className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-[#10B981] transition-colors truncate">
-                  Bài hát đã tải
-                </h3>
-                <p className="text-[11px] text-[#b3b3b3]">{downloadedSongs.length} bài hát</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white transition-colors" />
-            </div>
-
-            {/* Card 3: Nghệ sĩ theo dõi */}
-            <div
-              onClick={() => setActiveFilter('artists')}
-              className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
-            >
-              <div className="w-10 h-10 rounded-md bg-[#F59E0B]/15 flex items-center justify-center text-[#F59E0B] flex-shrink-0 transition-transform group-hover:scale-105">
-                <Users className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-[#F59E0B] transition-colors truncate">
-                  Nghệ sĩ theo dõi
-                </h3>
-                <p className="text-[11px] text-[#b3b3b3]">{followedArtists.length} nghệ sĩ</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white transition-colors" />
-            </div>
-
-            {/* Card 4: Album đã lưu */}
-            <div
-              onClick={() => setActiveFilter('albums')}
-              className="bg-[#181818] hover:bg-[#242424] rounded-lg p-4 flex items-center gap-3.5 cursor-pointer transition-all border-none group"
-            >
-              <div className="w-10 h-10 rounded-md bg-[#3B82F6]/15 flex items-center justify-center text-[#3B82F6] flex-shrink-0 transition-transform group-hover:scale-105">
-                <Disc className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-white group-hover:text-[#3B82F6] transition-colors truncate">
-                  Album đã lưu
-                </h3>
-                <p className="text-[11px] text-[#b3b3b3]">{savedAlbums.length} album</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#727272] group-hover:text-white transition-colors" />
-            </div>
-          </div>
 
           {/* Row 1 Preview: Bài hát đã thích (Top 4 bài) */}
           {likedSongs.length > 0 && (

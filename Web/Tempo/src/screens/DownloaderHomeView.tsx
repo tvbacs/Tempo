@@ -149,12 +149,9 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
       {/* 1. Top Hero Banner Card (Nhạc ngoại tuyến trên PC) */}
       <div className="bg-gradient-to-r from-[#17263c] via-[#151c27] to-[#181818] hover:from-[#1e3250] hover:to-[#222222] transition-all rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-none shadow-md">
         <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse" />
-            <h2 className="text-base font-extrabold bg-gradient-to-r from-[#34D399] via-[#6EE7B7] to-[#60A5FA] bg-clip-text text-transparent">
-              Bài hát đã tải xuống
-            </h2>
-          </div>
+          <h2 className="text-base font-extrabold bg-gradient-to-r from-[#34D399] via-[#6EE7B7] to-[#60A5FA] bg-clip-text text-transparent">
+            Bài hát đã tải xuống
+          </h2>
           <p className="text-xs text-[#b3b3b3] mt-1">
             {downloadedSongs.length > 0
               ? `${downloadedSongs.length} bài hát sẵn sàng nghe ngoại tuyến trên máy tính`

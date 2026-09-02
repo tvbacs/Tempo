@@ -140,30 +140,25 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
             <ChevronLeft className="w-5 h-5" />
           </button>
         )}
-        <div className="flex items-end gap-6">
-          <div className="w-52 h-52 rounded-md bg-gradient-to-br from-[#491f8f] via-[#5b22b6] to-[#1e3264] flex items-center justify-center text-white shadow-2xl flex-shrink-0">
-            <Heart className="w-24 h-24 fill-white" />
-          </div>
 
-          <div className="flex flex-col justify-end">
-            <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-2">Danh sách phát</span>
-            <h1 className="text-6xl font-black text-white tracking-tight mb-4 drop-shadow-md">
-              Bài hát đã thích
-            </h1>
-            <div className="flex items-center gap-2 text-xs font-semibold text-white/90">
-              <div className="w-6 h-6 rounded-full bg-[#535353] flex items-center justify-center text-white text-[10px] font-bold">
-                {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <span className="font-bold text-white">{user?.email?.split('@')[0] || 'Tempo User'}</span>
-              <span>•</span>
-              <span>{likedSongs.length} bài hát</span>
-              {likedSongs.length > 0 && (
-                <>
-                  <span>,</span>
-                  <span>{durationLabel}</span>
-                </>
-              )}
+        <div className="flex flex-col justify-end">
+          <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-2">Danh sách phát</span>
+          <h1 className="text-5xl font-black text-white tracking-tight mb-4 drop-shadow-md">
+            Bài hát đã thích
+          </h1>
+          <div className="flex items-center gap-2 text-xs font-semibold text-white/90">
+            <div className="w-6 h-6 rounded-full bg-[#535353] flex items-center justify-center text-white text-[10px] font-bold">
+              {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
             </div>
+            <span className="font-bold text-white">{user?.email?.split('@')[0] || 'Tempo User'}</span>
+            <span>•</span>
+            <span>{likedSongs.length} bài hát</span>
+            {likedSongs.length > 0 && (
+              <>
+                <span>,</span>
+                <span>{durationLabel}</span>
+              </>
+            )}
           </div>
         </div>
       </div>

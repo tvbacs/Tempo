@@ -4,6 +4,7 @@ import { usePlayerStore } from './playerStore';
 
 interface ConnectState {
   isOnline: boolean;
+  isMobileOnline: boolean;
   activeDeviceId: string;
   activeDeviceName: string;
   initConnect: () => void;
@@ -17,6 +18,7 @@ interface ConnectState {
 const DEVICE_ID = 'web-player-pc';
 const DEVICE_NAME = 'Máy tính (PC)';
 let realtimeChannel: any = null;
+let mobileLastSeen = 0;
 
 const isTargetedToThisDevice = (payload: any) => {
   const targetDeviceId = payload?.targetDeviceId ?? payload?.data?.targetDeviceId;
@@ -26,6 +28,7 @@ const isTargetedToThisDevice = (payload: any) => {
 
 export const useConnectStore = create<ConnectState>((set, get) => ({
   isOnline: false,
+  isMobileOnline: false,
   activeDeviceId: DEVICE_ID,
   activeDeviceName: DEVICE_NAME,
 
@@ -37,6 +40,23 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
     });
 
     realtimeChannel
+      .on('broadcast', { event: 'device_presence' }, ({ payload }: { payload: any }) => {
+        if (!payload?.deviceId || payload.deviceId === DEVICE_ID) return;
+        mobileLastSeen = Date.now();
+        set({
+          isMobileOnline: true,
+          ...(get().activeDeviceId !== DEVICE_ID ? { activeDeviceName: payload.deviceName || 'Điện thoại' } : {}),
+        });
+      })
+      .on('broadcast', { event: 'device_offline' }, ({ payload }: { payload: any }) => {
+        if (!payload?.deviceId || payload.deviceId === DEVICE_ID) return;
+        mobileLastSeen = 0;
+        set({
+          isMobileOnline: false,
+          activeDeviceId: DEVICE_ID,
+          activeDeviceName: DEVICE_NAME,
+        });
+      })
       .on('broadcast', { event: 'device_presence_query' }, () => {
         get().broadcastPresence();
       })
@@ -119,12 +139,6 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           return;
         }
       })
-      .on('broadcast', { event: 'device_presence_query' }, () => {
-        get().broadcastPresence();
-        if (get().activeDeviceId === DEVICE_ID) {
-          get().broadcastState();
-        }
-      })
       .on('broadcast', { event: 'playback_state_query' }, () => {
         get().broadcastPresence();
         if (get().activeDeviceId === DEVICE_ID) {
@@ -137,9 +151,11 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         // Bỏ qua nếu là state của chính PC
         if (!payload.activeDeviceId || payload.activeDeviceId === DEVICE_ID) return;
 
+        mobileLastSeen = Date.now();
         // Điện thoại đang phát → PC nhường ngay
         const cleanDeviceName = (payload.activeDeviceName || 'Điện thoại').replace(/ này/g, '').trim();
         set({
+          isMobileOnline: true,
           activeDeviceId: payload.activeDeviceId,
           activeDeviceName: cleanDeviceName || 'Điện thoại',
         });
@@ -165,10 +181,14 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           set({ isOnline: true });
           get().broadcastPresence();
 
-          // Hỏi xem thiết bị nào đang phát — đợi 1.5s để nhận phản hồi
-          // Nếu không ai trả lời (mobile offline), PC mới broadcast state của mình
+          // Hỏi xem thiết bị nào đang phát / online
           if (realtimeChannel && realtimeChannel.state === 'joined') {
             try {
+              realtimeChannel.send({
+                type: 'broadcast',
+                event: 'device_presence_query',
+                payload: {},
+              });
               realtimeChannel.send({
                 type: 'broadcast',
                 event: 'playback_state_query',
@@ -203,6 +223,18 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
       });
 
     setInterval(() => get().broadcastPresence(), 8000);
+
+    // Kiểm tra điện thoại có còn online không (timeout 16s)
+    setInterval(() => {
+      if (mobileLastSeen > 0 && Date.now() - mobileLastSeen > 16000) {
+        if (get().isMobileOnline) {
+          set({ isMobileOnline: false });
+          if (get().activeDeviceId !== DEVICE_ID) {
+            set({ activeDeviceId: DEVICE_ID, activeDeviceName: DEVICE_NAME });
+          }
+        }
+      }
+    }, 4000);
 
     // Heartbeat phát nhạc sang điện thoại mỗi 2s khi đang phát trên PC
     setInterval(() => {

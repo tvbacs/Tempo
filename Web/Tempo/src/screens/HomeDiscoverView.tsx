@@ -141,71 +141,13 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
     );
   }
 
-  // Quick 8 Items for the Top Grid
-  const quickItems: Array<{
-    id: string;
-    title: string;
-    thumb?: string;
-    isLiked?: boolean;
-    onClick: () => void;
-  }> = displayChart.slice(0, 8).map((s) => ({
-    id: s.encodeId || s.id,
-    title: s.title,
-    thumb: s.thumbnail || s.thumbnailM,
-    isLiked: false,
-    onClick: () => {
-      playSong(s, displayChart);
-    },
-  }));
-
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 select-none space-y-7 bg-[#121212]">
-      {/* 1. Top Quick-Access Grid (2 rows x 4 columns = 8 cards) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
-        {isLoading && quickItems.length === 0
-          ? [...Array(8)].map((_, i) => (
-              <div key={i} className="flex items-center bg-[#242424] rounded-md overflow-hidden animate-pulse h-12">
-                <div className="w-12 h-12 bg-white/10 flex-shrink-0" />
-                <div className="h-3.5 bg-white/10 rounded w-24 ml-3" />
-              </div>
-            ))
-          : quickItems.slice(0, 8).map((item) => (
-              <div
-                key={item.id}
-                onClick={item.onClick}
-                className="group flex items-center bg-[#242424] hover:bg-[#2f2f2f] rounded-md overflow-hidden cursor-pointer transition-colors pr-3 relative"
-              >
-                {item.isLiked ? (
-                  <div className="w-12 h-12 bg-gradient-to-br from-[#491f8f] via-[#5b22b6] to-[#1e3264] flex items-center justify-center flex-shrink-0">
-                    <Heart className="w-5 h-5 fill-white text-white" />
-                  </div>
-                ) : (
-                  <img
-                    src={item.thumb}
-                    alt={item.title}
-                    className="w-12 h-12 object-cover flex-shrink-0 bg-[#282828]"
-                  />
-                )}
-                <span className="text-xs font-bold text-white truncate ml-3 flex-1">
-                  {item.title}
-                </span>
-                <div className="w-8 h-8 rounded-full bg-white text-black shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-105 flex-shrink-0">
-                  <Play className="w-4 h-4 fill-black text-black ml-0.5" />
-                </div>
-              </div>
-            ))}
-      </div>
-
       {/* 3. Section: Được đề xuất cho hôm nay */}
       {(displayChart.length > 0 || isLoading) && (
         <section>
           <div className="flex items-center justify-between mb-3.5">
-            <div>
-              <span className="text-xs text-[#b3b3b3] block mb-0.5">
-                Lấy cảm hứng từ hoạt động gần đây của bạn
-              </span>
-              <h2 className="text-xl font-bold text-white">Được đề xuất cho hôm nay</h2>
-            </div>
+            <h2 className="text-xl font-bold text-white">Được đề xuất cho hôm nay</h2>
             <button
               onClick={onSeeAllChart}
               className="text-xs font-bold text-[#b3b3b3] hover:text-white hover:underline border-none bg-transparent cursor-pointer"

@@ -51,6 +51,7 @@ export const PlayerBar: React.FC = () => {
   const {
     activeDeviceId,
     activeDeviceName,
+    isMobileOnline,
     requestTransferPlayback,
     transferPlaybackToMobile,
   } = useConnectStore();
@@ -245,24 +246,26 @@ export const PlayerBar: React.FC = () => {
 
       {/* 3. Right Tools: Lời bài hát, Hàng đợi, Thiết bị, Âm lượng, Toàn màn hình */}
       <div className="flex items-center gap-3 w-72 justify-end">
-        {/* Nút chuyển đổi thiết bị Mobile / PC */}
-        {isRemoteActive ? (
-          <button
-            onClick={requestTransferPlayback}
-            title="Đang phát trên điện thoại - Bấm để chuyển về PC"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-black text-xs font-bold border-none cursor-pointer hover:scale-105 transition-transform shadow"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>PC</span>
-          </button>
-        ) : (
-          <button
-            onClick={transferPlaybackToMobile}
-            title="Chuyển phát sang điện thoại"
-            className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
-          >
-            <Laptop className="w-4 h-4" />
-          </button>
+        {/* Nút chuyển đổi thiết bị Mobile / PC - Chỉ hiển thị khi điện thoại online */}
+        {isMobileOnline && (
+          isRemoteActive ? (
+            <button
+              onClick={requestTransferPlayback}
+              title="Đang phát trên điện thoại - Bấm để chuyển về PC"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-black text-xs font-bold border-none cursor-pointer hover:scale-105 transition-transform shadow"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>PC</span>
+            </button>
+          ) : (
+            <button
+              onClick={transferPlaybackToMobile}
+              title="Chuyển phát sang điện thoại"
+              className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
+            >
+              <Laptop className="w-4 h-4" />
+            </button>
+          )
         )}
 
         <button
@@ -320,28 +323,30 @@ export const PlayerBar: React.FC = () => {
       </div>
     </footer>
 
-    {/* Thanh trạng thái thiết bị đang nghe (Tempo Connect Bar) */}
-    <div className="h-6 bg-[#181818] hover:bg-[#202020] text-white text-[11px] font-medium flex items-center justify-between px-6 transition-colors border-t border-white/5">
-      <div className="flex items-center gap-2 text-white/90">
-        {isRemoteActive ? (
-          <Smartphone className="w-3.5 h-3.5 text-white" />
-        ) : (
-          <Laptop className="w-3.5 h-3.5 text-white" />
-        )}
-        <span>
-          {isRemoteActive
-            ? `Đang phát trên ${activeDeviceName || 'Điện thoại'}`
-            : 'Đang phát trên Máy tính (PC)'}
-        </span>
-      </div>
+    {/* Thanh trạng thái thiết bị đang nghe (Tempo Connect Bar) - Chỉ hiện khi có điện thoại online */}
+    {isMobileOnline && (
+      <div className="h-6 bg-[#181818] hover:bg-[#202020] text-white text-[11px] font-medium flex items-center justify-between px-6 transition-colors border-t border-white/5">
+        <div className="flex items-center gap-2 text-white/90">
+          {isRemoteActive ? (
+            <Smartphone className="w-3.5 h-3.5 text-white" />
+          ) : (
+            <Laptop className="w-3.5 h-3.5 text-white" />
+          )}
+          <span>
+            {isRemoteActive
+              ? `Đang phát trên ${activeDeviceName || 'Điện thoại'}`
+              : 'Đang phát trên Máy tính (PC)'}
+          </span>
+        </div>
 
-      <button
-        onClick={isRemoteActive ? requestTransferPlayback : transferPlaybackToMobile}
-        className="text-[11px] font-bold text-white hover:underline cursor-pointer border-none bg-transparent p-0"
-      >
-        {isRemoteActive ? 'Chuyển phát về PC' : 'Chuyển phát sang Điện thoại'}
-      </button>
-    </div>
+        <button
+          onClick={isRemoteActive ? requestTransferPlayback : transferPlaybackToMobile}
+          className="text-[11px] font-bold text-white hover:underline cursor-pointer border-none bg-transparent p-0"
+        >
+          {isRemoteActive ? 'Chuyển phát về PC' : 'Chuyển phát sang Điện thoại'}
+        </button>
+      </div>
+    )}
   </div>
 );
 };

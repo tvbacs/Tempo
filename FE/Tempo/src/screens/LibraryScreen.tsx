@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
 
   // History Section (SoundCloud Style)
   historySection: {
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xl,
     marginBottom: SPACING.lg,
     paddingHorizontal: SPACING.screenPadding,
   },
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   // Playlist Section
   playlistSection: {
     paddingHorizontal: SPACING.screenPadding,
-    marginTop: SPACING.xs,
+    marginTop: SPACING.lg,
   },
   libraryRow: {
     flexDirection: 'row',

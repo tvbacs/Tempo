@@ -425,7 +425,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       title: "Daily Mix 1 · Ca Sĩ Yêu Thích",
       tag: "DÀNH CHO BẠN",
       subtitle: mix1ArtistsSummary,
-      gradient: ["#EC4899", "#8B5CF6"] as [string, string],
+      gradient: ["#FF5F6D", "#A855F7"] as [string, string],
       thumbnail:
         mix1Songs[0]?.thumbnail ||
         topChartSongs[0]?.thumbnail ||
@@ -457,7 +457,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         title: "Daily Mix 2 · Thư Giãn Buổi Tối",
         tag: "BUỔI TỐI · CHILL OUT",
         subtitle: "Giai điệu Pop, Ballad & R&B nhẹ nhàng giải tỏa căng thẳng cuối ngày",
-        gradient: ["#EC4899", "#8B5CF6"] as [string, string],
+        gradient: ["#10B981", "#0EA5E9"] as [string, string],
         thumbnail: "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=400&q=80",
       };
       mix2RawSongs = [...driveSongs, ...globalTrendingSongs, ...topChartSongs.slice(10, 30)];
@@ -514,7 +514,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       title: "Daily Mix 4 · Khám Phá Mới",
       tag: "XU HƯỚNG · THỊNH HÀNH",
       subtitle: "Giai điệu thịnh hành & bài hát mới nổi bật hôm nay",
-      gradient: ["#10B981", "#06B6D4"] as [string, string],
+      gradient: ["#F59E0B", "#EF4444"] as [string, string],
       thumbnail:
         mix4Songs[0]?.thumbnail ||
         "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&q=80",
@@ -1560,7 +1560,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   headerTitle: {
-    fontSize: TYPOGRAPHY.sizeSubheading,
+    fontSize: TYPOGRAPHY.sizeBody + 1.5,
     fontWeight: "800",
     color: "#EEEEF2",
   },

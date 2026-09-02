@@ -43,7 +43,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { HomeFeedData, ChartData, UnifiedSong } from "../types/music";
 import { SongItem } from "../components/SongItem";
 import { useFocusEffect } from "@react-navigation/native";
-import { HomeScreenSkeleton } from "../components/SkeletonLoader";
 import { usePlayerStore } from "../store/playerStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { useDownloadStore } from "../store/downloadStore";
@@ -580,9 +579,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     });
   }, [coffeeSongs, focusSongs, driveSongs, rainSongs, topChartSongs, globalTrendingSongs, timeGreeting.timeSlot]);
 
-  if (isLoading && !feed && !chart) {
-    return <HomeScreenSkeleton />;
-  }
+  // Không dùng full-screen skeleton nữa — header + quick shelf không cần API data
+  // Các section chart/feed sẽ tự skeleton inline khi isLoading
 
   return (
     <View style={styles.safeArea}>
@@ -877,8 +875,40 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </View>
 
         {/* Main Feed Content */}
-        {isLoading ? (
-          <HomeScreenSkeleton />
+        {isLoading && !feed && !chart ? (
+          /* Skeleton inline nhỏ gọn — chỉ cho phần dữ liệu cần API */
+          <View style={styles.feedContent}>
+            {/* Daily Mix skeleton */}
+            <View style={styles.section}>
+              <View style={[styles.sectionHeader, { paddingHorizontal: SPACING.screenPadding }]}>
+                <View>
+                  <View style={{ width: 100, height: 10, backgroundColor: COLORS.bgSurfaceSecondary, borderRadius: 4, marginBottom: 6, opacity: 0.6 }} />
+                  <View style={{ width: 150, height: 16, backgroundColor: COLORS.bgSurfaceSecondary, borderRadius: 4, opacity: 0.6 }} />
+                </View>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding, gap: 12 }}>
+                {[0,1,2,3].map(i => (
+                  <View key={i} style={{ width: 180, height: 110, backgroundColor: COLORS.bgSurfaceSecondary, borderRadius: 6, opacity: 0.5 }} />
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Chart skeleton */}
+            <View style={styles.section}>
+              <View style={[styles.sectionHeader, { paddingHorizontal: SPACING.screenPadding }]}>
+                <View style={{ width: 160, height: 16, backgroundColor: COLORS.bgSurfaceSecondary, borderRadius: 4, opacity: 0.6 }} />
+              </View>
+              {[0,1,2,3,4].map(i => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: SPACING.screenPadding, gap: 12 }}>
+                  <View style={{ width: 48, height: 48, backgroundColor: COLORS.bgSurfaceSecondary, borderRadius: 4, opacity: 0.5 }} />
+                  <View style={{ flex: 1, gap: 8 }}>
+                    <View style={{ width: '65%', height: 13, backgroundColor: COLORS.bgSurfaceSecondary, borderRadius: 4, opacity: 0.5 }} />
+                    <View style={{ width: '40%', height: 11, backgroundColor: COLORS.bgSurfaceSecondary, borderRadius: 4, opacity: 0.4 }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
         ) : isOffline ? (
           /* === OFFLINE MODE: Hiện nội dung local thay vì lỗi trắng === */
           <View style={styles.feedContent}>

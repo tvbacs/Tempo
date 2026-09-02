@@ -86,9 +86,9 @@ const userKey = (base: string) => `${base}_${uid() || 'anon'}`;
 
 const isGhostOfflineSong = (s: any): boolean => {
   if (!s) return true;
-  const isOfflineType = s.source === 'downloaded' || s.source === 'local' || s.isOffline === true;
-  const isLocalId = typeof s.id === 'string' && (s.id.startsWith('local_') || s.id.startsWith('download_'));
-  if (isOfflineType || isLocalId) {
+  // Chỉ các bài do người dùng tự import từ máy (local files) mới là ghost nếu mất file
+  const isImportedLocal = s.source === 'local' || (typeof s.id === 'string' && s.id.startsWith('local_'));
+  if (isImportedLocal) {
     try {
       const { useDownloadStore } = require('./downloadStore');
       const downloadedSongs = useDownloadStore.getState().downloadedSongs;

@@ -266,7 +266,22 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
 
       if (data) {
         const list: UnifiedSong[] = JSON.parse(data);
-        set({ downloadedSongs: list, preserveOnUninstall: isPreserve });
+        const validList: UnifiedSong[] = [];
+        for (const s of list) {
+          const uri = s.localUri || (s.audioUrl?.startsWith('file://') ? s.audioUrl : undefined);
+          if (uri) {
+            try {
+              const info = await FileSystem.getInfoAsync(uri);
+              if (info.exists && !info.isDirectory && (info.size || 0) > 1024) {
+                validList.push(s);
+              }
+            } catch (_) {}
+          }
+        }
+        set({ downloadedSongs: validList, preserveOnUninstall: isPreserve });
+        if (validList.length !== list.length) {
+          await AsyncStorage.setItem(getUserKey(DOWNLOAD_STORAGE_KEY), JSON.stringify(validList));
+        }
       } else {
         set({ downloadedSongs: [], preserveOnUninstall: isPreserve });
       }

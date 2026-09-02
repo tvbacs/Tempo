@@ -218,7 +218,7 @@ export const AddSongsModal: React.FC<AddSongsModalProps> = ({
             contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 20 }]}
             renderItem={({ item }) => {
               const added = isItemAdded(item.id);
-              const isDownloaded = downloadedSongs.some((ds) => ds.id === item.id) || item.isOffline;
+              const isDownloaded = downloadedSongs.some((ds) => ds.id === item.id);
               return (
                 <View style={styles.songRow}>
                   <Image

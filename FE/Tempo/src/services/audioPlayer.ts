@@ -8,6 +8,7 @@ import {
   AudioPlayer,
   AudioStatus,
 } from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
 import { UnifiedSong } from '../types/music';
 import { apiClient, API_BASE_URL } from '../api/client';
 import { useToastStore } from '../store/toastStore';
@@ -124,22 +125,36 @@ class AudioEngine {
       }
 
       // 1. Resolve audio stream URL
-      // Ưu tiên 1: Kiểm tra bài đã tải xuống trên máy (local file)
-      let streamUrl = song.localUri;
-      if (!streamUrl || !streamUrl.startsWith('file://')) {
+      let streamUrl: string | undefined = undefined;
+
+      // Ưu tiên 1: Kiểm tra bài đã tải xuống trên máy (local file) và XÁC NHẬN FILE THỰC SỰ TỒN TẠI
+      const candidateLocalUri = song.localUri || (song.audioUrl?.startsWith('file://') ? song.audioUrl : undefined);
+      if (candidateLocalUri) {
+        try {
+          const info = await FileSystem.getInfoAsync(candidateLocalUri);
+          if (info.exists && !info.isDirectory && (info.size || 0) > 1024) {
+            streamUrl = candidateLocalUri;
+            console.log('[AudioEngine] Found valid local file from song:', candidateLocalUri);
+          }
+        } catch (_) {}
+      }
+
+      if (!streamUrl) {
         try {
           const { useDownloadStore } = require('../store/downloadStore');
           const downloadedSongs = useDownloadStore.getState().downloadedSongs;
           const downloadedVersion = downloadedSongs.find((s: any) => s.id === song.id);
           if (downloadedVersion?.localUri?.startsWith('file://')) {
-            streamUrl = downloadedVersion.localUri;
-            console.log('[AudioEngine] Using downloaded local file for:', song.title);
+            const info = await FileSystem.getInfoAsync(downloadedVersion.localUri);
+            if (info.exists && !info.isDirectory && (info.size || 0) > 1024) {
+              streamUrl = downloadedVersion.localUri;
+              console.log('[AudioEngine] Using verified downloaded local file for:', song.title);
+            }
           }
         } catch (e) {}
       }
 
       // Kiểm tra xem bài có phải nguồn trích xuất online không (YouTube/TikTok/SoundCloud/extract)
-      // Link này có thời hạn ngắn (2–6h) → cần chủ động làm mới thay vì dùng URL cũ hết hạn
       const isOnlineExtract = (song.source as string) === 'youtube'
         || (song.source as string) === 'tiktok'
         || (song.source as string) === 'soundcloud'
@@ -147,7 +162,7 @@ class AudioEngine {
         || (song as any).isExtracted === true
         || (song.id?.startsWith('yt_') || song.id?.startsWith('tt_') || song.id?.startsWith('sc_'));
 
-      // Ưu tiên 2: Nếu bài trích xuất online → Luôn làm mới URL qua getSongStream để tránh link hết hạn
+      // Ưu tiên 2: Nếu bài có direct audioUrl HTTP trực tiếp (không phải file:// và không phải extract hết hạn)
       if (!streamUrl && song.audioUrl && song.audioUrl.startsWith('http') && !isOnlineExtract) {
         streamUrl = song.audioUrl;
         console.log('[AudioEngine] Using direct audioUrl for stream track:', song.title);
@@ -156,31 +171,44 @@ class AudioEngine {
       // Ưu tiên 2b: Bài trích xuất online → Luôn gọi API làm mới link (tránh 403 sau vài giờ)
       if (!streamUrl && isOnlineExtract) {
         try {
-          console.log('[AudioEngine] Refreshing expired extract URL for:', song.title);
-          const freshData = await apiClient.getSongStream(song.id, song.title, song.artistsNames);
-          if (freshData?.audioUrl) {
-            streamUrl = freshData.audioUrl;
-          } else {
-            // Fallback: thử dùng URL gốc nếu backend không trả về
-            streamUrl = song.audioUrl || undefined;
+          console.log('[AudioEngine] Refreshing extract URL for:', song.title);
+          const ytUrl = (song as any).url || (song as any).webpageUrl || (song as any).originalUrl || (song.id?.startsWith('yt_') ? `https://www.youtube.com/watch?v=${song.id.replace('yt_', '')}` : undefined);
+          if (ytUrl && ytUrl.startsWith('http')) {
+            try {
+              const ext = await apiClient.extractYouTube(ytUrl);
+              if (ext?.audioUrl) {
+                streamUrl = ext.audioUrl;
+              }
+            } catch (_) {}
+          }
+          if (!streamUrl) {
+            const freshData = await apiClient.getSongStream(song.id, song.title, song.artistsNames);
+            if (freshData?.audioUrl) {
+              streamUrl = freshData.audioUrl;
+            } else if (song.audioUrl && song.audioUrl.startsWith('http')) {
+              streamUrl = song.audioUrl;
+            }
           }
         } catch (refreshErr: any) {
-          console.warn('[AudioEngine] Refresh extract URL failed, trying original:', refreshErr?.message);
-          // Dùng URL gốc làm phương án cuối cùng
-          streamUrl = song.audioUrl || undefined;
+          console.warn('[AudioEngine] Refresh extract URL failed, trying original HTTP:', refreshErr?.message);
+          if (song.audioUrl && song.audioUrl.startsWith('http')) {
+            streamUrl = song.audioUrl;
+          }
         }
       }
 
-      // Nếu là bài offline thuần mà không có file trên máy -> Báo không còn file
-      const isPureOffline = (song.source as any) === 'downloaded' || song.source === 'local' || (song as any).isOffline === true || song.id.startsWith('local_') || song.id.startsWith('download_');
-      if (isPureOffline && !streamUrl) {
-        useToastStore.getState().showToast('File nhạc tải về không còn tồn tại trên máy', 'info');
+      // Nếu là bài local do người dùng tự import từ máy (file nội bộ) mà file không còn trên máy
+      const isImportedLocalOnly = (song.source as any) === 'local' || song.id?.startsWith('local_');
+      if (isImportedLocalOnly && !streamUrl) {
+        useToastStore.getState().showToast('File nhạc nội bộ không còn tồn tại trên máy', 'info');
         return false;
       }
 
-      // Ưu tiên 3: Nếu vẫn chưa có streamUrl (bài Zing MP3 thông thường), gọi API backend để resolve
+      // Ưu tiên 3: Nếu không có file offline (hoặc file offline đã bị xóa khi cài lại app)
+      // -> TỰ ĐỘNG GỌI API BACKEND ĐỂ PHÁT ONLINE (không bị kẹt 0s)
       if (!streamUrl) {
         try {
+          console.log('[AudioEngine] Resolving online stream from API for:', song.title);
           const streamData = await apiClient.getSongStream(song.id, song.title, song.artistsNames);
           streamUrl = streamData.audioUrl;
 

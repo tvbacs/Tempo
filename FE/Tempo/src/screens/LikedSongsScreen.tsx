@@ -77,15 +77,14 @@ export const LikedSongsScreen: React.FC<{
     fetchLikedSongs().finally(() => setIsScreenLoading(false));
   }, [fetchLikedSongs]);
 
-  // Lọc chỉ hiển thị các bài hát có thể phát (loại bỏ bài offline đã bị xoá tệp)
+  // Lọc chỉ hiển thị các bài hát có thể phát (chỉ loại bỏ bài local thuần túy do user import đã bị xoá tệp)
   const displaySongs = React.useMemo(() => {
     return likedSongs.filter((s) => {
-      const isOfflineType = (s.source as any) === 'downloaded' || s.source === 'local' || s.isOffline === true;
-      const isLocalId = typeof s.id === 'string' && (s.id.startsWith('local_') || s.id.startsWith('download_'));
-      if (isOfflineType || isLocalId) {
+      const isImportedLocalOnly = (s.source as any) === 'local' || (typeof s.id === 'string' && s.id.startsWith('local_'));
+      if (isImportedLocalOnly) {
         return downloadedSongs.some((d) => d.id === s.id);
       }
-      return true;
+      return true; // Các bài Zing, YouTube, trích xuất đều phát online bình thường
     });
   }, [likedSongs, downloadedSongs]);
 

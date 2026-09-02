@@ -35,7 +35,7 @@ export const SongItem: React.FC<SongItemProps> = React.memo(({
   const isLoading = usePlayerStore((s) => s.isLoading);
   const playSong = usePlayerStore((s) => s.playSong);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
-  const isDownloaded = useDownloadStore((s) => s.downloadedSongs.some((ds) => ds.id === song.id)) || song.isOffline;
+  const isDownloaded = useDownloadStore((s) => s.downloadedSongs.some((ds) => ds.id === song.id));
   const isDownloading = useDownloadStore((s) => s.downloadingIds.includes(song.id));
   const isQueued = useDownloadStore((s) => s.queueSongIds?.includes(song.id));
   const isSaved = useLibraryStore((s) => s.likedSongs.some((ls) => ls.id === song.id));

@@ -1,11 +1,14 @@
 import { UnifiedSong, LyricSentence, Artist } from '../types/music';
 // import { supabase } from './supabase';
 
-const LOCAL_API_BASE = 'http://localhost:5050';
+const LOCAL_PORT = 5050;
 const RENDER_API_BASE = 'https://tempo-y734.onrender.com';
 
 // URL khởi tạo:
 let cachedApiBase = '';
+let lastLocalCheckTime = 0;
+const LOCAL_RECHECK_INTERVAL = 15000;
+let isCheckingLocal = false;
 
 // Backend Render cố định cũ:
 // let cachedApiBase = 'https://tempo-y734.onrender.com';
@@ -31,15 +34,109 @@ const checkHealth = async (url: string, timeoutMs = 1500): Promise<boolean> => {
   }
 };
 
+/**
+ * Lấy danh sách các URL Local Backend khả dĩ (localhost, LAN IP từ window.location, env)
+ */
+const getLocalCandidateUrls = (): string[] => {
+  const list: string[] = [];
+  try {
+    const envUrl = (import.meta as any).env?.VITE_API_URL;
+    if (envUrl && typeof envUrl === 'string' && envUrl.includes('5050')) {
+      list.push(envUrl.trim().replace(/\/+$/, ''));
+    }
+  } catch (_) {}
+
+  list.push(`http://localhost:${LOCAL_PORT}`);
+  list.push(`http://127.0.0.1:${LOCAL_PORT}`);
+
+  try {
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const host = window.location.hostname;
+      if (host && host !== 'localhost' && host !== '127.0.0.1') {
+        list.push(`http://${host}:${LOCAL_PORT}`);
+      }
+    }
+  } catch (_) {}
+
+  return [...new Set(list)];
+};
+
+/**
+ * Helper tương thích Promise.any cho môi trường TypeScript/trình duyệt
+ */
+const promiseAny = <T>(promises: Promise<T>[]): Promise<T> => {
+  if (typeof (Promise as any).any === 'function') {
+    return (Promise as any).any(promises);
+  }
+  return new Promise<T>((resolve, reject) => {
+    let rejected = 0;
+    if (promises.length === 0) return reject(new Error('Empty promises'));
+    promises.forEach((p) => {
+      p.then(resolve).catch(() => {
+        rejected++;
+        if (rejected === promises.length) {
+          reject(new Error('All promises failed'));
+        }
+      });
+    });
+  });
+};
+
+/**
+ * Dò tìm nhanh xem có Local Backend nào đang chạy không (< 1.5s)
+ */
+const findOnlineLocalUrl = async (): Promise<string | null> => {
+  const candidates = getLocalCandidateUrls();
+  const checks = candidates.map(async (url) => {
+    const ok = await checkHealth(url, 1500);
+    if (ok) return url;
+    throw new Error('Offline');
+  });
+  try {
+    return await promiseAny(checks);
+  } catch {
+    return null;
+  }
+};
+
+// Khởi động kiểm tra Local BE ngay lập tức ở background khi mở web
+findOnlineLocalUrl().then((onlineLocal) => {
+  if (onlineLocal) {
+    cachedApiBase = onlineLocal;
+    console.log('[Web API] Phát hiện BE Local online khi mở web:', onlineLocal);
+  } else {
+    console.log('[Web API] BE Local chưa online, dùng Render fallback:', RENDER_API_BASE);
+  }
+}).catch(() => {});
+
 export async function fetchServerBaseUrl(forceRefresh = false): Promise<string> {
-  if (!forceRefresh && cachedApiBase) return cachedApiBase;
+  if (!forceRefresh && cachedApiBase) {
+    // Nếu hiện tại đang dùng Render nhưng đã quá 15s kể từ lần check trước,
+    // kiểm tra ngầm xem BE Local trên máy đã bật lên chưa để tự động chuyển lại:
+    if (cachedApiBase === RENDER_API_BASE && !isCheckingLocal && Date.now() - lastLocalCheckTime > LOCAL_RECHECK_INTERVAL) {
+      isCheckingLocal = true;
+      findOnlineLocalUrl().then((onlineLocal) => {
+        isCheckingLocal = false;
+        lastLocalCheckTime = Date.now();
+        if (onlineLocal) {
+          console.log('[Web API] BE Local đã bật lại:', onlineLocal);
+          cachedApiBase = onlineLocal;
+        }
+      }).catch(() => {
+        isCheckingLocal = false;
+        lastLocalCheckTime = Date.now();
+      });
+    }
+    return cachedApiBase;
+  }
 
   // 1. Thử ưu tiên kết nối Local Backend trước (port 5050)
   try {
-    const isLocalAlive = await checkHealth(LOCAL_API_BASE, 1500);
-    if (isLocalAlive) {
-      console.log('[Web API] Đang kết nối BE Local:', LOCAL_API_BASE);
-      cachedApiBase = LOCAL_API_BASE;
+    lastLocalCheckTime = Date.now();
+    const onlineLocal = await findOnlineLocalUrl();
+    if (onlineLocal) {
+      console.log('[Web API] Đang kết nối BE Local:', onlineLocal);
+      cachedApiBase = onlineLocal;
       return cachedApiBase;
     }
   } catch (_) {}
@@ -97,7 +194,7 @@ async function fetchApi(path: string, options?: RequestInit): Promise<any> {
     return await res.json();
   } catch (err) {
     // Nếu đang dùng Local BE mà bị lỗi kết nối -> tự động chuyển sang Render fallback
-    if (cachedApiBase === LOCAL_API_BASE) {
+    if (cachedApiBase !== RENDER_API_BASE) {
       console.warn('[Web API] BE Local không phản hồi, tự động chuyển sang Render fallback...');
       cachedApiBase = RENDER_API_BASE;
       const cleanPath = path.startsWith('/') ? path : '/' + path;

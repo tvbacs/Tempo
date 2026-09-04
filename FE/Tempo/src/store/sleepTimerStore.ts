@@ -4,6 +4,7 @@
  * Strictly follows STANDARDS.md
  */
 import { create } from 'zustand';
+import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { audioEngine } from '../services/audioPlayer';
 import { useToastStore } from './toastStore';
@@ -33,38 +34,39 @@ interface SleepTimerState {
   onTrackEnded: () => void;
 }
 
+// Single timeout for exact trigger
+let sleepTimeout: ReturnType<typeof setTimeout> | null = null;
+// UI-only countdown interval (only runs when app is in foreground)
+let uiCountdownInterval: ReturnType<typeof setInterval> | null = null;
+let isTriggeringPause = false;
+let appStateSubscription: any = null;
+
+const clearAllTimers = () => {
+  if (sleepTimeout) {
+    clearTimeout(sleepTimeout);
+    sleepTimeout = null;
+  }
+  if (uiCountdownInterval) {
+    clearInterval(uiCountdownInterval);
+    uiCountdownInterval = null;
+  }
+};
+
 const triggerSleepPause = async () => {
+  clearAllTimers();
   try {
     const { usePlayerStore } = require('./playerStore');
-    const ps = usePlayerStore.getState();
-    const currentSong = ps.currentSong;
-    const durationMs = ps.durationMs;
+    const playerStore = usePlayerStore.getState();
 
-    // 1. CHỈ pause native audio engine an toàn, không can thiệp remote cross-device
+    // 1. Dùng pausePlayback để vừa dừng audio vừa tự động lưu session an toàn
     try {
-      await audioEngine.pause();
+      await playerStore.pausePlayback();
     } catch (e) {
-      console.warn('[SleepTimer] Direct audioEngine.pause warning:', e);
+      await audioEngine.pause().catch(() => {});
     }
 
-    // 2. Đồng bộ Zustand state
-    try {
-      usePlayerStore.setState({
-        isPlaying: false,
-        isLoading: false,
-      });
-    } catch (_) {}
-
-    // 3. Đọc positionMs sau khi đã dừng native player
-    const positionMs = usePlayerStore.getState().positionMs || 0;
-
-    // 4. Lưu lại thời điểm chính xác vào lịch sử nghe
-    if (currentSong) {
-      try {
-        const { useLibraryStore } = require('./libraryStore');
-        useLibraryStore.getState().recordHistory(currentSong, positionMs, durationMs);
-      } catch (_) {}
-    }
+    // 2. Dọn dẹp storage
+    await AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY).catch(() => {});
   } catch (error) {
     try {
       await audioEngine.pause();
@@ -77,15 +79,75 @@ const triggerSleepPause = async () => {
   } catch (_) {}
 };
 
-let timerInterval: any = null;
-let isTriggeringPause = false;
-
 const safeTriggerSleepPause = () => {
   if (isTriggeringPause) return;
   isTriggeringPause = true;
   triggerSleepPause().finally(() => {
     isTriggeringPause = false;
   });
+};
+
+/**
+ * Khởi động UI countdown interval (chỉ chạy khi AppState === 'active')
+ * Giúp màn hình hiển thị đếm ngược mượt mà nhưng KHÔNG đánh thức CPU trong background
+ */
+const startUiCountdownIfActive = (get: () => SleepTimerState, set: (state: Partial<SleepTimerState>) => void) => {
+  if (uiCountdownInterval) {
+    clearInterval(uiCountdownInterval);
+    uiCountdownInterval = null;
+  }
+
+  // Nếu app đang trong background: KHÔNG chạy interval để tránh bị iOS watchdog kill vì excessive wakeups
+  if (AppState.currentState !== 'active') return;
+
+  const target = get().targetTimestamp;
+  if (!target) return;
+
+  const initialDiff = target - Date.now();
+  if (initialDiff <= 0) {
+    clearAllTimers();
+    set({
+      activeOption: null,
+      targetTimestamp: null,
+      remainingSeconds: null,
+      isTimerActive: false,
+    });
+    safeTriggerSleepPause();
+    return;
+  }
+
+  set({ remainingSeconds: Math.ceil(initialDiff / 1000) });
+
+  uiCountdownInterval = setInterval(() => {
+    // Chỉ cập nhật nếu app vẫn đang active
+    if (AppState.currentState !== 'active') {
+      if (uiCountdownInterval) {
+        clearInterval(uiCountdownInterval);
+        uiCountdownInterval = null;
+      }
+      return;
+    }
+
+    const currentTarget = get().targetTimestamp;
+    if (!currentTarget) {
+      clearAllTimers();
+      return;
+    }
+
+    const diffMs = currentTarget - Date.now();
+    if (diffMs <= 0) {
+      clearAllTimers();
+      set({
+        activeOption: null,
+        targetTimestamp: null,
+        remainingSeconds: null,
+        isTimerActive: false,
+      });
+      safeTriggerSleepPause();
+    } else {
+      set({ remainingSeconds: Math.ceil(diffMs / 1000) });
+    }
+  }, 1000);
 };
 
 export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
@@ -96,10 +158,40 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
   isModalVisible: false,
 
   init: async () => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
+    clearAllTimers();
+
+    // Đăng ký lắng nghe AppState một lần duy nhất
+    if (!appStateSubscription) {
+      appStateSubscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+        const state = get();
+        if (!state.isTimerActive || !state.targetTimestamp) return;
+
+        if (nextState === 'active') {
+          // Khi quay lại foreground: kiểm tra xem đã hết giờ chưa và bật lại UI countdown
+          const diffMs = state.targetTimestamp - Date.now();
+          if (diffMs <= 0) {
+            clearAllTimers();
+            set({
+              activeOption: null,
+              targetTimestamp: null,
+              remainingSeconds: null,
+              isTimerActive: false,
+            });
+            safeTriggerSleepPause();
+          } else {
+            set({ remainingSeconds: Math.ceil(diffMs / 1000) });
+            startUiCountdownIfActive(get, set);
+          }
+        } else {
+          // Khi ra background hoặc khóa màn hình: Tắt UI countdown ngay để triệt tiêu CPU wakeups
+          if (uiCountdownInterval) {
+            clearInterval(uiCountdownInterval);
+            uiCountdownInterval = null;
+          }
+        }
+      });
     }
+
     try {
       const raw = await AsyncStorage.getItem(SLEEP_TIMER_STORAGE_KEY);
       if (!raw) return;
@@ -124,8 +216,8 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
         const diffMs = saved.targetTimestamp - now;
 
         if (diffMs <= 0) {
-          // Đã hết hạn từ phiên trước -> dọn dẹp storage an toàn, không can thiệp phiên phát nhạc mới
-          await AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY);
+          // Đã hết hạn từ phiên trước -> dọn dẹp storage an toàn
+          await AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY).catch(() => {});
           set({
             activeOption: null,
             targetTimestamp: null,
@@ -133,7 +225,7 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
             isTimerActive: false,
           });
         } else {
-          // Còn thời gian -> khôi phục đếm ngược
+          // Còn thời gian -> khôi phục timer
           const remainingSec = Math.round(diffMs / 1000);
           set({
             activeOption: saved.activeOption,
@@ -142,26 +234,20 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
             isTimerActive: true,
           });
 
-          if (timerInterval) clearInterval(timerInterval);
-          timerInterval = setInterval(() => {
-            const target = get().targetTimestamp;
-            if (!target) return;
-            const diffMs = target - Date.now();
-            if (diffMs <= 0) {
-              clearInterval(timerInterval);
-              timerInterval = null;
-              AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY).catch(() => {});
-              set({
-                activeOption: null,
-                targetTimestamp: null,
-                remainingSeconds: null,
-                isTimerActive: false,
-              });
-              safeTriggerSleepPause();
-            } else {
-              set({ remainingSeconds: Math.ceil(diffMs / 1000) });
-            }
-          }, 1000);
+          // 1. Đặt single timeout chạy chính xác thời điểm hết giờ (kể cả trong background)
+          sleepTimeout = setTimeout(() => {
+            clearAllTimers();
+            set({
+              activeOption: null,
+              targetTimestamp: null,
+              remainingSeconds: null,
+              isTimerActive: false,
+            });
+            safeTriggerSleepPause();
+          }, diffMs);
+
+          // 2. Chạy UI countdown nếu đang mở app
+          startUiCountdownIfActive(get, set);
         }
       }
     } catch (err) {
@@ -170,13 +256,10 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
   },
 
   setTimer: async (option: SleepTimerOption) => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
+    clearAllTimers();
 
     if (!option) {
-      await AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY);
+      await AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY).catch(() => {});
       set({ activeOption: null, targetTimestamp: null, remainingSeconds: null, isTimerActive: false });
       useToastStore.getState().showToast('Đã tắt hẹn giờ đi ngủ', 'info');
       return;
@@ -217,34 +300,25 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
 
     useToastStore.getState().showToast(`Hẹn giờ đi ngủ sau ${option} phút`, 'info');
 
-    timerInterval = setInterval(() => {
-      const target = get().targetTimestamp;
-      if (!target) return;
-      const diffMs = target - Date.now();
-      if (diffMs <= 0) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-        AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY).catch(() => {});
-        set({
-          activeOption: null,
-          targetTimestamp: null,
-          remainingSeconds: null,
-          isTimerActive: false,
-        });
+    // 1. Single timeout cho đúng thời điểm hết giờ
+    sleepTimeout = setTimeout(() => {
+      clearAllTimers();
+      set({
+        activeOption: null,
+        targetTimestamp: null,
+        remainingSeconds: null,
+        isTimerActive: false,
+      });
+      safeTriggerSleepPause();
+    }, totalSeconds * 1000);
 
-        triggerSleepPause();
-      } else {
-        set({ remainingSeconds: Math.ceil(diffMs / 1000) });
-      }
-    }, 1000);
+    // 2. Bắt đầu đếm ngược hiển thị UI nếu app đang active
+    startUiCountdownIfActive(get, set);
   },
 
   cancelTimer: async () => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
-    await AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY);
+    clearAllTimers();
+    await AsyncStorage.removeItem(SLEEP_TIMER_STORAGE_KEY).catch(() => {});
     set({
       activeOption: null,
       targetTimestamp: null,
@@ -256,6 +330,13 @@ export const useSleepTimerStore = create<SleepTimerState>((set, get) => ({
 
   openModal: () => {
     set({ isModalVisible: true });
+    // Cập nhật lại giây đếm ngược chính xác ngay khi mở modal
+    const target = get().targetTimestamp;
+    if (target && get().isTimerActive) {
+      const diffSec = Math.max(0, Math.ceil((target - Date.now()) / 1000));
+      set({ remainingSeconds: diffSec });
+      startUiCountdownIfActive(get, set);
+    }
   },
 
   closeModal: () => {

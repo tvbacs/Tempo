@@ -2,75 +2,72 @@
  * Backend API Client for Tempo Mobile
  * Automatically synchronizes with dynamic Cloudflare Tunnel from Supabase & Expo Host IP
  */
-import Constants from 'expo-constants';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from './supabase';
+// import Constants from 'expo-constants';
+// import AsyncStorage from '@react-native-async-storage/async-storage';
+// import { supabase } from './supabase';
 import { HomeFeedData, ChartData, SearchResults, UnifiedSong, LyricData, AIDJResponse } from '../types/music';
 
-let currentApiUrl = 'https://privileges-outstanding-allows-multi.trycloudflare.com/api';
+let currentApiUrl = 'https://tempo-y734.onrender.com/api';
 
-// Khởi tạo ngay từ cache trước (sync-like) để không bao giờ dùng URL cũ lỗi thời
-AsyncStorage.getItem('@tempo_active_server_url').then((cached) => {
-  if (cached && cached.startsWith('http')) {
-    currentApiUrl = cached;
-  }
-}).catch(() => {});
+// Tạm thời không dùng URL backend đã cache để luôn kết nối Render:
+// AsyncStorage.getItem('@tempo_active_server_url').then((cached) => {
+//   if (cached && cached.startsWith('http')) {
+//     currentApiUrl = cached;
+//   }
+// }).catch(() => {});
 
 export const getActiveApiUrl = async (forceRefresh = false): Promise<string> => {
-  // 1. Nhận diện IP nội bộ máy tính nếu chạy Expo Go cùng mạng Wi-Fi
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (__DEV__ && hostUri) {
-    const host = hostUri.split(':')[0];
-    return `http://${host}:5050/api`;
-  }
+  // Backend local khi chạy Expo Go, giữ lại để có thể bật lại khi cần:
+  // const hostUri = Constants.expoConfig?.hostUri;
+  // if (__DEV__ && hostUri) {
+  //   const host = hostUri.split(':')[0];
+  //   return `http://${host}:5050/api`;
+  // }
 
   // 2. Nếu không force refresh, dùng cache đã load trước
   if (!forceRefresh && currentApiUrl) {
-    // Vẫn query Supabase ngầm để cập nhật nếu URL thay đổi (không block)
-    Promise.resolve(
-      supabase
-        .from('playlists')
-        .select('description')
-        .eq('name', '__TEMPO_ACTIVE_SERVER__')
-        .maybeSingle()
-    )
-      .then((res: any) => {
-        const data = res?.data;
-        if (data?.description && data.description.startsWith('http')) {
-          const liveUrl = data.description.trim().replace(/\/+$/, '');
-          const fullApiUrl = liveUrl.endsWith('/api') ? liveUrl : `${liveUrl}/api`;
-          if (fullApiUrl !== currentApiUrl) {
-            currentApiUrl = fullApiUrl;
-            AsyncStorage.setItem('@tempo_active_server_url', fullApiUrl).catch(() => {});
-          }
-        }
-      })
-      .catch(() => {});
+    // Tạm thời tắt tự động đổi URL từ Supabase để giữ backend Render cố định.
+    // Promise.resolve(
+    //   supabase
+    //     .from('playlists')
+    //     .select('description')
+    //     .eq('name', '__TEMPO_ACTIVE_SERVER__')
+    //     .maybeSingle()
+    // )
+    //   .then((res: any) => {
+    //     const data = res?.data;
+    //     if (data?.description && data.description.startsWith('http')) {
+    //       const liveUrl = data.description.trim().replace(/\/+$/, '');
+    //       const fullApiUrl = liveUrl.endsWith('/api') ? liveUrl : `${liveUrl}/api`;
+    //       if (fullApiUrl !== currentApiUrl) {
+    //         currentApiUrl = fullApiUrl;
+    //         AsyncStorage.setItem('@tempo_active_server_url', fullApiUrl).catch(() => {});
+    //       }
+    //     }
+    //   })
+    //   .catch(() => {});
     return currentApiUrl;
   }
 
-  // 3. Force refresh: query Supabase với timeout 5s
-  try {
-    const supabasePromise = supabase
-      .from('playlists')
-      .select('description')
-      .eq('name', '__TEMPO_ACTIVE_SERVER__')
-      .maybeSingle();
-
-    const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-      setTimeout(() => reject(new Error('Supabase discovery timeout')), 5000)
-    );
-
-    const { data } = await Promise.race([supabasePromise, timeoutPromise]);
-
-    if (data?.description && data.description.startsWith('http')) {
-      const liveUrl = data.description.trim().replace(/\/+$/, '');
-      const fullApiUrl = liveUrl.endsWith('/api') ? liveUrl : `${liveUrl}/api`;
-      currentApiUrl = fullApiUrl;
-      AsyncStorage.setItem('@tempo_active_server_url', fullApiUrl).catch(() => {});
-      return fullApiUrl;
-    }
-  } catch (e) {}
+  // Tạm thời tắt force refresh từ Supabase để không ghi đè backend Render:
+  // try {
+  //   const supabasePromise = supabase
+  //     .from('playlists')
+  //     .select('description')
+  //     .eq('name', '__TEMPO_ACTIVE_SERVER__')
+  //     .maybeSingle();
+  //   const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
+  //     setTimeout(() => reject(new Error('Supabase discovery timeout')), 5000)
+  //   );
+  //   const { data } = await Promise.race([supabasePromise, timeoutPromise]);
+  //   if (data?.description && data.description.startsWith('http')) {
+  //     const liveUrl = data.description.trim().replace(/\/+$/, '');
+  //     const fullApiUrl = liveUrl.endsWith('/api') ? liveUrl : `${liveUrl}/api`;
+  //     currentApiUrl = fullApiUrl;
+  //     AsyncStorage.setItem('@tempo_active_server_url', fullApiUrl).catch(() => {});
+  //     return fullApiUrl;
+  //   }
+  // } catch (e) {}
 
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;

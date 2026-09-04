@@ -418,10 +418,10 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   title: {
-    fontSize: TYPOGRAPHY.sizeHero,
+    fontSize: TYPOGRAPHY.sizeBody + 1.5,
     fontWeight: "800",
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.md + 2,
+    color: "#EEEEF2",
+    marginBottom: SPACING.md,
   },
   searchBar: {
     flexDirection: "row",

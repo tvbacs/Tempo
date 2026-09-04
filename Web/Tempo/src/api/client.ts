@@ -1,14 +1,48 @@
 import { UnifiedSong, LyricSentence, Artist } from '../types/music';
-import { supabase } from './supabase';
+// import { supabase } from './supabase';
 
-// Backend Render cố định:
-let cachedApiBase = 'https://tempo-y734.onrender.com';
+const LOCAL_API_BASE = 'http://localhost:5050';
+const RENDER_API_BASE = 'https://tempo-y734.onrender.com';
+
+// URL khởi tạo:
+let cachedApiBase = '';
+
+// Backend Render cố định cũ:
+// let cachedApiBase = 'https://tempo-y734.onrender.com';
 
 // Logic cũ từ env / dynamic tunnel:
 // let cachedApiBase = (import.meta as any).env?.VITE_API_URL || '';
 
+/**
+ * Kiểm tra xem một URL backend có đang sống không (health check)
+ */
+const checkHealth = async (url: string, timeoutMs = 1500): Promise<boolean> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const cleanUrl = url.replace(/\/+$/, '');
+    const healthUrl = cleanUrl.endsWith('/api') ? `${cleanUrl}/health` : `${cleanUrl}/api/health`;
+    const res = await fetch(healthUrl, { signal: controller.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 export async function fetchServerBaseUrl(forceRefresh = false): Promise<string> {
-  if (cachedApiBase) return cachedApiBase;
+  if (!forceRefresh && cachedApiBase) return cachedApiBase;
+
+  // 1. Thử ưu tiên kết nối Local Backend trước (port 5050)
+  try {
+    const isLocalAlive = await checkHealth(LOCAL_API_BASE, 1500);
+    if (isLocalAlive) {
+      console.log('[Web API] Đang kết nối BE Local:', LOCAL_API_BASE);
+      cachedApiBase = LOCAL_API_BASE;
+      return cachedApiBase;
+    }
+  } catch (_) {}
 
   // Logic cũ khi chạy localhost dev server và dynamic sync từ Supabase, giữ lại dạng comment:
   /*
@@ -41,7 +75,10 @@ export async function fetchServerBaseUrl(forceRefresh = false): Promise<string> 
   } catch (_) {}
   */
 
-  return cachedApiBase || 'https://tempo-y734.onrender.com';
+  // 2. BE Local không online -> fallback sang Render
+  console.log('[Web API] BE Local không online, chuyển sang Render fallback:', RENDER_API_BASE);
+  cachedApiBase = RENDER_API_BASE;
+  return cachedApiBase;
 }
 
 export async function getApiUrl(path: string, forceRefresh = false): Promise<string> {
@@ -59,15 +96,34 @@ async function fetchApi(path: string, options?: RequestInit): Promise<any> {
     if (!res.ok && res.status >= 500) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
-    // Nếu lỗi kết nối (tunnel đổi URL hoặc mất mạng), xóa cache và query lại Supabase
-    try {
-      localStorage.removeItem('tempo_active_api_url');
-      cachedApiBase = '';
-      url = await getApiUrl(path, true);
-      const res = await fetch(url, options);
-      return await res.json();
-    } catch (retryErr) {
-      throw retryErr;
+    // Nếu đang dùng Local BE mà bị lỗi kết nối -> tự động chuyển sang Render fallback
+    if (cachedApiBase === LOCAL_API_BASE) {
+      console.warn('[Web API] BE Local không phản hồi, tự động chuyển sang Render fallback...');
+      cachedApiBase = RENDER_API_BASE;
+      const cleanPath = path.startsWith('/') ? path : '/' + path;
+      const renderUrl = `${RENDER_API_BASE.replace(/\/api$/, '')}${cleanPath}`;
+      try {
+        const res = await fetch(renderUrl, options);
+        if (!res.ok && res.status >= 500) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (renderErr) {
+        console.warn('[Web API] Cả BE Local và Render đều không khả dụng (Offline)');
+        throw renderErr;
+      }
+    } else {
+      // Đang dùng Render mà lỗi -> thử refresh tìm lại xem BE Local đã bật chưa
+      try {
+        const freshBase = await fetchServerBaseUrl(true);
+        if (freshBase && freshBase !== RENDER_API_BASE) {
+          console.log('[Web API] BE Local đã bật lại, thử lại với:', freshBase);
+          const cleanPath = path.startsWith('/') ? path : '/' + path;
+          const freshUrl = `${freshBase.replace(/\/api$/, '')}${cleanPath}`;
+          const res = await fetch(freshUrl, options);
+          if (!res.ok && res.status >= 500) throw new Error(`HTTP ${res.status}`);
+          return await res.json();
+        }
+      } catch (_) {}
+      throw err;
     }
   }
 }

@@ -2,12 +2,21 @@
  * Backend API Client for Tempo Mobile
  * Automatically synchronizes with dynamic Cloudflare Tunnel from Supabase & Expo Host IP
  */
-// import Constants from 'expo-constants';
+import Constants from 'expo-constants';
 // import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { supabase } from './supabase';
 import { HomeFeedData, ChartData, SearchResults, UnifiedSong, LyricData, AIDJResponse } from '../types/music';
 
-let currentApiUrl = 'https://tempo-y734.onrender.com/api';
+const RENDER_API_URL = 'https://tempo-y734.onrender.com/api';
+const LOCAL_PORT = 5050;
+
+// URL khởi tạo mặc định là Render fallback
+let currentApiUrl = RENDER_API_URL;
+export let API_BASE_URL = currentApiUrl;
+
+let lastLocalCheckTime = 0;
+const LOCAL_RECHECK_INTERVAL = 15000;
+let isCheckingLocal = false;
 
 // Tạm thời không dùng URL backend đã cache để luôn kết nối Render:
 // AsyncStorage.getItem('@tempo_active_server_url').then((cached) => {
@@ -15,6 +24,73 @@ let currentApiUrl = 'https://tempo-y734.onrender.com/api';
 //     currentApiUrl = cached;
 //   }
 // }).catch(() => {});
+
+/**
+ * Kiểm tra xem một URL backend có đang sống không (health check)
+ */
+const checkUrlHealth = async (baseUrl: string, timeoutMs = 1500): Promise<boolean> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const cleanBase = baseUrl.replace(/\/+$/, '');
+    const healthUrl = cleanBase.endsWith('/api') ? `${cleanBase}/health` : `${cleanBase}/api/health`;
+    const res = await fetch(healthUrl, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+/**
+ * Lấy danh sách các URL Local Backend khả dĩ (Expo host IP, localhost, emulator)
+ */
+const getLocalCandidateUrls = (): string[] => {
+  const list: string[] = [];
+  try {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const host = hostUri.split(':')[0];
+      if (host) list.push(`http://${host}:${LOCAL_PORT}/api`);
+    }
+  } catch (_) {}
+  list.push(`http://localhost:${LOCAL_PORT}/api`);
+  list.push(`http://127.0.0.1:${LOCAL_PORT}/api`);
+  list.push(`http://10.0.2.2:${LOCAL_PORT}/api`);
+  return [...new Set(list)];
+};
+
+/**
+ * Dò tìm nhanh xem có Local Backend nào đang chạy không (< 1.5s)
+ */
+const findOnlineLocalUrl = async (): Promise<string | null> => {
+  const candidates = getLocalCandidateUrls();
+  const checks = candidates.map(async (url) => {
+    const ok = await checkUrlHealth(url, 1500);
+    if (ok) return url;
+    throw new Error('Offline');
+  });
+  try {
+    return await Promise.any(checks);
+  } catch {
+    return null;
+  }
+};
+
+// Khởi động kiểm tra Local BE ngay lập tức ở background khi app mở
+findOnlineLocalUrl().then((onlineLocal) => {
+  if (onlineLocal) {
+    currentApiUrl = onlineLocal;
+    API_BASE_URL = onlineLocal;
+    console.log('[API Client] Phát hiện BE Local online khi mở app:', onlineLocal);
+  } else {
+    console.log('[API Client] BE Local chưa online, dùng Render fallback:', RENDER_API_URL);
+  }
+}).catch(() => {});
 
 export const getActiveApiUrl = async (forceRefresh = false): Promise<string> => {
   // Backend local khi chạy Expo Go, giữ lại để có thể bật lại khi cần:
@@ -24,8 +100,26 @@ export const getActiveApiUrl = async (forceRefresh = false): Promise<string> => 
   //   return `http://${host}:5050/api`;
   // }
 
-  // 2. Nếu không force refresh, dùng cache đã load trước
+  // 2. Nếu không force refresh, dùng URL đang active
   if (!forceRefresh && currentApiUrl) {
+    // Nếu hiện tại đang trỏ Render nhưng đã quá 15s kể từ lần check local trước,
+    // thăm dò ngầm xem BE Local trên máy tính đã bật lên chưa để tự động chuyển lại:
+    if (currentApiUrl === RENDER_API_URL && !isCheckingLocal && Date.now() - lastLocalCheckTime > LOCAL_RECHECK_INTERVAL) {
+      isCheckingLocal = true;
+      findOnlineLocalUrl().then((onlineLocal) => {
+        isCheckingLocal = false;
+        lastLocalCheckTime = Date.now();
+        if (onlineLocal) {
+          console.log('[API Client] BE Local đã hoạt động trở lại:', onlineLocal);
+          currentApiUrl = onlineLocal;
+          API_BASE_URL = onlineLocal;
+        }
+      }).catch(() => {
+        isCheckingLocal = false;
+        lastLocalCheckTime = Date.now();
+      });
+    }
+
     // Tạm thời tắt tự động đổi URL từ Supabase để giữ backend Render cố định.
     // Promise.resolve(
     //   supabase
@@ -69,14 +163,29 @@ export const getActiveApiUrl = async (forceRefresh = false): Promise<string> => 
   //   }
   // } catch (e) {}
 
+  // 1. Thử ưu tiên Local Backend trước
+  try {
+    lastLocalCheckTime = Date.now();
+    const onlineLocal = await findOnlineLocalUrl();
+    if (onlineLocal) {
+      console.log('[API Client] Đang kết nối BE Local:', onlineLocal);
+      currentApiUrl = onlineLocal;
+      API_BASE_URL = onlineLocal;
+      return currentApiUrl;
+    }
+  } catch (_) {}
+
+  // 2. Không thấy Local BE -> Fallback sang Render
+  console.log('[API Client] BE Local không online, chuyển sang Render fallback:', RENDER_API_URL);
+  currentApiUrl = RENDER_API_URL;
+  API_BASE_URL = currentApiUrl;
+
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
   return currentApiUrl;
 };
-
-export const API_BASE_URL = currentApiUrl;
 
 /**
  * Fetch với timeout tuỳ chỉnh — mặc định 12s để chịu được cold start server
@@ -96,7 +205,10 @@ export const fetchWithTimeout = async (url: string, options: RequestInit = {}, t
 };
 
 /**
- * Fetch với retry 1 lần: nếu lần đầu timeout/lỗi, tự động force-refresh URL từ Supabase rồi thử lại
+ * Fetch với retry 3 cấp độ:
+ * 1. Ưu tiên Local BE
+ * 2. Nếu Local BE không phản hồi / lỗi -> tự động nhảy sang Render
+ * 3. Nếu cả Render cũng lỗi -> throw để giao diện hiển thị Offline
  */
 const fetchWithRetry = async (
   pathFactory: (base: string) => string,
@@ -107,12 +219,28 @@ const fetchWithRetry = async (
   try {
     return await fetchWithTimeout(pathFactory(baseUrl), options, timeoutMs);
   } catch (firstErr) {
-    // Lần đầu lỗi → force refresh URL từ Supabase rồi thử lại
-    try {
-      const freshBase = await getActiveApiUrl(true);
-      return await fetchWithTimeout(pathFactory(freshBase), options, timeoutMs);
-    } catch (retryErr) {
-      throw retryErr;
+    // Nếu đang dùng Local BE mà bị lỗi kết nối -> chuyển ngay sang Render fallback
+    if (baseUrl !== RENDER_API_URL) {
+      console.warn('[API Client] BE Local không phản hồi, tự động chuyển sang Render fallback...');
+      currentApiUrl = RENDER_API_URL;
+      API_BASE_URL = RENDER_API_URL;
+      try {
+        return await fetchWithTimeout(pathFactory(RENDER_API_URL), options, timeoutMs);
+      } catch (renderErr) {
+        console.warn('[API Client] Cả BE Local và Render đều không khả dụng (Chế độ Offline)');
+        throw renderErr;
+      }
+    } else {
+      // Đang dùng Render mà lỗi -> thử refresh tìm lại BE Local xem người dùng đã bật chưa
+      try {
+        const freshBase = await getActiveApiUrl(true);
+        if (freshBase !== RENDER_API_URL) {
+          console.log('[API Client] BE Local đã bật lại, thực hiện lại request:', freshBase);
+          return await fetchWithTimeout(pathFactory(freshBase), options, timeoutMs);
+        }
+      } catch (_) {}
+      // Nếu Render vẫn lỗi và Local không có -> báo lỗi để UI hiển thị offline
+      throw firstErr;
     }
   }
 };

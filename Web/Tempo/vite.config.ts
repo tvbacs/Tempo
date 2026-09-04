@@ -7,8 +7,10 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:5050',
+        // target: 'http://localhost:5050',
+        target: 'https://tempo-y734.onrender.com',
         changeOrigin: true,
+        secure: false,
       },
     },
   },

@@ -1,11 +1,17 @@
 import { UnifiedSong, LyricSentence, Artist } from '../types/music';
 import { supabase } from './supabase';
 
-let cachedApiBase = (import.meta as any).env?.VITE_API_URL || '';
+// Backend Render cố định:
+let cachedApiBase = 'https://tempo-y734.onrender.com';
+
+// Logic cũ từ env / dynamic tunnel:
+// let cachedApiBase = (import.meta as any).env?.VITE_API_URL || '';
 
 export async function fetchServerBaseUrl(forceRefresh = false): Promise<string> {
-  if (!forceRefresh && cachedApiBase) return cachedApiBase;
+  if (cachedApiBase) return cachedApiBase;
 
+  // Logic cũ khi chạy localhost dev server và dynamic sync từ Supabase, giữ lại dạng comment:
+  /*
   // Khi chạy localhost
   if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     return '';
@@ -33,8 +39,9 @@ export async function fetchServerBaseUrl(forceRefresh = false): Promise<string> 
       return base;
     }
   } catch (_) {}
+  */
 
-  return cachedApiBase || '';
+  return cachedApiBase || 'https://tempo-y734.onrender.com';
 }
 
 export async function getApiUrl(path: string, forceRefresh = false): Promise<string> {

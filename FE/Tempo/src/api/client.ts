@@ -3,51 +3,33 @@
  * Automatically synchronizes with dynamic Cloudflare Tunnel from Supabase & Expo Host IP
  */
 import Constants from 'expo-constants';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { supabase } from './supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 import { HomeFeedData, ChartData, SearchResults, UnifiedSong, LyricData, AIDJResponse } from '../types/music';
 
 // Render fallback cũ (tạm comment theo yêu cầu để tránh việc chờ Render ngủ dậy quá lâu):
 // const RENDER_API_URL = 'https://tempo-y734.onrender.com/api';
 const LOCAL_PORT = 5050;
 
-/**
- * Lấy danh sách các URL Local Backend khả dĩ (Expo host IP, localhost, emulator)
- */
-const getLocalCandidateUrls = (): string[] => {
-  const list: string[] = [];
-  try {
-    const hostUri = Constants.expoConfig?.hostUri;
-    if (hostUri) {
-      const host = hostUri.split(':')[0];
-      if (host) list.push(`http://${host}:${LOCAL_PORT}/api`);
-    }
-  } catch (_) {}
-  list.push(`http://localhost:${LOCAL_PORT}/api`);
-  list.push(`http://127.0.0.1:${LOCAL_PORT}/api`);
-  list.push(`http://10.0.2.2:${LOCAL_PORT}/api`);
-  return [...new Set(list)];
-};
-
-// Khởi tạo mặc định URL từ danh sách Local BE
-let currentApiUrl = getLocalCandidateUrls()[0] || `http://localhost:${LOCAL_PORT}/api`;
+// URL khởi tạo: load từ cache nếu có
+let currentApiUrl = '';
 export let API_BASE_URL = currentApiUrl;
+
+AsyncStorage.getItem('@tempo_active_server_url').then((cached) => {
+  if (cached && cached.startsWith('http')) {
+    currentApiUrl = cached;
+    API_BASE_URL = cached;
+  }
+}).catch(() => {});
 
 let lastLocalCheckTime = 0;
 const LOCAL_RECHECK_INTERVAL = 15000;
 let isCheckingLocal = false;
 
-// Tạm thời không dùng URL backend đã cache để luôn kết nối Render:
-// AsyncStorage.getItem('@tempo_active_server_url').then((cached) => {
-//   if (cached && cached.startsWith('http')) {
-//     currentApiUrl = cached;
-//   }
-// }).catch(() => {});
-
 /**
  * Kiểm tra xem một URL backend có đang sống không (health check)
  */
-const checkUrlHealth = async (baseUrl: string, timeoutMs = 1200): Promise<boolean> => {
+const checkUrlHealth = async (baseUrl: string, timeoutMs = 2000): Promise<boolean> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -66,95 +48,113 @@ const checkUrlHealth = async (baseUrl: string, timeoutMs = 1200): Promise<boolea
 };
 
 /**
- * Dò tìm nhanh xem có Local Backend nào đang chạy không (< 1.2s)
+ * Lấy danh sách các URL Local Backend khả dĩ (Expo host IP, LAN IP máy tính, localhost, emulator)
  */
-const findOnlineLocalUrl = async (): Promise<string | null> => {
-  const candidates = getLocalCandidateUrls();
-  const checks = candidates.map(async (url) => {
-    const ok = await checkUrlHealth(url, 1200);
-    if (ok) return url;
-    throw new Error('Offline');
-  });
+const getLocalCandidateUrls = (): string[] => {
+  const list: string[] = [];
   try {
-    return await Promise.any(checks);
-  } catch {
-    return null;
-  }
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const host = hostUri.split(':')[0];
+      if (host) list.push(`http://${host}:${LOCAL_PORT}/api`);
+    }
+  } catch (_) {}
+
+  // IP Wi-Fi của máy tính chạy BE (để điện thoại cùng mạng Wi-Fi truy cập trực tiếp cực nhanh)
+  list.push(`http://192.168.1.7:${LOCAL_PORT}/api`);
+  list.push(`http://localhost:${LOCAL_PORT}/api`);
+  list.push(`http://127.0.0.1:${LOCAL_PORT}/api`);
+  list.push(`http://10.0.2.2:${LOCAL_PORT}/api`);
+  return [...new Set(list)];
 };
 
-// Khởi động kiểm tra Local BE ngay lập tức ở background khi app mở
-findOnlineLocalUrl().then((onlineLocal) => {
-  if (onlineLocal) {
-    currentApiUrl = onlineLocal;
-    API_BASE_URL = onlineLocal;
-    console.log('[API Client] Phát hiện BE Local online khi mở app:', onlineLocal);
+/**
+ * Lấy URL Cloudflare Tunnel mới nhất từ Supabase
+ * (tunnel-sync.js trong backend.bat tự động đồng bộ lên mỗi khi mở server)
+ */
+const fetchSupabaseTunnelUrl = async (): Promise<string | null> => {
+  try {
+    const supabasePromise = supabase
+      .from('playlists')
+      .select('description')
+      .eq('name', '__TEMPO_ACTIVE_SERVER__')
+      .maybeSingle();
+    const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
+      setTimeout(() => reject(new Error('Supabase discovery timeout')), 3000)
+    );
+    const { data } = await Promise.race([supabasePromise, timeoutPromise]);
+    if (data?.description && data.description.startsWith('http')) {
+      const liveUrl = data.description.trim().replace(/\/+$/, '');
+      const fullApiUrl = liveUrl.endsWith('/api') ? liveUrl : `${liveUrl}/api`;
+      return fullApiUrl;
+    }
+  } catch (_) {}
+  return null;
+};
+
+/**
+ * Dò tìm nhanh URL Backend đang sống (kết hợp Cloudflare Tunnel từ Supabase + IP nội bộ)
+ */
+const findOnlineServerUrl = async (): Promise<string | null> => {
+  const candidateChecks: Promise<string>[] = [];
+
+  // 1. Kiểm tra Cloudflare Tunnel từ Supabase (giải pháp chính cho điện thoại)
+  const tunnelCheck = fetchSupabaseTunnelUrl().then(async (tunnelUrl) => {
+    if (tunnelUrl) {
+      const ok = await checkUrlHealth(tunnelUrl, 2500);
+      if (ok) return tunnelUrl;
+    }
+    throw new Error('Tunnel offline');
+  });
+  candidateChecks.push(tunnelCheck);
+
+  // 2. Kiểm tra các IP nội bộ (LAN / Expo host)
+  const localUrls = getLocalCandidateUrls();
+  localUrls.forEach((url) => {
+    const localCheck = checkUrlHealth(url, 1500).then((ok) => {
+      if (ok) return url;
+      throw new Error('Local IP offline');
+    });
+    candidateChecks.push(localCheck);
+  });
+
+  // URL nào phản hồi 200 trước thì chốt luôn URL đó
+  try {
+    const winner = await Promise.any(candidateChecks);
+    if (winner) {
+      AsyncStorage.setItem('@tempo_active_server_url', winner).catch(() => {});
+      return winner;
+    }
+  } catch (_) {}
+
+  return null;
+};
+
+// Khởi động kiểm tra ngay khi mở app
+findOnlineServerUrl().then((onlineUrl) => {
+  if (onlineUrl) {
+    currentApiUrl = onlineUrl;
+    API_BASE_URL = onlineUrl;
+    console.log('[API Client] Đã kết nối BE thành công:', onlineUrl);
   } else {
-    console.log('[API Client] BE Local chưa online -> Sẽ hiển thị chế độ Ngoại tuyến (Offline)');
+    console.log('[API Client] BE chưa online -> Sẽ hiển thị chế độ Ngoại tuyến (Offline)');
   }
 }).catch(() => {});
 
 export const getActiveApiUrl = async (forceRefresh = false): Promise<string> => {
-  // Backend local khi chạy Expo Go, giữ lại để có thể bật lại khi cần:
-  // const hostUri = Constants.expoConfig?.hostUri;
-  // if (__DEV__ && hostUri) {
-  //   const host = hostUri.split(':')[0];
-  //   return `http://${host}:5050/api`;
-  // }
-
-  // 1. Nếu không force refresh và đã có currentApiUrl
+  // 1. Nếu không forceRefresh và đã có URL đang dùng
   if (!forceRefresh && currentApiUrl) {
     return currentApiUrl;
   }
 
-  // Tạm thời tắt tự động đổi URL từ Supabase để giữ backend Render cố định.
-  // Promise.resolve(
-  //   supabase
-  //     .from('playlists')
-  //     .select('description')
-  //     .eq('name', '__TEMPO_ACTIVE_SERVER__')
-  //     .maybeSingle()
-  // )
-  //   .then((res: any) => {
-  //     const data = res?.data;
-  //     if (data?.description && data.description.startsWith('http')) {
-  //       const liveUrl = data.description.trim().replace(/\/+$/, '');
-  //       const fullApiUrl = liveUrl.endsWith('/api') ? liveUrl : `${liveUrl}/api`;
-  //       if (fullApiUrl !== currentApiUrl) {
-  //         currentApiUrl = fullApiUrl;
-  //         AsyncStorage.setItem('@tempo_active_server_url', fullApiUrl).catch(() => {});
-  //       }
-  //     }
-  //   })
-  //   .catch(() => {});
-
-  // Tạm thời tắt force refresh từ Supabase để không ghi đè backend Render:
-  // try {
-  //   const supabasePromise = supabase
-  //     .from('playlists')
-  //     .select('description')
-  //     .eq('name', '__TEMPO_ACTIVE_SERVER__')
-  //     .maybeSingle();
-  //   const timeoutPromise = new Promise<{ data: any; error: any }>((_, reject) =>
-  //     setTimeout(() => reject(new Error('Supabase discovery timeout')), 5000)
-  //   );
-  //   const { data } = await Promise.race([supabasePromise, timeoutPromise]);
-  //   if (data?.description && data.description.startsWith('http')) {
-  //     const liveUrl = data.description.trim().replace(/\/+$/, '');
-  //     const fullApiUrl = liveUrl.endsWith('/api') ? liveUrl : `${liveUrl}/api`;
-  //     currentApiUrl = fullApiUrl;
-  //     AsyncStorage.setItem('@tempo_active_server_url', fullApiUrl).catch(() => {});
-  //     return fullApiUrl;
-  //   }
-  // } catch (e) {}
-
-  // 2. Thử dò tìm Local Backend
+  // 2. Dò tìm Server đang online (Cloudflare Tunnel từ backend.bat hoặc IP LAN)
   try {
     lastLocalCheckTime = Date.now();
-    const onlineLocal = await findOnlineLocalUrl();
-    if (onlineLocal) {
-      console.log('[API Client] Đang kết nối BE Local:', onlineLocal);
-      currentApiUrl = onlineLocal;
-      API_BASE_URL = onlineLocal;
+    const onlineUrl = await findOnlineServerUrl();
+    if (onlineUrl) {
+      console.log('[API Client] Đang kết nối BE:', onlineUrl);
+      currentApiUrl = onlineUrl;
+      API_BASE_URL = onlineUrl;
       return currentApiUrl;
     }
   } catch (_) {}
@@ -171,7 +171,7 @@ export const getActiveApiUrl = async (forceRefresh = false): Promise<string> => 
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  // Nếu không thấy Local BE online -> ném lỗi ngay để app kích hoạt chế độ Ngoại tuyến (Offline)
+  // Nếu không có server nào phản hồi -> ném lỗi ngay để app kích hoạt chế độ Ngoại tuyến (Offline)
   throw new Error('Local Backend is unreachable (Offline mode)');
 };
 

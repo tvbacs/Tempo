@@ -38,87 +38,65 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="h-16 flex items-center justify-between px-6 bg-[#000000] border-none select-none flex-shrink-0 relative z-30">
+    <header className="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-4 md:px-6 bg-[#000000] border-none select-none flex-shrink-0 relative z-30 gap-2">
       {/* 1. Left Logo */}
       <div
         onClick={() => setCurrentTab && setCurrentTab('home')}
-        className="flex items-center gap-2 cursor-pointer group"
+        className="flex items-center gap-2 cursor-pointer group flex-shrink-0"
       >
         <img
           src="/logo.png"
           alt="Tempo Logo"
-          className="w-8 h-8 rounded-full object-contain drop-shadow"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-contain drop-shadow"
         />
       </div>
 
-      {/* 2. Center Search & Home Button (Spotify Pill Style) */}
-      <div className="flex items-center gap-2 max-w-lg w-full">
-        {/* Home Circle Button */}
-        <button
-          onClick={() => setCurrentTab && setCurrentTab('home')}
-          title="Trang chủ"
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all border-none cursor-pointer flex-shrink-0 ${
-            currentTab === 'home'
-              ? 'bg-white text-black shadow-lg scale-105'
-              : 'bg-[#1f1f1f] text-[#b3b3b3] hover:text-white hover:bg-[#282828] hover:scale-105'
-          }`}
-        >
-          <Home className="w-4 h-4 fill-current" />
-        </button>
-
-        {/* Search Bar with Browse Folder Icon on Right */}
-        <div className="flex-1 flex items-center bg-[#1f1f1f] hover:bg-[#2a2a2a] focus-within:bg-[#2a2a2a] focus-within:ring-2 focus-within:ring-white rounded-full px-3.5 h-10 gap-2.5 transition-all border-none">
-          <Search className="w-5 h-5 text-[#b3b3b3] flex-shrink-0" />
+      {/* 2. Center Search Bar */}
+      <div className="flex items-center max-w-lg w-full flex-1 mx-1 sm:mx-2">
+        <div className="w-full flex items-center bg-[#1f1f1f] hover:bg-[#2a2a2a] focus-within:bg-[#2a2a2a] focus-within:ring-2 focus-within:ring-white rounded-full px-3 sm:px-3.5 h-8 sm:h-10 gap-2 transition-all border-none">
+          <Search className="w-4 h-4 sm:w-5 sm:h-5 text-[#b3b3b3] flex-shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={onSearchFocus}
             placeholder="Bạn muốn nghe gì?"
-            className="w-full bg-transparent border-none outline-none text-sm font-medium text-white placeholder:text-[#b3b3b3]"
+            className="w-full bg-transparent border-none outline-none text-xs sm:text-sm font-medium text-white placeholder:text-[#b3b3b3] min-w-0"
           />
-          {searchQuery ? (
+          {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="text-[#b3b3b3] hover:text-white p-1 border-none bg-transparent cursor-pointer"
+              className="text-[#b3b3b3] hover:text-white p-1 border-none bg-transparent cursor-pointer flex-shrink-0"
             >
-              <X className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              onClick={() => setCurrentTab && setCurrentTab('library')}
-              title="Duyệt thư viện"
-              className="text-[#b3b3b3] hover:text-white p-1 border-none bg-transparent cursor-pointer"
-            >
-              <Folder className="w-4 h-4" />
+              <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           )}
         </div>
       </div>
 
       {/* 3. Right Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
         <button
           title="Thông báo"
-          className="w-9 h-9 rounded-full bg-[#1f1f1f] hover:scale-105 flex items-center justify-center text-[#b3b3b3] hover:text-white transition-all border-none cursor-pointer"
+          className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1f1f1f] hover:scale-105 flex items-center justify-center text-[#b3b3b3] hover:text-white transition-all border-none cursor-pointer"
         >
-          <Bell className="w-4 h-4" />
+          <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
         {user ? (
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="w-9 h-9 rounded-full bg-[#535353] hover:scale-105 flex items-center justify-center text-white text-xs font-bold border-none cursor-pointer p-0 transition-transform"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#535353] hover:scale-105 flex items-center justify-center text-white text-xs font-bold border-none cursor-pointer p-0 transition-transform"
             >
               {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
             </button>
 
             {/* Profile Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-[#282828] rounded-lg shadow-2xl p-2 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95 duration-100 border-none">
+              <div className="absolute right-0 mt-2 w-60 sm:w-64 bg-[#282828] rounded-lg shadow-2xl p-2 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95 duration-100 border-none">
                 <div className="flex items-center gap-3 p-2 bg-[#1f1f1f] rounded-md">
-                  <div className="w-9 h-9 rounded-full bg-[#535353] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#535353] flex items-center justify-center text-white text-xs sm:text-sm font-bold flex-shrink-0">
                     {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -152,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
         ) : (
           <button
             onClick={openAuthModal}
-            className="px-4 py-1.5 rounded-full bg-white hover:scale-105 text-black text-xs font-bold transition-transform border-none cursor-pointer"
+            className="px-3 sm:px-4 py-1.5 rounded-full bg-white hover:scale-105 text-black text-xs font-bold transition-transform border-none cursor-pointer"
           >
             Đăng nhập
           </button>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Home,
   Library as LibraryIcon,
   Heart,
   ArrowDownToLine,
@@ -48,36 +49,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   );
 
   return (
-    <aside className="w-80 bg-[#121212] rounded-lg flex flex-col p-3 select-none flex-shrink-0 border-none overflow-hidden">
-      {/* 1. Header: Nút Thư viện */}
-      <div className="px-1 mb-2">
-        <button
-          onClick={() => setCurrentTab('library')}
-          title="Xem toàn bộ thư viện của bạn"
-          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border-none cursor-pointer group ${
-            currentTab === 'library'
-              ? 'bg-[#242424] text-white font-bold'
-              : 'bg-transparent text-[#b3b3b3] hover:text-white hover:bg-[#1a1a1a]'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <LibraryIcon
-              className={`w-5 h-5 transition-colors ${
-                currentTab === 'library' ? 'text-primary' : 'text-[#b3b3b3] group-hover:text-white'
-              }`}
-            />
-            <span className="text-sm font-bold tracking-tight">Thư viện của bạn</span>
-          </div>
-          <ChevronRight
-            className={`w-4 h-4 transition-transform group-hover:translate-x-0.5 ${
-              currentTab === 'library' ? 'text-primary' : 'text-[#727272] group-hover:text-white'
-            }`}
-          />
-        </button>
-      </div>
-
-      {/* 2. Filter Pills: Danh sách phát, Album, Nghệ sĩ */}
-      <div className="flex items-center gap-1.5 px-1 mb-3 overflow-x-auto no-scrollbar">
+    <aside className="w-60 md:w-64 lg:w-72 xl:w-80 bg-[#121212] rounded-lg flex flex-col p-3 select-none flex-shrink-0 border-none overflow-hidden">
+      {/* 1. Filter Pills: Danh sách phát, Album, Nghệ sĩ */}
+      <div className="flex items-center gap-1.5 px-1 mb-2.5 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setFilterType(filterType === 'playlist' ? 'all' : 'playlist')}
           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border-none cursor-pointer flex-shrink-0 ${
@@ -109,6 +83,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           Nghệ sĩ
+        </button>
+      </div>
+
+      {/* 2. Main Navigation Menu: Trang chủ & Thư viện của bạn */}
+      <div className="flex flex-col gap-1 px-1 mb-3">
+        <button
+          onClick={() => setCurrentTab('home')}
+          title="Trang chủ"
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all border-none cursor-pointer group ${
+            currentTab === 'home'
+              ? 'bg-[#242424] text-white font-bold'
+              : 'bg-transparent text-[#b3b3b3] hover:text-white hover:bg-[#1a1a1a]'
+          }`}
+        >
+          <Home
+            className={`w-5 h-5 transition-colors ${
+              currentTab === 'home' ? 'text-primary' : 'text-[#b3b3b3] group-hover:text-white'
+            }`}
+          />
+          <span className="text-sm font-bold tracking-tight">Trang chủ</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentTab('library')}
+          title="Xem toàn bộ thư viện của bạn"
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border-none cursor-pointer group ${
+            currentTab === 'library' || currentTab === 'liked' || currentTab === 'playlist'
+              ? 'bg-[#242424] text-white font-bold'
+              : 'bg-transparent text-[#b3b3b3] hover:text-white hover:bg-[#1a1a1a]'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <LibraryIcon
+              className={`w-5 h-5 transition-colors ${
+                currentTab === 'library' || currentTab === 'liked' || currentTab === 'playlist'
+                  ? 'text-primary'
+                  : 'text-[#b3b3b3] group-hover:text-white'
+              }`}
+            />
+            <span className="text-sm font-bold tracking-tight">Thư viện của bạn</span>
+          </div>
+          <ChevronRight
+            className={`w-4 h-4 transition-transform group-hover:translate-x-0.5 ${
+              currentTab === 'library' || currentTab === 'liked' || currentTab === 'playlist'
+                ? 'text-primary'
+                : 'text-[#727272] group-hover:text-white'
+            }`}
+          />
         </button>
       </div>
 

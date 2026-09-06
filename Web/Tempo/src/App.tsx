@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Volume2 } from 'lucide-react';
+import { Play, Volume2, Home, Search, Library as LibraryIcon, ArrowDownToLine, Flame } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { RightQueueSidebar } from './components/RightQueueSidebar';
@@ -121,9 +121,16 @@ export const App: React.FC = () => {
       case 'home':
         return (
           <HomeDiscoverView
-            onSeeAllChart={() => setCurrentTab('chart')}
+            onSeeAllChart={() => {
+              setPreviousTab('home');
+              setCurrentTab('chart');
+            }}
             onSelectPlaylist={handleSelectPlaylist}
             onSelectArtist={handleSelectArtist}
+            onSelectTab={(tab) => {
+              setPreviousTab('home');
+              setCurrentTab(tab);
+            }}
           />
         );
       case 'search':
@@ -149,9 +156,16 @@ export const App: React.FC = () => {
           />
         ) : (
           <HomeDiscoverView
-            onSeeAllChart={() => setCurrentTab('chart')}
+            onSeeAllChart={() => {
+              setPreviousTab('home');
+              setCurrentTab('chart');
+            }}
             onSelectPlaylist={handleSelectPlaylist}
             onSelectArtist={handleSelectArtist}
+            onSelectTab={(tab) => {
+              setPreviousTab('home');
+              setCurrentTab(tab);
+            }}
           />
         );
       case 'artist':
@@ -162,9 +176,16 @@ export const App: React.FC = () => {
           />
         ) : (
           <HomeDiscoverView
-            onSeeAllChart={() => setCurrentTab('chart')}
+            onSeeAllChart={() => {
+              setPreviousTab('home');
+              setCurrentTab('chart');
+            }}
             onSelectPlaylist={handleSelectPlaylist}
             onSelectArtist={handleSelectArtist}
+            onSelectTab={(tab) => {
+              setPreviousTab('home');
+              setCurrentTab(tab);
+            }}
           />
         );
       case 'downloads':
@@ -183,9 +204,16 @@ export const App: React.FC = () => {
       default:
         return (
           <HomeDiscoverView
-            onSeeAllChart={() => setCurrentTab('chart')}
+            onSeeAllChart={() => {
+              setPreviousTab('home');
+              setCurrentTab('chart');
+            }}
             onSelectPlaylist={handleSelectPlaylist}
             onSelectArtist={handleSelectArtist}
+            onSelectTab={(tab) => {
+              setPreviousTab('home');
+              setCurrentTab(tab);
+            }}
           />
         );
     }
@@ -205,32 +233,92 @@ export const App: React.FC = () => {
         setCurrentTab={setCurrentTab}
       />
 
-      {/* 2. 3-Column Layout Matching Spotify Reference */}
-      <div className="flex-1 flex gap-2 px-2 pb-2 overflow-hidden">
-        {/* Left Column: Navigation & Playlists */}
-        <Sidebar
-          currentTab={currentTab}
-          setCurrentTab={setCurrentTab}
-          onSelectPlaylist={handleSelectPlaylist}
-          onSelectArtist={handleSelectArtist}
-        />
+      {/* 2. Responsive 3-Column / 2-Column / 1-Column Layout */}
+      <div className="flex-1 flex gap-2 px-1.5 sm:px-2 pb-1.5 sm:pb-2 overflow-hidden min-h-0">
+        {/* Left Column: Navigation & Playlists (Hidden on mobile < md) */}
+        <div className="hidden md:flex flex-shrink-0 h-full">
+          <Sidebar
+            currentTab={currentTab}
+            setCurrentTab={setCurrentTab}
+            onSelectPlaylist={handleSelectPlaylist}
+            onSelectArtist={handleSelectArtist}
+          />
+        </div>
 
         {/* Center Column: Main Interactive Screen */}
-        <main className="flex-1 bg-[#121212] rounded-lg overflow-hidden flex flex-col relative border-none">
+        <main className="flex-1 bg-[#121212] rounded-lg overflow-hidden flex flex-col relative border-none w-full h-full min-w-0">
           {renderMainContent()}
         </main>
 
-        {/* Right Column: Spotify-style Now Playing & Artist View */}
-        {currentTab === 'downloads' ? <RightQueueSidebar /> : <RightNowPlayingSidebar />}
+        {/* Right Column: Spotify-style Now Playing & Artist View (Visible only on XL screens >= 1280px) */}
+        <div className="hidden xl:flex flex-shrink-0 h-full">
+          {currentTab === 'downloads' ? <RightQueueSidebar /> : <RightNowPlayingSidebar />}
+        </div>
       </div>
 
       {/* 3. Bottom Player Bar */}
       <PlayerBar />
 
-      {/* 4. Global Auth Modal */}
+      {/* 4. Mobile Bottom Navigation Bar (Visible only on < md screens) */}
+      <nav className="md:hidden h-14 bg-[#0a0a0d] border-t border-white/10 flex items-center justify-around px-2 z-40 flex-shrink-0">
+        <button
+          onClick={() => setCurrentTab('home')}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 border-none bg-transparent cursor-pointer transition-colors ${
+            currentTab === 'home' ? 'text-primary font-bold' : 'text-[#b3b3b3] hover:text-white'
+          }`}
+        >
+          <Home className={`w-5 h-5 ${currentTab === 'home' ? 'text-primary fill-primary/20' : ''}`} />
+          <span className="text-[10px]">Trang chủ</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentTab('search')}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 border-none bg-transparent cursor-pointer transition-colors ${
+            currentTab === 'search' ? 'text-primary font-bold' : 'text-[#b3b3b3] hover:text-white'
+          }`}
+        >
+          <Search className="w-5 h-5" />
+          <span className="text-[10px]">Tìm kiếm</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setPreviousTab(currentTab);
+            setCurrentTab('chart');
+          }}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 border-none bg-transparent cursor-pointer transition-colors ${
+            currentTab === 'chart' ? 'text-primary font-bold' : 'text-[#b3b3b3] hover:text-white'
+          }`}
+        >
+          <Flame className="w-5 h-5" />
+          <span className="text-[10px]">BXH</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentTab('library')}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 border-none bg-transparent cursor-pointer transition-colors ${
+            currentTab === 'library' || currentTab === 'liked' || currentTab === 'playlist' ? 'text-primary font-bold' : 'text-[#b3b3b3] hover:text-white'
+          }`}
+        >
+          <LibraryIcon className="w-5 h-5" />
+          <span className="text-[10px]">Thư viện</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentTab('downloads')}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 border-none bg-transparent cursor-pointer transition-colors ${
+            currentTab === 'downloads' ? 'text-primary font-bold' : 'text-[#b3b3b3] hover:text-white'
+          }`}
+        >
+          <ArrowDownToLine className="w-5 h-5" />
+          <span className="text-[10px]">Tải xuống</span>
+        </button>
+      </nav>
+
+      {/* 5. Global Auth Modal */}
       <AuthModal />
 
-      {/* 5. Autoplay Unlock Floating Notification */}
+      {/* 6. Autoplay Unlock Floating Notification */}
       {isAutoplayBlocked && (
         <div
           onClick={() => {

@@ -52,7 +52,7 @@ export const RightNowPlayingSidebar: React.FC = () => {
   // If no song is playing, show the Spotify Windows App promo card matching Screenshot 1
   if (!currentSong) {
     return (
-      <aside className="w-80 bg-[#121212] rounded-lg p-5 flex flex-col justify-between select-none flex-shrink-0 border-none">
+      <aside className="w-64 lg:w-72 xl:w-80 bg-[#121212] rounded-lg p-5 flex flex-col justify-between select-none flex-shrink-0 border-none">
         <div className="flex flex-col gap-4">
           <div className="w-full aspect-video rounded-md bg-[#181818] overflow-hidden flex items-center justify-center p-4">
             <img
@@ -83,7 +83,7 @@ export const RightNowPlayingSidebar: React.FC = () => {
   }
 
   return (
-    <aside className="w-80 bg-[#121212] rounded-lg p-4 flex flex-col select-none flex-shrink-0 border-none overflow-y-auto custom-scrollbar">
+    <aside className="w-64 lg:w-72 xl:w-80 bg-[#121212] rounded-lg p-4 flex flex-col select-none flex-shrink-0 border-none overflow-y-auto custom-scrollbar">
       {/* 1. Header: Context Title */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-bold text-white truncate max-w-[220px]">

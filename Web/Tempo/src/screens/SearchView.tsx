@@ -36,9 +36,9 @@ export const SearchView: React.FC<SearchViewProps> = ({ query }) => {
   }, [query]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-8 select-none">
-      <div className="mb-6">
-        <h1 className="text-3xl font-black text-white">
+    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-4 sm:p-6 md:p-8 pb-24 md:pb-8 select-none">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white">
           {query ? `Kết quả tìm kiếm cho "${query}"` : 'Tìm kiếm'}
         </h1>
         {!query && (

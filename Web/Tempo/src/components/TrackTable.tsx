@@ -103,11 +103,11 @@ export const TrackTable: React.FC<TrackTableProps> = ({
   return (
     <div className="w-full select-none">
       {/* Table Header */}
-      <div className="grid grid-cols-[16px_1fr_1fr_120px_100px] gap-4 px-4 py-2 border-b border-white/10 text-xs font-bold text-[#b3b3b3] uppercase tracking-wider mb-2">
+      <div className="grid grid-cols-[16px_1fr_90px] sm:grid-cols-[16px_1fr_1fr_90px] lg:grid-cols-[16px_1fr_1fr_120px_100px] gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-b border-white/10 text-xs font-bold text-[#b3b3b3] uppercase tracking-wider mb-2">
         <span className="text-center">#</span>
         <span>Tiêu đề</span>
-        {showAlbum ? <span>Album</span> : <span />}
-        {showDateAdded ? <span>Ngày thêm</span> : <span />}
+        {showAlbum ? <span className="hidden sm:block">Album</span> : <span className="hidden sm:block" />}
+        {showDateAdded ? <span className="hidden lg:block">Ngày thêm</span> : <span className="hidden lg:block" />}
         <span className="flex justify-end pr-2">
           <Clock className="w-4 h-4" />
         </span>
@@ -129,7 +129,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
             <div
               key={songKey}
               onDoubleClick={() => playSong(song, songs)}
-              className={`grid grid-cols-[16px_1fr_1fr_120px_100px] gap-4 px-4 py-2 rounded-md hover:bg-[#2a2a2a] items-center transition-colors group cursor-pointer relative ${
+              className={`grid grid-cols-[16px_1fr_90px] sm:grid-cols-[16px_1fr_1fr_90px] lg:grid-cols-[16px_1fr_1fr_120px_100px] gap-2 sm:gap-4 px-2 sm:px-4 py-2 rounded-md hover:bg-[#2a2a2a] items-center transition-colors group cursor-pointer relative ${
                 isThisCurrent ? 'bg-[#242424]' : ''
               }`}
             >
@@ -172,34 +172,34 @@ export const TrackTable: React.FC<TrackTableProps> = ({
               </div>
 
               {/* Title & Artist */}
-              <div className="flex items-center gap-3 min-w-0 pr-2">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">
                 <img
                   src={song.thumbnail || song.thumbnailM || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120'}
                   alt={song.title}
                   referrerPolicy="no-referrer"
-                  className="w-10 h-10 rounded object-cover flex-shrink-0 bg-[#282828]"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded object-cover flex-shrink-0 bg-[#282828]"
                 />
                 <div className="min-w-0 flex-1">
                   <h4
-                    className={`text-sm font-bold truncate ${
+                    className={`text-xs sm:text-sm font-bold truncate ${
                       isThisCurrent ? 'text-white font-black' : 'text-white'
                     }`}
                   >
                     {song.title}
                   </h4>
-                  <p className="text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer">
+                  <p className="text-[11px] sm:text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer">
                     {song.artistsNames}
                   </p>
                 </div>
               </div>
 
               {/* Album */}
-              <div className="min-w-0 truncate text-xs text-[#b3b3b3] hover:underline hover:text-white cursor-pointer">
+              <div className="min-w-0 truncate text-xs text-[#b3b3b3] hover:underline hover:text-white cursor-pointer hidden sm:block">
                 {song.album?.title || song.title}
               </div>
 
               {/* Date Added */}
-              <div className="text-xs text-[#b3b3b3] truncate">
+              <div className="text-xs text-[#b3b3b3] truncate hidden lg:block">
                 {formatDate(song.addedAt)}
               </div>
 

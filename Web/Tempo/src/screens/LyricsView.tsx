@@ -34,18 +34,18 @@ export const LyricsView: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 flex overflow-hidden p-8 gap-10 select-none bg-[#121212] relative">
+    <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-4 sm:p-6 md:p-8 gap-6 md:gap-10 select-none bg-[#121212] relative pb-24 md:pb-8">
       {/* Top Close Button */}
       <button
         onClick={() => setLyricsOpen(false)}
         title="Đóng lời bài hát"
-        className="absolute top-6 right-6 w-9 h-9 rounded-full bg-[#242424] hover:bg-[#333333] flex items-center justify-center text-white transition-colors border-none cursor-pointer z-20 shadow-md"
+        className="absolute top-4 right-4 sm:top-6 sm:right-6 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#242424] hover:bg-[#333333] flex items-center justify-center text-white transition-colors border-none cursor-pointer z-20 shadow-md"
       >
-        <X className="w-5 h-5" />
+        <X className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
-      {/* Left Artwork & Track Info */}
-      <div className="w-80 flex flex-col items-center text-center flex-shrink-0 justify-center">
+      {/* Left / Top Artwork & Track Info */}
+      <div className="w-full md:w-80 flex flex-row md:flex-col items-center text-left md:text-center flex-shrink-0 justify-start md:justify-center gap-4 md:gap-0 mt-8 md:mt-0">
         <img
           src={
             currentSong.thumbnailM ||
@@ -53,20 +53,22 @@ export const LyricsView: React.FC = () => {
             'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600'
           }
           alt={currentSong.title}
-          className="w-72 h-72 rounded-xl object-cover shadow-2xl mb-6 bg-[#181818]"
+          className="w-20 h-20 sm:w-28 sm:h-28 md:w-72 md:h-72 rounded-xl object-cover shadow-2xl md:mb-6 bg-[#181818] flex-shrink-0"
         />
-        <h2 className="text-2xl font-black text-white truncate max-w-full mb-1">
-          {currentSong.title}
-        </h2>
-        <p className="text-sm font-semibold text-[#b3b3b3] truncate max-w-full">
-          {currentSong.artistsNames}
-        </p>
+        <div className="min-w-0 flex-1 md:flex-initial">
+          <h2 className="text-base sm:text-lg md:text-2xl font-black text-white truncate max-w-full mb-0.5 md:mb-1">
+            {currentSong.title}
+          </h2>
+          <p className="text-xs sm:text-sm font-semibold text-[#b3b3b3] truncate max-w-full">
+            {currentSong.artistsNames}
+          </p>
+        </div>
       </div>
 
-      {/* Right Synced Karaoke Lines */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto py-24 pr-8 custom-scrollbar">
+      {/* Right / Bottom Synced Karaoke Lines */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto py-8 md:py-24 pr-2 sm:pr-4 md:pr-8 custom-scrollbar">
         {lyrics.length > 0 ? (
-          <div className="space-y-7">
+          <div className="space-y-5 md:space-y-7">
             {lyrics.map((line, idx) => {
               const currentMs = positionSec * 1000;
               const isActive = currentMs >= line.startMs && currentMs <= line.startMs + 4500;
@@ -88,9 +90,9 @@ export const LyricsView: React.FC = () => {
                   key={idx}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => seekTo(line.startMs / 1000)}
-                  className={`text-2xl font-extrabold cursor-pointer transition-all duration-300 ${
+                  className={`text-lg sm:text-xl md:text-2xl font-extrabold cursor-pointer transition-all duration-300 ${
                     isActive
-                      ? 'text-white text-3xl font-black scale-105 origin-left drop-shadow-md'
+                      ? 'text-white text-xl sm:text-2xl md:text-3xl font-black scale-105 origin-left drop-shadow-md'
                       : 'text-white/35 hover:text-white/70'
                   }`}
                 >
@@ -100,9 +102,9 @@ export const LyricsView: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-[#b3b3b3]">
-            <Mic2 className="w-12 h-12 mb-3 stroke-1 opacity-40 text-white" />
-            <p className="text-base font-bold text-white mb-1">Đang tải lời bài hát hoặc chưa có</p>
+          <div className="flex flex-col items-center justify-center h-full text-[#b3b3b3] py-12">
+            <Mic2 className="w-10 h-10 sm:w-12 sm:h-12 mb-3 stroke-1 opacity-40 text-white" />
+            <p className="text-sm sm:text-base font-bold text-white mb-1">Đang tải lời bài hát hoặc chưa có</p>
             <p className="text-xs text-[#b3b3b3]">Lời bài hát sẽ tự động đồng bộ khi phát</p>
           </div>
         )}

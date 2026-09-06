@@ -133,7 +133,7 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
   const displayList = recommendations.length > 0 ? recommendations : curatedSuggestions;
 
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-6 select-none pb-28 bg-[#121212]">
+    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 select-none pb-28 bg-[#121212]">
       {onBack && (
         <div className="flex items-center gap-3">
           <button
@@ -147,9 +147,9 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
       )}
 
       {/* 1. Top Hero Banner Card (Nhạc ngoại tuyến trên PC) */}
-      <div className="bg-gradient-to-r from-[#17263c] via-[#151c27] to-[#181818] hover:from-[#1e3250] hover:to-[#222222] transition-all rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-none shadow-md">
+      <div className="bg-gradient-to-r from-[#17263c] via-[#151c27] to-[#181818] hover:from-[#1e3250] hover:to-[#222222] transition-all rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-none shadow-md">
         <div className="flex flex-col">
-          <h2 className="text-base font-extrabold bg-gradient-to-r from-[#34D399] via-[#6EE7B7] to-[#60A5FA] bg-clip-text text-transparent">
+          <h2 className="text-sm sm:text-base font-extrabold bg-gradient-to-r from-[#34D399] via-[#6EE7B7] to-[#60A5FA] bg-clip-text text-transparent">
             Bài hát đã tải xuống
           </h2>
           <p className="text-xs text-[#b3b3b3] mt-1">
@@ -169,17 +169,17 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
       </div>
 
       {/* 2. Link Extractor Card */}
-      <div className="bg-[#181818] rounded-lg p-5 flex flex-col border-none shadow-lg">
-        <h3 className="text-base font-extrabold bg-gradient-to-r from-[#FC475C] via-[#FF6B6B] to-[#FCA5A5] bg-clip-text text-transparent mb-1">
+      <div className="bg-[#181818] rounded-xl p-4 sm:p-5 flex flex-col border-none shadow-lg">
+        <h3 className="text-sm sm:text-base font-extrabold bg-gradient-to-r from-[#FC475C] via-[#FF6B6B] to-[#FCA5A5] bg-clip-text text-transparent mb-1">
           Dán link để trích xuất nhạc
         </h3>
-        <p className="text-xs text-[#b3b3b3] mb-4">
+        <p className="text-[11px] sm:text-xs text-[#b3b3b3] mb-3 sm:mb-4">
           Hỗ trợ trích xuất chất lượng cao từ YouTube, SoundCloud & TikTok (MP3 đến 320kbps)
         </p>
 
         {/* Input & Extract Button Row */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 flex items-center bg-[#121212] rounded-md px-4 h-11 gap-3 border-none focus-within:ring-1 focus-within:ring-[#FC475C]/60">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 flex items-center bg-[#121212] rounded-lg px-3.5 sm:px-4 h-10 sm:h-11 gap-3 border-none focus-within:ring-1 focus-within:ring-[#FC475C]/60">
             <LinkIcon className="w-4 h-4 text-[#FC475C] flex-shrink-0" />
             <input
               type="text"
@@ -194,7 +194,7 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
           <button
             onClick={() => handleExtract()}
             disabled={isExtracting || !inputUrl.trim()}
-            className="h-11 px-6 bg-gradient-to-r from-[#FC475C] to-[#FC655A] hover:brightness-110 active:scale-98 text-white rounded-md text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-40 border-none flex-shrink-0 shadow-md cursor-pointer"
+            className="h-10 sm:h-11 px-5 sm:px-6 bg-gradient-to-r from-[#FC475C] to-[#FC655A] hover:brightness-110 active:scale-98 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-40 border-none flex-shrink-0 shadow-md cursor-pointer"
           >
             <Zap className="w-4 h-4 fill-white text-white" />
             <span>{isExtracting ? 'Đang trích xuất...' : 'Trích xuất'}</span>
@@ -334,7 +334,7 @@ export const DownloaderHomeView: React.FC<DownloaderHomeViewProps> = ({ onViewDo
         </div>
 
         {/* Grid Cards Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {displayList.map((song) => {
             const liked = isLiked(song.id);
             const thumbUrl = song.thumbnail || song.thumbnailM || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400';

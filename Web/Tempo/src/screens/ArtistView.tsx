@@ -67,12 +67,12 @@ export const ArtistView: React.FC<ArtistViewProps> = ({ artist, onBack }) => {
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar select-none bg-[#121212]">
       {/* Artist Hero Header */}
-      <div className="relative h-72 bg-[#242424] overflow-hidden flex flex-col justify-between p-8 flex-shrink-0">
+      <div className="relative min-h-[220px] sm:min-h-[260px] md:h-72 bg-[#242424] overflow-hidden flex flex-col justify-between p-4 sm:p-6 md:p-8 flex-shrink-0">
         {onBack && (
           <button
             onClick={onBack}
             title="Quay lại"
-            className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 active:scale-95 text-white transition-all border-none cursor-pointer z-20 flex items-center justify-center p-0"
+            className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 active:scale-95 text-white transition-all border-none cursor-pointer z-20 flex items-center justify-center p-0 self-start"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -87,14 +87,14 @@ export const ArtistView: React.FC<ArtistViewProps> = ({ artist, onBack }) => {
         <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-black/40 to-black/20" />
 
         <div className="relative z-10 flex flex-col">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-white mb-2">
-            <BadgeCheck className="w-4 h-4 text-[#3B82F6] fill-[#3B82F6] text-black" />
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-white mb-1 sm:mb-2">
+            <BadgeCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#3B82F6] fill-[#3B82F6] text-black" />
             <span>Nghệ sĩ đã xác minh</span>
           </div>
-          <h1 className="text-6xl font-black text-white tracking-tight mb-3">
+          <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-1.5 sm:mb-3">
             {artistData.name}
           </h1>
-          <p className="text-xs font-semibold text-white/90">
+          <p className="text-[11px] sm:text-xs font-semibold text-white/90">
             {artistData.totalFollow
               ? `${artistData.totalFollow.toLocaleString('vi-VN')} người theo dõi`
               : 'Hơn 1.000.000 người nghe hàng tháng'}
@@ -103,18 +103,18 @@ export const ArtistView: React.FC<ArtistViewProps> = ({ artist, onBack }) => {
       </div>
 
       {/* Action Controls */}
-      <div className="px-8 py-5 flex items-center gap-6 bg-[#121212]/90 backdrop-blur-md sticky top-0 z-10">
+      <div className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 flex items-center gap-4 sm:gap-6 bg-[#121212]/90 backdrop-blur-md sticky top-0 z-10">
         <button
           onClick={handlePlayClick}
           disabled={topSongs.length === 0 || isLoading}
-          className="w-14 h-14 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-2xl transition-all disabled:opacity-50 border-none cursor-pointer"
+          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-2xl transition-all disabled:opacity-50 border-none cursor-pointer"
         >
           {isCurrentListPlaying && isPlayerLoading ? (
-            <Loader2 className="w-6 h-6 animate-spin text-black" />
+            <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-black" />
           ) : isCurrentListPlaying ? (
-            <Pause className="w-6 h-6 fill-black text-black" />
+            <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-black text-black" />
           ) : (
-            <Play className="w-6 h-6 fill-black text-black ml-0.5" />
+            <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-black text-black ml-0.5" />
           )}
         </button>
 
@@ -125,12 +125,12 @@ export const ArtistView: React.FC<ArtistViewProps> = ({ artist, onBack }) => {
             isShuffle ? 'text-white font-bold scale-110' : 'text-[#b3b3b3] hover:text-white'
           }`}
         >
-          <Shuffle className="w-6 h-6" />
+          <Shuffle className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
 
         <button
           onClick={() => toggleFollowArtist(currentArtistObj)}
-          className={`px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer bg-transparent ${
+          className={`px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all cursor-pointer bg-transparent ${
             isFollowing
               ? 'border border-white/20 text-[#b3b3b3] hover:border-white hover:text-white'
               : 'border border-white/40 text-white hover:border-white hover:scale-105'
@@ -141,8 +141,8 @@ export const ArtistView: React.FC<ArtistViewProps> = ({ artist, onBack }) => {
       </div>
 
       {/* Top Songs Table */}
-      <div className="px-8 pb-12">
-        <h3 className="text-xl font-bold text-white mb-4">Bài hát nổi bật</h3>
+      <div className="px-3 sm:px-6 md:px-8 pb-24 md:pb-12">
+        <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4 px-1">Bài hát nổi bật</h3>
         {isLoading ? (
           <div className="flex flex-col gap-2.5">
             {[...Array(5)].map((_, i) => (

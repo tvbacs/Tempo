@@ -130,7 +130,7 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar select-none bg-[#121212]">
       {/* Subtle Deep Crimson Gradient Header */}
-      <div className="bg-gradient-to-b from-[#341119] via-[#1c0a0e] to-[#121212] p-8 pb-6 flex flex-col gap-4 flex-shrink-0">
+      <div className="bg-gradient-to-b from-[#341119] via-[#1c0a0e] to-[#121212] p-4 sm:p-6 md:p-8 pb-4 sm:pb-6 flex flex-col gap-4 flex-shrink-0">
         {onBack && (
           <button
             onClick={onBack}
@@ -142,12 +142,12 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
         )}
 
         <div className="flex flex-col justify-end">
-          <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-2">Danh sách phát</span>
-          <h1 className="text-5xl font-black text-white tracking-tight mb-4 drop-shadow-md">
+          <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-1 sm:mb-2">Danh sách phát</span>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight mb-2 sm:mb-4 drop-shadow-md">
             Bài hát đã thích
           </h1>
-          <div className="flex items-center gap-2 text-xs font-semibold text-white/90">
-            <div className="w-6 h-6 rounded-full bg-[#535353] flex items-center justify-center text-white text-[10px] font-bold">
+          <div className="flex items-center gap-2 text-xs font-semibold text-white/90 flex-wrap">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#535353] flex items-center justify-center text-white text-[10px] font-bold">
               {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
             </div>
             <span className="font-bold text-white">{user?.email?.split('@')[0] || 'Tempo User'}</span>
@@ -164,19 +164,19 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
       </div>
 
       {/* Action Controls Bar */}
-      <div className="px-8 py-5 flex items-center justify-between sticky top-0 z-10 bg-[#121212]/90 backdrop-blur-md">
-        <div className="flex items-center gap-6">
+      <div className="px-4 sm:px-6 md:px-8 py-3 sm:py-5 flex items-center justify-between sticky top-0 z-10 bg-[#121212]/90 backdrop-blur-md">
+        <div className="flex items-center gap-3 sm:gap-6">
           <button
             onClick={handlePlayClick}
             disabled={processedSongs.length === 0}
-            className="w-14 h-14 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-2xl transition-all disabled:opacity-50 border-none cursor-pointer"
+            className="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-2xl transition-all disabled:opacity-50 border-none cursor-pointer"
           >
             {isCurrentListPlaying && isLoading ? (
-              <Loader2 className="w-6 h-6 animate-spin text-black" />
+              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-black" />
             ) : isCurrentListPlaying ? (
-              <Pause className="w-6 h-6 fill-black text-black" />
+              <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-black text-black" />
             ) : (
-              <Play className="w-6 h-6 fill-black text-black ml-0.5" />
+              <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-black text-black ml-0.5" />
             )}
           </button>
 
@@ -187,24 +187,24 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
               isShuffle ? 'text-white font-bold scale-110' : 'text-[#b3b3b3] hover:text-white'
             }`}
           >
-            <Shuffle className="w-6 h-6" />
+            <Shuffle className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Search & Sort Controls */}
-        <div className="flex items-center gap-3 text-[#b3b3b3]">
+        <div className="flex items-center gap-2 sm:gap-3 text-[#b3b3b3]">
           {/* Expandable Search Input */}
           <div className="relative flex items-center">
             {isSearchOpen ? (
-              <div className="flex items-center bg-[#242424] rounded-full px-3 py-1.5 gap-2 animate-in fade-in zoom-in-95 duration-150">
-                <Search className="w-4 h-4 text-[#b3b3b3] flex-shrink-0" />
+              <div className="flex items-center bg-[#242424] rounded-full px-2.5 sm:px-3 py-1 gap-2 animate-in fade-in zoom-in-95 duration-150">
+                <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#b3b3b3] flex-shrink-0" />
                 <input
                   type="text"
                   autoFocus
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm trong danh sách..."
-                  className="bg-transparent border-none outline-none text-xs text-white placeholder:text-[#b3b3b3] w-44"
+                  placeholder="Tìm kiếm..."
+                  className="bg-transparent border-none outline-none text-xs text-white placeholder:text-[#b3b3b3] w-28 sm:w-44"
                 />
                 <button
                   onClick={() => {
@@ -213,14 +213,14 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
                   }}
                   className="p-0.5 text-[#b3b3b3] hover:text-white border-none bg-transparent cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => setIsSearchOpen(true)}
                 title="Tìm kiếm trong danh sách"
-                className="w-8 h-8 rounded-full hover:bg-[#242424] hover:text-white flex items-center justify-center transition-colors border-none bg-transparent cursor-pointer"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full hover:bg-[#242424] hover:text-white flex items-center justify-center transition-colors border-none bg-transparent cursor-pointer"
               >
                 <Search className="w-4 h-4" />
               </button>
@@ -233,7 +233,7 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
               onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
               className="flex items-center gap-1.5 text-xs font-semibold hover:text-white transition-colors border-none bg-transparent cursor-pointer p-1.5 rounded hover:bg-[#242424]"
             >
-              <span>{sortLabels[sortBy]}</span>
+              <span className="hidden xs:inline">{sortLabels[sortBy]}</span>
               <ArrowUpDown className="w-3.5 h-3.5" />
             </button>
 
@@ -266,7 +266,7 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
       </div>
 
       {/* Track Table */}
-      <div className="px-8 pb-16">
+      <div className="px-2 sm:px-4 md:px-8 pb-16">
         {processedSongs.length === 0 ? (
           <div className="py-16 text-center text-[#b3b3b3] text-sm">
             {searchQuery ? `Không tìm thấy bài hát nào khớp với "${searchQuery}"` : 'Chưa có bài hát nào'}

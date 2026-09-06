@@ -91,10 +91,10 @@ export const PlayerBar: React.FC = () => {
 
   return (
     <div className="flex flex-col flex-shrink-0 z-50 select-none">
-      <footer className="h-20 bg-[#000000] border-none flex items-center justify-between px-4 select-none z-50 flex-shrink-0 relative">
-      {/* 1. Left Track Info (56x56 Cover + Title + Artist + Heart) */}
-      <div className="flex items-center gap-3.5 w-72 min-w-0">
-        <div className="relative w-14 h-14 rounded-md overflow-hidden bg-[#282828] flex-shrink-0 shadow">
+      <footer className="h-16 sm:h-20 bg-[#000000] border-none flex items-center justify-between px-2 sm:px-4 select-none z-50 flex-shrink-0 relative gap-2">
+      {/* 1. Left Track Info */}
+      <div className="flex items-center gap-2 sm:gap-3.5 w-auto max-w-[140px] sm:max-w-[200px] md:w-60 lg:w-72 min-w-0 flex-shrink-0">
+        <div className="relative w-10 h-10 sm:w-14 sm:h-14 rounded-md overflow-hidden bg-[#282828] flex-shrink-0 shadow">
           <img
             src={
               currentSong?.thumbnail ||
@@ -106,18 +106,18 @@ export const PlayerBar: React.FC = () => {
           />
           {isBuffering && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-white drop-shadow" />
+              <Loader2 className="w-4 h-4 animate-spin text-white drop-shadow" />
             </div>
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-bold text-white truncate hover:underline cursor-pointer">
+          <h4 className="text-xs sm:text-sm font-bold text-white truncate hover:underline cursor-pointer">
             {currentSong?.title || 'Chưa chọn bài hát'}
           </h4>
-          <p className="text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer flex items-center gap-1.5">
+          <p className="text-[10px] sm:text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer flex items-center gap-1.5">
             <span>{currentSong?.artistsNames || 'Tempo Music'}</span>
             {isBuffering && (
-              <span className="text-[10px] text-primary font-bold animate-pulse">
+              <span className="text-[9px] sm:text-[10px] text-primary font-bold animate-pulse">
                 • Đang tải...
               </span>
             )}
@@ -127,10 +127,10 @@ export const PlayerBar: React.FC = () => {
           <button
             onClick={() => toggleLike(currentSong)}
             title={liked ? 'Bỏ lưu khỏi Bài hát đã thích' : 'Lưu vào Bài hát đã thích'}
-            className="p-1.5 transition-transform hover:scale-110 border-none bg-transparent cursor-pointer flex-shrink-0"
+            className="p-1 sm:p-1.5 transition-transform hover:scale-110 border-none bg-transparent cursor-pointer flex-shrink-0 hidden xs:block"
           >
             <Heart
-              className={`w-5 h-5 transition-colors ${
+              className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
                 liked ? 'fill-[#FC475C] text-[#FC475C]' : 'text-[#b3b3b3] hover:text-white'
               }`}
             />
@@ -139,12 +139,12 @@ export const PlayerBar: React.FC = () => {
       </div>
 
       {/* 2. Center Controls & Scrub Bar */}
-      <div className="flex-1 max-w-2xl flex flex-col items-center gap-1.5 px-4">
-        <div className="flex items-center gap-4">
+      <div className="flex-1 max-w-2xl flex flex-col items-center gap-0.5 sm:gap-1.5 px-1 sm:px-4 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button
             onClick={toggleShuffle}
             title={isShuffle ? 'Tắt phát ngẫu nhiên' : 'Bật phát ngẫu nhiên'}
-            className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer relative group ${
+            className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer relative group hidden sm:block ${
               isShuffle ? 'text-primary' : 'text-[#b3b3b3] hover:text-white'
             }`}
           >
@@ -157,39 +157,39 @@ export const PlayerBar: React.FC = () => {
           <button
             onClick={playPrev}
             title="Bài trước"
-            className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
+            className="p-1 sm:p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
           >
-            <SkipBack className="w-5 h-5 fill-current" />
+            <SkipBack className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
           </button>
 
           {/* Solid White Circle Play/Pause/Loading Button */}
           <button
             onClick={togglePlayPause}
             title={isBuffering ? 'Đang tải âm thanh...' : isPlaying ? 'Tạm dừng' : 'Phát'}
-            className="w-8 h-8 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center transition-transform shadow-md border-none cursor-pointer"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center transition-transform shadow-md border-none cursor-pointer flex-shrink-0"
           >
             {isBuffering ? (
-              <Loader2 className="w-4 h-4 animate-spin text-black" />
+              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-black" />
             ) : isPlaying ? (
-              <Pause className="w-4 h-4 fill-black text-black" />
+              <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-black text-black" />
             ) : (
-              <Play className="w-4 h-4 fill-black text-black ml-0.5" />
+              <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-black text-black ml-0.5" />
             )}
           </button>
 
           <button
             onClick={playNext}
             title="Bài kế tiếp"
-            className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
+            className="p-1 sm:p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
           >
-            <SkipForward className="w-5 h-5 fill-current" />
+            <SkipForward className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
           </button>
 
           {repeatMode === 'one' ? (
             <button
               onClick={toggleRepeat}
               title="Lặp lại: 1 bài (Bấm để tắt)"
-              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-primary relative group"
+              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-primary relative group hidden sm:block"
             >
               <Repeat1 className="w-4 h-4 text-primary" />
               <span className="w-1 h-1 bg-primary rounded-full absolute bottom-0 left-1/2 -translate-x-1/2 shadow-sm" />
@@ -198,7 +198,7 @@ export const PlayerBar: React.FC = () => {
             <button
               onClick={toggleRepeat}
               title="Lặp lại: Toàn bộ danh sách (Bấm để lặp 1 bài)"
-              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-primary relative group"
+              className="p-1.5 transition-colors border-none bg-transparent cursor-pointer text-primary relative group hidden sm:block"
             >
               <Repeat className="w-4 h-4 text-primary" />
               <span className="w-1 h-1 bg-primary rounded-full absolute bottom-0 left-1/2 -translate-x-1/2 shadow-sm" />
@@ -207,7 +207,7 @@ export const PlayerBar: React.FC = () => {
             <button
               onClick={toggleRepeat}
               title="Bật lặp lại toàn bộ"
-              className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
+              className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer hidden sm:block"
             >
               <Repeat className="w-4 h-4" />
             </button>
@@ -215,8 +215,8 @@ export const PlayerBar: React.FC = () => {
         </div>
 
         {/* Seek Bar with Timestamps */}
-        <div className="w-full flex items-center gap-2">
-          <span className="text-[11px] font-normal text-[#a7a7a7] w-8 text-right tabular-nums">
+        <div className="w-full flex items-center gap-1.5 sm:gap-2">
+          <span className="text-[9px] sm:text-[11px] font-normal text-[#a7a7a7] w-7 sm:w-8 text-right tabular-nums">
             {formatTime(positionSec)}
           </span>
           <div
@@ -238,14 +238,14 @@ export const PlayerBar: React.FC = () => {
               />
             </div>
           </div>
-          <span className="text-[11px] font-normal text-[#a7a7a7] w-8 tabular-nums">
+          <span className="text-[9px] sm:text-[11px] font-normal text-[#a7a7a7] w-7 sm:w-8 tabular-nums">
             {formatTime(durationSec)}
           </span>
         </div>
       </div>
 
       {/* 3. Right Tools: Lời bài hát, Hàng đợi, Thiết bị, Âm lượng, Toàn màn hình */}
-      <div className="flex items-center gap-3 w-72 justify-end">
+      <div className="flex items-center gap-1.5 sm:gap-3 w-auto md:w-60 lg:w-72 justify-end flex-shrink-0">
         {/* Nút chuyển đổi thiết bị Mobile / PC - Chỉ hiển thị khi điện thoại online */}
         {isMobileOnline && (
           isRemoteActive ? (
@@ -255,7 +255,7 @@ export const PlayerBar: React.FC = () => {
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-black text-xs font-bold border-none cursor-pointer hover:scale-105 transition-transform shadow"
             >
               <Smartphone className="w-3.5 h-3.5" />
-              <span>PC</span>
+              <span className="hidden sm:inline">PC</span>
             </button>
           ) : (
             <button
@@ -280,7 +280,7 @@ export const PlayerBar: React.FC = () => {
 
         {/* Volume Slider */}
         <div
-          className="flex items-center gap-2"
+          className="hidden md:flex items-center gap-2"
           onMouseEnter={() => setIsHoveringVolume(true)}
           onMouseLeave={() => setIsHoveringVolume(false)}
         >
@@ -290,7 +290,7 @@ export const PlayerBar: React.FC = () => {
           >
             {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
-          <div className="w-24 h-1 bg-[#4d4d4d] rounded-full relative cursor-pointer">
+          <div className="w-20 lg:w-24 h-1 bg-[#4d4d4d] rounded-full relative cursor-pointer">
             <div
               className="h-full rounded-full bg-white transition-colors"
               style={{ width: `${volumePct}%` }}
@@ -316,7 +316,7 @@ export const PlayerBar: React.FC = () => {
             }
           }}
           title="Toàn màn hình"
-          className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer"
+          className="p-1.5 text-[#b3b3b3] hover:text-white transition-colors border-none bg-transparent cursor-pointer hidden sm:block"
         >
           <Maximize2 className="w-4 h-4" />
         </button>

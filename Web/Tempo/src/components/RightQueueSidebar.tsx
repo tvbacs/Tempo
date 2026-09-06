@@ -15,7 +15,7 @@ export const RightQueueSidebar: React.FC = () => {
   };
 
   return (
-    <aside className="w-80 bg-[#121212] rounded-lg p-4 flex flex-col select-none flex-shrink-0 border-none overflow-hidden">
+    <aside className="w-64 lg:w-72 xl:w-80 bg-[#121212] rounded-lg p-4 flex flex-col select-none flex-shrink-0 border-none overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">

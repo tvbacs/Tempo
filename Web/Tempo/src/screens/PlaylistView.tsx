@@ -140,7 +140,7 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({ playlist, onBack }) 
   return (
     <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar select-none bg-[#121212]">
       {/* Hero Header */}
-      <div className="bg-gradient-to-b from-[#2d2d38] via-[#1b1b22] to-[#121212] p-8 flex flex-col gap-4 flex-shrink-0">
+      <div className="bg-gradient-to-b from-[#2d2d38] via-[#1b1b22] to-[#121212] p-4 sm:p-6 md:p-8 flex flex-col gap-4 flex-shrink-0">
         {onBack && (
           <button
             onClick={onBack}
@@ -151,8 +151,8 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({ playlist, onBack }) 
           </button>
         )}
 
-        <div className="flex items-end gap-6">
-          <div className="w-52 h-52 rounded-md bg-[#242424] overflow-hidden flex items-center justify-center text-white shadow-2xl flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
+          <div className="w-32 h-32 sm:w-44 sm:h-44 md:w-52 md:h-52 rounded-md bg-[#242424] overflow-hidden flex items-center justify-center text-white shadow-2xl flex-shrink-0">
             {targetPlaylist.thumbnailM || targetPlaylist.thumbnail || targetPlaylist.coverUrl ? (
               <img
                 src={targetPlaylist.thumbnailM || targetPlaylist.thumbnail || targetPlaylist.coverUrl}
@@ -160,18 +160,18 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({ playlist, onBack }) 
                 className="w-full h-full object-cover"
               />
             ) : (
-              <ListMusic className="w-20 h-20 text-[#b3b3b3]" />
+              <ListMusic className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 text-[#b3b3b3]" />
             )}
           </div>
 
           <div className="flex flex-col justify-end">
-            <span className="text-xs font-bold uppercase tracking-wider text-white/70 mb-2">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white/70 mb-1 sm:mb-2">
               Danh sách phát
             </span>
-            <h1 className="text-5xl font-black text-white tracking-tight mb-4 line-clamp-2">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black text-white tracking-tight mb-2 sm:mb-4 line-clamp-2">
               {targetPlaylist.name || targetPlaylist.title}
             </h1>
-            <p className="text-xs font-semibold text-white/90">
+            <p className="text-[11px] sm:text-xs font-semibold text-white/90">
               {targetPlaylist.description || targetPlaylist.sortDescription || `${songs.length} bài hát`}
             </p>
           </div>
@@ -179,19 +179,19 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({ playlist, onBack }) 
       </div>
 
       {/* Action Controls Bar */}
-      <div className="px-8 py-5 flex items-center justify-between sticky top-0 z-10 bg-[#121212]/90 backdrop-blur-md">
-        <div className="flex items-center gap-6">
+      <div className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 flex items-center justify-between sticky top-0 z-10 bg-[#121212]/90 backdrop-blur-md">
+        <div className="flex items-center gap-4 sm:gap-6">
           <button
             onClick={handlePlayClick}
             disabled={songs.length === 0 || isLoading}
-            className="w-14 h-14 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-2xl transition-all disabled:opacity-50 border-none cursor-pointer"
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-2xl transition-all disabled:opacity-50 border-none cursor-pointer"
           >
             {isCurrentListPlaying && isPlayerLoading ? (
-              <Loader2 className="w-6 h-6 animate-spin text-black" />
+              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-black" />
             ) : isCurrentListPlaying ? (
-              <Pause className="w-6 h-6 fill-black text-black" />
+              <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-black text-black" />
             ) : (
-              <Play className="w-6 h-6 fill-black text-black ml-0.5" />
+              <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-black text-black ml-0.5" />
             )}
           </button>
 
@@ -202,13 +202,13 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({ playlist, onBack }) 
               isShuffle ? 'text-white font-bold scale-110' : 'text-[#b3b3b3] hover:text-white'
             }`}
           >
-            <Shuffle className="w-6 h-6" />
+            <Shuffle className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
       </div>
 
       {/* Track Table */}
-      <div className="px-8 pb-16">
+      <div className="px-3 sm:px-6 md:px-8 pb-24 md:pb-16">
         {isLoading ? (
           <div className="flex flex-col gap-2.5 pt-2">
             {[...Array(7)].map((_, i) => (

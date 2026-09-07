@@ -395,20 +395,20 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
         </div>
 
         {/* Quick Shelf: Hero Liked Card + Dual Horizontal Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-3">
           {/* Card 1: Hero Liked Songs Card */}
           <div
             onClick={() => onSelectTab ? onSelectTab('liked') : null}
-            className="h-20 bg-[#1E1E24] hover:bg-[#282830] rounded-xl flex items-center overflow-hidden cursor-pointer transition-all duration-200 group relative shadow-md min-w-0"
+            className="sm:col-span-2 2xl:col-span-1 h-16 sm:h-20 bg-[#1E1E24] hover:bg-[#282830] rounded-xl flex items-center overflow-hidden cursor-pointer transition-all duration-200 group relative shadow-md min-w-0"
           >
-            <div className="w-20 h-20 bg-gradient-to-br from-[#7C3AED] via-[#EC4899] to-[#FC475C] flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
-              <Heart className="w-8 h-8 fill-white text-white drop-shadow" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-[#7C3AED] via-[#EC4899] to-[#FC475C] flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
+              <Heart className="w-6 h-6 sm:w-8 sm:h-8 fill-white text-white drop-shadow" />
             </div>
-            <div className="min-w-0 flex-1 px-3.5">
-              <h4 className="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">
+            <div className="min-w-0 flex-1 px-3 sm:px-3.5">
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-primary transition-colors">
                 Bài hát đã thích
               </h4>
-              <p className="text-xs text-text-secondary truncate mt-0.5">
+              <p className="text-[11px] sm:text-xs text-text-secondary truncate mt-0.5">
                 {likedSongs.length > 0 ? `${likedSongs.length} bài hát đã lưu` : 'Bộ sưu tập yêu thích'}
               </p>
             </div>
@@ -423,9 +423,9 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
                   }
                 }}
                 title="Phát ngay"
-                className="w-9 h-9 rounded-full bg-white hover:scale-110 active:scale-95 text-primary flex items-center justify-center shadow-xl transition-transform border-none cursor-pointer"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white hover:scale-110 active:scale-95 text-primary flex items-center justify-center shadow-xl transition-transform border-none cursor-pointer"
               >
-                <Play className="w-4 h-4 fill-primary text-primary ml-0.5" />
+                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-primary text-primary ml-0.5" />
               </button>
             </div>
           </div>
@@ -439,9 +439,9 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
                 onSelectTab('downloads');
               }
             }}
-            className="h-20 bg-[#1E1E24] hover:bg-[#282830] rounded-xl flex items-center overflow-hidden cursor-pointer transition-all duration-200 group relative shadow-md"
+            className="h-16 sm:h-20 bg-[#1E1E24] hover:bg-[#282830] rounded-xl flex items-center overflow-hidden cursor-pointer transition-all duration-200 group relative shadow-md min-w-0"
           >
-            <div className="w-20 h-20 bg-[#282828] flex-shrink-0 overflow-hidden">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#282828] flex-shrink-0 overflow-hidden">
               {recentPlayedItem?.thumbnail || (recentPlayedItem as any)?.coverUrl ? (
                 <img
                   src={recentPlayedItem?.thumbnail || (recentPlayedItem as any)?.coverUrl}
@@ -450,23 +450,23 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
                 />
               ) : (
                 <div className="w-full h-full bg-[#2A1719] flex items-center justify-center text-primary">
-                  <Download className="w-6 h-6" />
+                  <Download className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
               )}
             </div>
-            <div className="min-w-0 flex-1 px-3.5">
-              <span className="text-[10px] font-bold text-primary uppercase tracking-wider block mb-0.5">
+            <div className="min-w-0 flex-1 px-3 sm:px-3.5">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-wider block mb-0.5 truncate whitespace-nowrap">
                 {recentPlayedItem?.badge || 'Đã tải xuống'}
               </span>
-              <h4 className="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-primary transition-colors">
                 {recentPlayedItem?.title || (downloadedSongs.length > 0 ? 'Đã tải xuống' : 'Khám phá bài hát mới')}
               </h4>
-              <p className="text-xs text-text-secondary truncate mt-0.5">
+              <p className="text-[11px] sm:text-xs text-text-secondary truncate mt-0.5">
                 {recentPlayedItem?.artistsNames || (downloadedSongs.length > 0 ? `${downloadedSongs.length} bài hát ngoại tuyến` : 'Nghe chất lượng cao')}
               </p>
             </div>
-            <div className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center shadow-lg">
+            <div className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white text-black flex items-center justify-center shadow-lg">
                 <Play className="w-3.5 h-3.5 fill-black text-black ml-0.5" />
               </div>
             </div>
@@ -479,9 +479,9 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
                 onSelectPlaylist(suggestedDiscoverItem);
               }
             }}
-            className="h-20 bg-[#1E1E24] hover:bg-[#282830] rounded-xl flex items-center overflow-hidden cursor-pointer transition-all duration-200 group relative shadow-md"
+            className="h-16 sm:h-20 bg-[#1E1E24] hover:bg-[#282830] rounded-xl flex items-center overflow-hidden cursor-pointer transition-all duration-200 group relative shadow-md min-w-0"
           >
-            <div className="w-20 h-20 bg-[#282828] flex-shrink-0 overflow-hidden">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#282828] flex-shrink-0 overflow-hidden">
               {suggestedDiscoverItem?.thumbnail ? (
                 <img
                   src={suggestedDiscoverItem.thumbnail}
@@ -490,23 +490,23 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
                 />
               ) : (
                 <div className="w-full h-full bg-[#1F1A2E] flex items-center justify-center text-[#8B5CF6]">
-                  <Sparkles className="w-6 h-6" />
+                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
               )}
             </div>
-            <div className="min-w-0 flex-1 px-3.5">
-              <span className="text-[10px] font-bold text-[#8B5CF6] uppercase tracking-wider block mb-0.5">
+            <div className="min-w-0 flex-1 px-3 sm:px-3.5">
+              <span className="text-[10px] font-bold text-[#8B5CF6] uppercase tracking-wider block mb-0.5 truncate whitespace-nowrap">
                 {suggestedDiscoverItem?.badge || 'Gợi ý khám phá'}
               </span>
-              <h4 className="text-sm font-bold text-white truncate group-hover:text-[#8B5CF6] transition-colors">
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-[#8B5CF6] transition-colors">
                 {suggestedDiscoverItem?.title || 'Tuyển tập đặc sắc'}
               </h4>
-              <p className="text-xs text-text-secondary truncate mt-0.5">
+              <p className="text-[11px] sm:text-xs text-text-secondary truncate mt-0.5">
                 {suggestedDiscoverItem?.artistsNames || 'Âm nhạc dành cho bạn'}
               </p>
             </div>
-            <div className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center shadow-lg">
+            <div className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white text-black flex items-center justify-center shadow-lg">
                 <Play className="w-3.5 h-3.5 fill-black text-black ml-0.5" />
               </div>
             </div>

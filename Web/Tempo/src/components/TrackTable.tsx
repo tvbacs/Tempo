@@ -92,6 +92,14 @@ export const TrackTable: React.FC<TrackTableProps> = ({
     }, 1200);
   };
 
+  const gridCols = showAlbum
+    ? showDateAdded
+      ? "grid-cols-[16px_minmax(0,1fr)_90px] sm:grid-cols-[16px_minmax(0,2fr)_minmax(0,1fr)_90px] lg:grid-cols-[16px_minmax(0,2.5fr)_minmax(0,1.2fr)_120px_100px]"
+      : "grid-cols-[16px_minmax(0,1fr)_90px] sm:grid-cols-[16px_minmax(0,2.2fr)_minmax(0,1fr)_90px] lg:grid-cols-[16px_minmax(0,3fr)_minmax(0,1.5fr)_100px]"
+    : showDateAdded
+    ? "grid-cols-[16px_minmax(0,1fr)_90px] sm:grid-cols-[16px_minmax(0,1fr)_120px_90px] lg:grid-cols-[16px_minmax(0,1fr)_140px_100px]"
+    : "grid-cols-[16px_minmax(0,1fr)_90px] sm:grid-cols-[16px_minmax(0,1fr)_100px]";
+
   if (songs.length === 0) {
     return (
       <div className="py-16 text-center text-[#b3b3b3] text-sm">
@@ -103,11 +111,11 @@ export const TrackTable: React.FC<TrackTableProps> = ({
   return (
     <div className="w-full select-none">
       {/* Table Header */}
-      <div className="grid grid-cols-[16px_1fr_90px] sm:grid-cols-[16px_1fr_1fr_90px] lg:grid-cols-[16px_1fr_1fr_120px_100px] gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-b border-white/10 text-xs font-bold text-[#b3b3b3] uppercase tracking-wider mb-2">
+      <div className={`grid ${gridCols} gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-b border-white/10 text-xs font-bold text-[#b3b3b3] uppercase tracking-wider mb-2`}>
         <span className="text-center">#</span>
         <span>Tiêu đề</span>
-        {showAlbum ? <span className="hidden sm:block">Album</span> : <span className="hidden sm:block" />}
-        {showDateAdded ? <span className="hidden lg:block">Ngày thêm</span> : <span className="hidden lg:block" />}
+        {showAlbum && <span className="hidden sm:block">Album</span>}
+        {showDateAdded && <span className="hidden lg:block">Ngày thêm</span>}
         <span className="flex justify-end pr-2">
           <Clock className="w-4 h-4" />
         </span>
@@ -129,7 +137,7 @@ export const TrackTable: React.FC<TrackTableProps> = ({
             <div
               key={songKey}
               onDoubleClick={() => playSong(song, songs)}
-              className={`grid grid-cols-[16px_1fr_90px] sm:grid-cols-[16px_1fr_1fr_90px] lg:grid-cols-[16px_1fr_1fr_120px_100px] gap-2 sm:gap-4 px-2 sm:px-4 py-2 rounded-md hover:bg-[#2a2a2a] items-center transition-colors group cursor-pointer relative ${
+              className={`grid ${gridCols} gap-2 sm:gap-4 px-2 sm:px-4 py-2 rounded-md hover:bg-[#2a2a2a] items-center transition-colors group cursor-pointer relative ${
                 isThisCurrent ? 'bg-[#242424]' : ''
               }`}
             >
@@ -181,27 +189,38 @@ export const TrackTable: React.FC<TrackTableProps> = ({
                 />
                 <div className="min-w-0 flex-1">
                   <h4
+                    title={song.title}
                     className={`text-xs sm:text-sm font-bold truncate ${
                       isThisCurrent ? 'text-white font-black' : 'text-white'
                     }`}
                   >
                     {song.title}
                   </h4>
-                  <p className="text-[11px] sm:text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer">
+                  <p
+                    title={song.artistsNames}
+                    className="text-[11px] sm:text-xs text-[#b3b3b3] truncate mt-0.5 hover:underline hover:text-white cursor-pointer"
+                  >
                     {song.artistsNames}
                   </p>
                 </div>
               </div>
 
               {/* Album */}
-              <div className="min-w-0 truncate text-xs text-[#b3b3b3] hover:underline hover:text-white cursor-pointer hidden sm:block">
-                {song.album?.title || song.title}
-              </div>
+              {showAlbum && (
+                <div
+                  title={song.album?.title || song.title}
+                  className="min-w-0 truncate text-xs text-[#b3b3b3] hover:underline hover:text-white cursor-pointer hidden sm:block"
+                >
+                  {song.album?.title || song.title}
+                </div>
+              )}
 
               {/* Date Added */}
-              <div className="text-xs text-[#b3b3b3] truncate hidden lg:block">
-                {formatDate(song.addedAt)}
-              </div>
+              {showDateAdded && (
+                <div className="text-xs text-[#b3b3b3] truncate hidden lg:block">
+                  {formatDate(song.addedAt)}
+                </div>
+              )}
 
               {/* Actions: Heart + Duration + 3-dots Menu */}
               <div className="flex items-center justify-end gap-2.5 text-xs text-[#b3b3b3] font-medium relative">

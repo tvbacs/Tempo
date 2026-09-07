@@ -272,7 +272,7 @@ export const LikedSongsView: React.FC<LikedSongsViewProps> = ({ onBack }) => {
             {searchQuery ? `Không tìm thấy bài hát nào khớp với "${searchQuery}"` : 'Chưa có bài hát nào'}
           </div>
         ) : (
-          <TrackTable songs={processedSongs} />
+          <TrackTable songs={processedSongs} showAlbum={false} />
         )}
       </div>
     </div>

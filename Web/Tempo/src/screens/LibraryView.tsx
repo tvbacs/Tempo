@@ -222,7 +222,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-4">
                 {followedArtists.slice(0, 6).map((artist) => (
                   <div
                     key={artist.id || artist.name}
@@ -231,11 +231,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                     }}
                     className="bg-transparent hover:bg-white/5 p-3 rounded-xl flex flex-col items-center text-center transition-all group border-none cursor-pointer"
                   >
-                    <img
-                      src={artist.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200'}
-                      alt={artist.name}
-                      className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover mb-2.5 shadow-xl group-hover:scale-105 transition-transform"
-                    />
+                    <div className="w-full max-w-[110px] aspect-square rounded-full overflow-hidden mb-2.5 shadow-xl bg-[#282828] ring-2 ring-transparent group-hover:ring-[#FC475C]/40 transition-all flex-shrink-0 mx-auto">
+                      <img
+                        src={artist.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200'}
+                        alt={artist.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                    </div>
                     <h4 className="text-xs sm:text-sm font-bold text-white truncate w-full group-hover:text-[#FC475C]">
                       {artist.name}
                     </h4>
@@ -261,7 +263,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
                 {savedAlbums.slice(0, 5).map((album) => (
                   <div
                     key={album.id}
@@ -303,7 +305,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
               {/* Create Playlist Tile */}
               <div
                 onClick={() => setIsCreatingPlaylist(true)}
@@ -485,7 +487,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
         <div className="flex flex-col">
           <h3 className="text-sm font-extrabold text-white mb-4">Tất cả nghệ sĩ bạn đang theo dõi</h3>
           {followedArtists.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-4">
               {followedArtists.map((artist) => (
                 <div
                   key={artist.id || artist.name}
@@ -494,11 +496,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
                   }}
                   className="bg-transparent hover:bg-white/5 p-3 rounded-xl flex flex-col items-center text-center transition-all group border-none cursor-pointer"
                 >
-                  <img
-                    src={artist.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200'}
-                    alt={artist.name}
-                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover mb-3 shadow-xl group-hover:scale-105 transition-transform"
-                  />
+                  <div className="w-full max-w-[110px] aspect-square rounded-full overflow-hidden mb-3 shadow-xl bg-[#282828] ring-2 ring-transparent group-hover:ring-[#FC475C]/40 transition-all flex-shrink-0 mx-auto">
+                    <img
+                      src={artist.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200'}
+                      alt={artist.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                  </div>
                   <h4 className="text-xs sm:text-sm font-bold text-white truncate w-full group-hover:text-[#FC475C]">
                     {artist.name}
                   </h4>
@@ -528,7 +532,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
         <div className="flex flex-col">
           <h3 className="text-sm font-extrabold text-white mb-4">Tất cả album đã lưu</h3>
           {savedAlbums.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
               {savedAlbums.map((album) => (
                 <div
                   key={album.id}
@@ -571,7 +575,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onSelectPlaylist, onSe
             <h3 className="text-sm font-extrabold text-white">Tất cả danh sách phát của bạn</h3>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
             {/* Create Playlist Tile */}
             <div
               onClick={() => setIsCreatingPlaylist(true)}

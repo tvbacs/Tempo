@@ -395,11 +395,11 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
         </div>
 
         {/* Quick Shelf: Hero Liked Card + Dual Horizontal Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {/* Card 1: Hero Liked Songs Card */}
           <div
             onClick={() => onSelectTab ? onSelectTab('liked') : null}
-            className="h-20 bg-[#1E1E24] hover:bg-[#282830] rounded-xl flex items-center overflow-hidden cursor-pointer transition-all duration-200 group relative shadow-md"
+            className="h-20 bg-[#1E1E24] hover:bg-[#282830] rounded-xl flex items-center overflow-hidden cursor-pointer transition-all duration-200 group relative shadow-md min-w-0"
           >
             <div className="w-20 h-20 bg-gradient-to-br from-[#7C3AED] via-[#EC4899] to-[#FC475C] flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
               <Heart className="w-8 h-8 fill-white text-white drop-shadow" />
@@ -412,20 +412,22 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
                 {likedSongs.length > 0 ? `${likedSongs.length} bài hát đã lưu` : 'Bộ sưu tập yêu thích'}
               </p>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (likedSongs.length > 0) {
-                  playSong(likedSongs[0], likedSongs);
-                } else if (onSelectTab) {
-                  onSelectTab('liked');
-                }
-              }}
-              title="Phát ngay"
-              className="w-10 h-10 rounded-full bg-white hover:scale-110 active:scale-95 text-primary flex items-center justify-center shadow-xl mr-3 flex-shrink-0 transition-transform border-none cursor-pointer"
-            >
-              <Play className="w-4 h-4 fill-primary text-primary ml-0.5" />
-            </button>
+            <div className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (likedSongs.length > 0) {
+                    playSong(likedSongs[0], likedSongs);
+                  } else if (onSelectTab) {
+                    onSelectTab('liked');
+                  }
+                }}
+                title="Phát ngay"
+                className="w-9 h-9 rounded-full bg-white hover:scale-110 active:scale-95 text-primary flex items-center justify-center shadow-xl transition-transform border-none cursor-pointer"
+              >
+                <Play className="w-4 h-4 fill-primary text-primary ml-0.5" />
+              </button>
+            </div>
           </div>
 
           {/* Card 2: Recent / Saved Album / Downloads */}
@@ -528,7 +530,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3.5">
             {history.slice(0, 6).map((song) => {
               if (!song) return null;
               return (
@@ -583,7 +585,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
           <h2 className="text-lg sm:text-xl font-bold text-white">Dành riêng cho bạn</h2>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4">
           {dailyMixes.map((mix) => (
             <div
               key={mix.id}
@@ -664,7 +666,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
             {(tiktokSongs.length > 0 ? tiktokSongs : chartSongs).slice(0, 6).map((song) => (
               <div
                 key={song.encodeId || song.id}
@@ -710,7 +712,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
           <h2 className="text-lg sm:text-xl font-bold text-white">Chủ đề & Không gian</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-4">
           {activityThemes.map((theme) => (
             <div
               key={theme.id}
@@ -770,7 +772,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
           <h2 className="text-lg sm:text-xl font-bold text-white">Nghệ sĩ thịnh hành</h2>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-4">
           {verifiedVietnameseArtists.map((artist, idx) => (
             <div
               key={artist.id || artist.name}
@@ -784,7 +786,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
               className="bg-[#18181F] hover:bg-[#22222D] p-3.5 rounded-xl flex flex-col items-center text-center cursor-pointer transition-all duration-200 group border-none relative shadow-md hover:-translate-y-1"
             >
               {/* Circular Avatar with Glowing Ring */}
-              <div className="relative w-full aspect-square rounded-full overflow-hidden mb-3 shadow-lg bg-[#282828] ring-2 ring-transparent group-hover:ring-primary/40 transition-all">
+              <div className="relative w-full max-w-[120px] aspect-square rounded-full overflow-hidden mb-3 shadow-lg bg-[#282828] ring-2 ring-transparent group-hover:ring-primary/40 transition-all mx-auto">
                 <img
                   src={artist.artistImg}
                   alt={artist.name}
@@ -819,7 +821,7 @@ export const HomeDiscoverView: React.FC<HomeDiscoverViewProps> = ({
             <h2 className="text-lg sm:text-xl font-bold text-white">Top Album & Tuyển tập</h2>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
             {playlists.flatMap((sec) => sec.items || []).slice(0, 6).map((p: any) => (
               <div
                 key={p.encodeId || p.id}

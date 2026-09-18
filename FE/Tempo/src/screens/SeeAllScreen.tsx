@@ -187,7 +187,7 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
                 songs[0]?.thumbnail ||
                 "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400",
             }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             resizeMode="cover"
           />
           <LinearGradient
@@ -197,7 +197,7 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
               "rgba(10, 10, 14, 0.98)",
             ]}
             locations={[0, 0.5, 1]}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <View style={styles.heroBannerContent}>
 

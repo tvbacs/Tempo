@@ -36,6 +36,7 @@ import {
   Car,
   CloudRain,
   Compass,
+  ChevronRight,
 } from "lucide-react-native";
 import { apiClient } from "../api/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -48,10 +49,19 @@ import { useDownloadStore } from "../store/downloadStore";
 import { useNotificationStore } from "../store/notificationStore";
 import { useNavStore } from "../store/navStore";
 import { AppAvatarBadge } from "../components/AppAvatarBadge";
-import { formatDuration } from "../utils/format";
+import { formatDuration, formatDurationMs } from "../utils/format";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const CONTINUE_CARD_PALETTES = [
+  "#FC475C", // Pink / Red
+  "#00D2FF", // Cyan / Teal
+  "#A855F7", // Purple
+  "#FF9900", // Orange / Amber
+  "#10B981", // Emerald
+  "#38BDF8", // Sky Blue
+];
 
 
 const deduplicateSongList = (songs: UnifiedSong[]): UnifiedSong[] => {
@@ -659,7 +669,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   colors={['#7C3AED', '#EC4899', '#FC475C']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                 />
                 <Heart size={28} color={COLORS.white} fill={COLORS.white} />
               </View>
@@ -904,11 +914,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding }}
                   >
-                    {offlineContinue.map((item) => {
+                    {offlineContinue.map((item, index) => {
                       const song = item.song;
                       const songDur = item.durationMs || (song?.duration ? song.duration * 1000 : 0);
                       const songPos = item.lastPositionMs || 0;
                       const progressRatio = songDur > 0 ? Math.min(songPos / songDur, 1) : 0;
+                      const cardAccent = CONTINUE_CARD_PALETTES[index % CONTINUE_CARD_PALETTES.length];
+
                       return (
                         <TouchableOpacity
                           key={song.id}
@@ -916,48 +928,36 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                           onPress={() => handlePlaySong(song, offlineContinue.map((h) => h.song), { type: 'single', title: 'Nghe tiếp' })}
                           style={styles.continueCard}
                         >
-                          <Image
-                            source={{
-                              uri:
-                                song.thumbnail ||
-                                "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
-                            }}
-                            style={styles.continueCardBg}
-                          />
-                          <LinearGradient
-                            colors={["rgba(0,0,0,0.15)", "rgba(10,10,14,0.85)"]}
-                            locations={[0, 1]}
-                            style={styles.continueCardOverlay}
-                          />
-
-                          <View style={styles.continueCardInner}>
-                            <View style={styles.continueTextGroup}>
-                              <Text numberOfLines={1} style={styles.continueTitle}>
-                                {song.title}
-                              </Text>
-                              <Text numberOfLines={1} style={styles.continueArtist}>
-                                {song.artistsNames}
-                              </Text>
-                            </View>
-
-                            <View style={styles.continuePlayBtn}>
-                              <Play
-                                size={12}
-                                color={COLORS.black}
-                                fill={COLORS.black}
-                                style={{ marginLeft: 2 }}
-                              />
-                            </View>
-                          </View>
-
-                          <View style={styles.continueProgressTrack}>
-                            <View
-                              style={[
-                                styles.continueProgressBar,
-                                { width: `${Math.max(progressRatio * 100, 8)}%` },
-                              ]}
+                          {/* Artwork Box with 100% solid colored border */}
+                          <View style={[styles.continueCoverWrapper, { borderColor: cardAccent }]}>
+                            <Image
+                              source={{
+                                uri:
+                                  song.thumbnail ||
+                                  "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
+                              }}
+                              style={styles.continueCover}
+                              resizeMode="cover"
                             />
+
+                            {/* Black Overlay */}
+                            <View style={styles.continueCoverOverlay} />
+
+                            {/* Centered Play Button */}
+                            <View style={styles.continueCenterPlayBtn}>
+                              <View style={styles.continuePlayCircle}>
+                                <Play size={18} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 2 }} />
+                              </View>
+                            </View>
                           </View>
+
+                          {/* Song Title & Artists */}
+                          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.continueTitle}>
+                            {song.title}
+                          </Text>
+                          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.continueArtist}>
+                            {song.artistsNames}
+                          </Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -1025,11 +1025,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ paddingHorizontal: SPACING.screenPadding }}
                 >
-                  {history.slice(0, 8).map((item) => {
+                  {history.slice(0, 8).map((item, index) => {
                     const song = item.song;
                     const songDur = item.durationMs || (song?.duration ? song.duration * 1000 : 0);
                     const songPos = item.lastPositionMs || 0;
                     const progressRatio = songDur > 0 ? Math.min(songPos / songDur, 1) : 0;
+                    const cardAccent = CONTINUE_CARD_PALETTES[index % CONTINUE_CARD_PALETTES.length];
 
                     return (
                       <TouchableOpacity
@@ -1038,48 +1039,36 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         onPress={() => handlePlaySong(song, history.map((h) => h.song), { type: 'single', title: 'Tiếp tục nghe' })}
                         style={styles.continueCard}
                       >
-                        <Image
-                          source={{
-                            uri:
-                              song.thumbnail ||
-                              "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
-                          }}
-                          style={styles.continueCardBg}
-                        />
-                        <LinearGradient
-                          colors={["rgba(0,0,0,0.15)", "rgba(10,10,14,0.85)"]}
-                          locations={[0, 1]}
-                          style={styles.continueCardOverlay}
-                        />
-
-                        <View style={styles.continueCardInner}>
-                          <View style={styles.continueTextGroup}>
-                            <Text numberOfLines={1} style={styles.continueTitle}>
-                              {song.title}
-                            </Text>
-                            <Text numberOfLines={1} style={styles.continueArtist}>
-                              {song.artistsNames}
-                            </Text>
-                          </View>
-
-                          <View style={styles.continuePlayBtn}>
-                            <Play
-                              size={12}
-                              color={COLORS.black}
-                              fill={COLORS.black}
-                              style={{ marginLeft: 2 }}
-                            />
-                          </View>
-                        </View>
-
-                        <View style={styles.continueProgressTrack}>
-                          <View
-                            style={[
-                              styles.continueProgressBar,
-                              { width: `${Math.max(progressRatio * 100, 8)}%` },
-                            ]}
+                        {/* Artwork Box with 100% solid colored border */}
+                        <View style={[styles.continueCoverWrapper, { borderColor: cardAccent }]}>
+                          <Image
+                            source={{
+                              uri:
+                                song.thumbnail ||
+                                "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400",
+                            }}
+                            style={styles.continueCover}
+                            resizeMode="cover"
                           />
+
+                          {/* Black Overlay */}
+                          <View style={styles.continueCoverOverlay} />
+
+                          {/* Centered Play Button */}
+                          <View style={styles.continueCenterPlayBtn}>
+                            <View style={styles.continuePlayCircle}>
+                              <Play size={18} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 2 }} />
+                            </View>
+                          </View>
                         </View>
+
+                        {/* Song Title & Artists */}
+                        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.continueTitle}>
+                          {song.title}
+                        </Text>
+                        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.continueArtist}>
+                          {song.artistsNames}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -1298,7 +1287,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                       colors={["rgba(10, 10, 15, 0.2)", "rgba(10, 10, 15, 0.88)"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 0, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                     />
                     <View style={styles.themeCardContent}>
                       <View style={[styles.themeBadge, { backgroundColor: theme.accent }]}>
@@ -1497,7 +1486,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xs,
   },
   diagonalPillContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: "hidden",
     opacity: 0.7,
   },
@@ -1735,84 +1724,60 @@ const styles = StyleSheet.create({
     color: COLORS.accentPrimary,
   },
 
-  // Continue Listening Card (Phong cách Duyệt tìm tất cả - Bo góc Top-Left, các góc dưới vuông vức)
+  // Continue Listening Card (Chuẩn Card Bài hát Hiện đại - Border màu tiến trình)
   continueCard: {
-    width: 172,
-    height: 92,
-    borderTopLeftRadius: 20,
-    borderBottomLeftRadius: 6,
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
-    overflow: "hidden",
-    position: "relative",
+    width: 140,
     marginRight: SPACING.md,
+  },
+  continueCoverWrapper: {
+    width: 140,
+    height: 140,
+    borderRadius: 14,
+    borderWidth: 2,
+    position: "relative",
+    overflow: "hidden",
     backgroundColor: COLORS.bgSurfaceSecondary,
   },
-  continueCardBg: {
-    ...StyleSheet.absoluteFillObject,
+  continueCover: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover",
+    borderRadius: 11,
   },
-  continueCardOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  continueCoverOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
   },
-  continueCardInner: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    paddingHorizontal: 11,
-    paddingTop: 8,
-    paddingBottom: 12,
+  continueCenterPlayBtn: {
+    ...StyleSheet.absoluteFill,
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 2,
   },
-  continueTextGroup: {
-    flex: 1,
-    marginRight: 6,
-  },
-  continueTitle: {
-    fontSize: TYPOGRAPHY.sizeBodySmall,
-    fontWeight: "800",
-    color: COLORS.white,
-    marginBottom: 2,
-    textShadowColor: "rgba(0, 0, 0, 0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  continueArtist: {
-    fontSize: TYPOGRAPHY.sizeMicro,
-    fontWeight: "500",
-    color: "rgba(255, 255, 255, 0.8)",
-    textShadowColor: "rgba(0, 0, 0, 0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  continuePlayBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: COLORS.white,
+  continuePlayCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
     alignItems: "center",
     justifyContent: "center",
     elevation: 4,
-    shadowColor: COLORS.black,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
     shadowRadius: 3,
   },
-  continueProgressTrack: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-    zIndex: 3,
+  continueTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.white,
+    marginTop: 8,
+    marginBottom: 2,
   },
-  continueProgressBar: {
-    height: "100%",
-    backgroundColor: COLORS.accentPrimary,
+  continueArtist: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#A0A0AB",
+    lineHeight: 15,
   },
 
   // Album & Tuyển tập Card
@@ -2043,7 +2008,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs + 2,
   },
   dailyMixGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   dailyMixCoverImg: {
     position: "absolute",

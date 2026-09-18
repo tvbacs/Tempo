@@ -168,10 +168,10 @@ export const MiniPlayer: React.FC = () => {
         <View style={[styles.wrapper, { bottom: bottomPosition }]}>
           {/* Dynamic Blurred Artwork Background */}
           {song?.thumbnail ? (
-            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
               <Image
                 source={{ uri: song.thumbnail }}
-                style={[StyleSheet.absoluteFillObject, { opacity: 0.55 }]}
+                style={[StyleSheet.absoluteFill, { opacity: 0.55 }]}
                 blurRadius={Platform.OS === 'ios' ? 25 : 12}
                 resizeMode="cover"
               />
@@ -179,7 +179,7 @@ export const MiniPlayer: React.FC = () => {
                 colors={['rgba(15, 15, 20, 0.45)', 'rgba(12, 12, 18, 0.8)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
               />
             </View>
           ) : null}

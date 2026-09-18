@@ -401,13 +401,13 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   heroImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
   heroGradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   artistHeroInfo: {
     paddingHorizontal: SPACING.screenPadding,

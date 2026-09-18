@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   playingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: COLORS.bgOverlay,
     alignItems: 'center',
     justifyContent: 'center',

@@ -309,7 +309,7 @@ class AudioEngine {
       let lastTrackPosition = -1;
       let nearEndStallCount = 0;
 
-      newPlayer.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+      (newPlayer as any).addListener('playbackStatusUpdate', (status: AudioStatus) => {
         if (this.onStatusUpdateCallback) {
           this.onStatusUpdateCallback({
             isLoaded: status.isLoaded,

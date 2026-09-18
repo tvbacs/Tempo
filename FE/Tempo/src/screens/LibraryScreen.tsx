@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   diagonalPillContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: 'hidden',
     opacity: 0.7,
   },

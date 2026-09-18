@@ -32,6 +32,7 @@ interface PlayerState {
   isShuffle: boolean;
   repeatMode: RepeatMode;
   isFullPlayerVisible: boolean;
+  isLyricsScreenVisible: boolean;
   playbackContext: PlaybackContext | null;
   shuffleHistory: string[]; // Danh sách ID các bài đã phát trong phiên shuffle
   shuffledQueue: UnifiedSong[]; // Hàng chờ trộn bài đồng bộ
@@ -51,6 +52,8 @@ interface PlayerState {
   cycleRepeat: () => void;
   openFullPlayer: () => void;
   closeFullPlayer: () => void;
+  openLyricsScreen: () => void;
+  closeLyricsScreen: () => void;
   setQueue: (queue: UnifiedSong[]) => void;
   addToQueue: (song: UnifiedSong) => void;
   getNextTrack: () => { song: UnifiedSong; label: string } | null;
@@ -177,6 +180,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     isShuffle: false,
     repeatMode: 'off',
     isFullPlayerVisible: false,
+    isLyricsScreenVisible: false,
     playbackContext: null,
     shuffleHistory: [],
     shuffledQueue: [],
@@ -746,7 +750,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     closeFullPlayer: () => {
-      set({ isFullPlayerVisible: false });
+      set({ isFullPlayerVisible: false, isLyricsScreenVisible: false });
+    },
+
+    openLyricsScreen: () => {
+      set({ isLyricsScreenVisible: true });
+    },
+
+    closeLyricsScreen: () => {
+      set({ isLyricsScreenVisible: false });
     },
 
     setQueue: (queue) => {

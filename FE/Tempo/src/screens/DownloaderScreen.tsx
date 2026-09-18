@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   offlineHubGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   offlineHubContent: {
     flexDirection: "row",
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   extractorGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   extractorHeader: {
     marginBottom: SPACING.md,

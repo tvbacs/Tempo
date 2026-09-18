@@ -28,6 +28,7 @@ interface DownloadState {
   fetchDownloads: () => Promise<void>;
   downloadSong: (song: UnifiedSong) => Promise<void>;
   downloadMultiple: (songs: UnifiedSong[]) => void;
+  cancelDownload: (songId: string) => void;
   removeDownload: (songId: string) => Promise<void>;
   isDownloaded: (songId: string) => boolean;
   isDownloading: (songId: string) => boolean;
@@ -637,6 +638,30 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
 
     useToastStore.getState().showToast(`Đã thêm ${toAdd.length} bài hát vào hàng đợi tải xuống`, 'info');
     processNextInQueue(useDownloadStore);
+  },
+
+  cancelDownload: (songId: string) => {
+    // Remove from queue if not yet started
+    const idxInQueue = downloadQueue.findIndex((s) => s.id === songId);
+    if (idxInQueue !== -1) {
+      downloadQueue.splice(idxInQueue, 1);
+      syncQueueState(useDownloadStore);
+    }
+
+    // Clear downloading state and progress
+    const clearProgress = () => {
+      const p = { ...useDownloadStore.getState().downloadProgress };
+      delete p[songId];
+      return p;
+    };
+    useDownloadStore.setState({
+      downloadingIds: useDownloadStore.getState().downloadingIds.filter((id) => id !== songId),
+      downloadProgress: clearProgress(),
+      queueSongIds: useDownloadStore.getState().queueSongIds.filter((id) => id !== songId),
+    });
+
+    useToastStore.getState().hideDownloadToast(songId);
+    useToastStore.getState().showToast('Đã hủy tải xuống', 'info');
   },
 
   removeDownload: async (songId: string) => {

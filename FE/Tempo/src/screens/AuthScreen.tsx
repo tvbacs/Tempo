@@ -157,7 +157,7 @@ export const AuthScreen: React.FC = () => {
             COLORS.bgPrimary,
           ]}
           locations={[0, 0.28, 0.55, 0.82]}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
       </View>
 
@@ -209,7 +209,7 @@ export const AuthScreen: React.FC = () => {
                       colors={[COLORS.accentPrimary, COLORS.accentSecondary]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                     />
                   )}
                   <Text style={[styles.tabText, isLoginTab && styles.tabTextActive]}>
@@ -227,7 +227,7 @@ export const AuthScreen: React.FC = () => {
                       colors={[COLORS.accentPrimary, COLORS.accentSecondary]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                     />
                   )}
                   <Text style={[styles.tabText, !isLoginTab && styles.tabTextActive]}>
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bgPrimary,
   },
   heroBackgroundContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: 'hidden',
   },
   floatingArtworkCard: {

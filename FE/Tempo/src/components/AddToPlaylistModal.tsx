@@ -105,7 +105,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
       >
         <TouchableOpacity
           activeOpacity={1}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           onPress={onClose}
         />
         <View style={styles.sheetContainer}>

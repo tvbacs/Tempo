@@ -1,13 +1,10 @@
 /**
- * PlayerModalScreen - Trình phát nhạc toàn màn hình (Artwork Full Màn Hình & Phản hồi 0ms)
- * - delaysContentTouches={false} cho phản hồi nút bấm tức thì (0ms)
- * - Ảnh bìa Full-width tràn viền nghệ thuật
- * - Đưa "BÀI TIẾP THEO" lên TRÊN "GIỚI THIỆU NGHỆ SĨ"
- * Strictly follows STANDARDS.md:
- * - NO EMOJIS
- * - NO BORDERS (borderWidth: 0)
- * - 100% Tokenized variables from theme.ts
- * - Accent Gradient #FC475C -> #FC655A
+ * PlayerModalScreen - SoundCloud-Style Fullscreen Immersive Music Player
+ * - Edge-to-edge background artwork with atmospheric gradient overlay
+ * - SoundCloud dual mirrored soundwave progress scrubber with real-time time badge
+ * - Playback controls in primary dock, Tempo action icons in bottom bar
+ * - Dedicated fullscreen lyrics button and AI story integration
+ * Strictly follows STANDARDS.md
  */
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -36,7 +33,6 @@ import {
   Repeat1,
   MoreHorizontal,
   Cast,
-  Sparkles,
   ListMusic,
   Heart,
   UserPlus,
@@ -46,7 +42,9 @@ import {
   VolumeX,
   Volume2,
   Download,
-  CheckCircle,
+  Mic2,
+  BookOpen,
+  CheckCircle2,
 } from "lucide-react-native";
 import { usePlayerStore } from "../store/playerStore";
 import { useLibraryStore } from "../store/libraryStore";
@@ -61,10 +59,19 @@ import { SongOptionsModal } from "../components/SongOptionsModal";
 import { Toast } from "../components/Toast";
 import { useConnectStore, useActivePlayback } from "../store/connectStore";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
-import { formatDurationMs } from "../utils/format";
+import { WaveformScrubber } from "../components/WaveformScrubber";
+import { LyricsModalScreen } from "./LyricsModalScreen";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const FULL_HERO_HEIGHT = Math.min(SCREEN_WIDTH * 1.05, SCREEN_HEIGHT * 0.46);
+
+// Chiều cao ảnh nền kết thúc ngang tầm hàng nút Lời bài hát & controls
+const ARTWORK_HEIGHT = Math.round(SCREEN_HEIGHT * 0.70);
+
+function getHighResArtworkUrl(url?: string): string {
+  if (!url) return "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1080";
+  // Tự động nâng cấp thumbnail Zing MP3 từ w240/w360 lên w1024 để không bị vỡ/mờ
+  return url.replace(/\/w\d+_/g, "/w1024_");
+}
 
 const FullPlayerContent: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -92,6 +99,7 @@ const FullPlayerContent: React.FC = () => {
     toggleShuffle,
     cycleRepeat,
     closeFullPlayer,
+    openLyricsScreen,
     playSong,
     playbackContext,
     getNextTrack,
@@ -101,10 +109,6 @@ const FullPlayerContent: React.FC = () => {
   const { isLiked, toggleLike, toggleFollowArtist, isArtistFollowed } = useLibraryStore();
   const { downloadSong, isDownloaded, isDownloading } = useDownloadStore();
   const { showToast } = useToastStore();
-
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [lyrics, setLyrics] = useState<LyricData | null>(null);
-  const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
 
   const [songStory, setSongStory] = useState<string | null>(null);
   const [showStory, setShowStory] = useState(false);
@@ -127,23 +131,14 @@ const FullPlayerContent: React.FC = () => {
 
   useEffect(() => {
     if (currentSong?.id) {
-      setLyrics(null);
       setSongStory(null);
-      setShowLyrics(false);
       setShowStory(false);
       setArtistInfo(null);
       setShowFullBio(false);
 
-      // Tải trước lời bài hát trong nền
-      apiClient
-        .getLyrics(currentSong.id)
-        .then(setLyrics)
-        .catch(() => {});
-
       // Tải danh sách bài hát gợi ý và thông tin nghệ sĩ chính thức
       const artistQuery = (currentSong.artistsNames || "").split(",")[0].trim();
       if (artistQuery) {
-        // 1. Tìm kiếm thông tin & bài hát gợi ý
         apiClient
           .search(artistQuery)
           .then((res) => {
@@ -167,7 +162,6 @@ const FullPlayerContent: React.FC = () => {
           })
           .catch(() => {});
 
-        // 2. Tải thông tin chi tiết nghệ sĩ
         const artistAlias =
           currentSong.artists?.[0]?.link?.replace("/", "") ||
           artistQuery.toLowerCase().replace(/\s+/g, "-");
@@ -185,7 +179,6 @@ const FullPlayerContent: React.FC = () => {
               }
             })
             .catch(() => {
-              // Fallback nếu không có trên Zing
               setArtistInfo((prev) => prev || {
                 name: artistQuery,
                 thumbnail: currentSong.thumbnail || '',
@@ -201,8 +194,6 @@ const FullPlayerContent: React.FC = () => {
     }
   }, [currentSong?.id]);
 
-  // --- CÁC HÀM XỬ LÝ NÚT BẤM PHẢN HỒI NGAY (0ms TOUCH) ---
-
   const handleToggleLike = async () => {
     if (!currentSong) return;
     const isNowLiked = await toggleLike(currentSong);
@@ -213,8 +204,7 @@ const FullPlayerContent: React.FC = () => {
   };
 
   const isExtractedOrSingle =
-    playbackContext?.type === 'extracted' ||
-    queue.length <= 1;
+    playbackContext?.type === 'extracted' || queue.length <= 1;
 
   const handleToggleShuffle = () => {
     toggleShuffle();
@@ -270,36 +260,20 @@ const FullPlayerContent: React.FC = () => {
   };
 
   const handleCast = () => {
-    useConnectStore.getState().openConnectModal();
+    closeFullPlayer();
+    setTimeout(() => {
+      useConnectStore.getState().openConnectModal();
+    }, 260);
   };
 
-  const handleToggleLyrics = async () => {
-    const nextState = !showLyrics;
-    setShowLyrics(nextState);
-    if (nextState) {
-      setShowStory(false);
-      if (!lyrics && currentSong?.id) {
-        setIsLoadingLyrics(true);
-        try {
-          const lrc = await apiClient.getLyrics(currentSong.id);
-          setLyrics(lrc);
-        } catch (e) {
-          console.error("Failed to load lyrics:", e);
-        } finally {
-          setIsLoadingLyrics(false);
-        }
-      }
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({ y: FULL_HERO_HEIGHT - 60, animated: true });
-      }, 50);
-    }
+  const handleOpenLyrics = () => {
+    openLyricsScreen();
   };
 
   const handleToggleStory = async () => {
     const nextState = !showStory;
     setShowStory(nextState);
     if (nextState) {
-      setShowLyrics(false);
       if (!songStory && currentSong) {
         setIsLoadingStory(true);
         try {
@@ -309,14 +283,13 @@ const FullPlayerContent: React.FC = () => {
           );
           setSongStory(story);
         } catch (e) {
-          console.error("Failed to load story:", e);
           setSongStory("Chưa có câu chuyện cho bài hát này.");
         } finally {
           setIsLoadingStory(false);
         }
       }
       setTimeout(() => {
-        scrollRef.current?.scrollTo({ y: FULL_HERO_HEIGHT - 60, animated: true });
+        scrollRef.current?.scrollTo({ y: SCREEN_HEIGHT * 0.45, animated: true });
       }, 50);
     }
   };
@@ -354,31 +327,30 @@ const FullPlayerContent: React.FC = () => {
     }, 150);
   };
 
-
   if (!currentSong) return null;
 
   const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
   const nextTrackInfo = getNextTrack();
-  const safeTopPadding = insets.top > 0 ? insets.top + SPACING.xs : SPACING.lg;
-  const safeBottomPadding = insets.bottom > 0 ? insets.bottom + SPACING.md : SPACING.xxxl;
+  const safeTopPadding = insets.top > 0 ? insets.top + 18 : 44;
+  const safeBottomPadding = insets.bottom > 0 ? insets.bottom + SPACING.md : SPACING.xl;
 
   const contextSub = playbackContext
     ? playbackContext.type === 'liked'
-      ? 'ĐANG PHÁT TỪ BÀI HÁT ĐÃ THÍCH'
+      ? 'ĐANG NGHE NHẠC Ở BÀI HÁT ĐÃ THÍCH'
       : playbackContext.type === 'downloaded'
-      ? 'ĐANG PHÁT TỪ BÀI HÁT ĐÃ TẢI VỀ'
+      ? 'ĐANG NGHE NHẠC Ở BÀI HÁT ĐÃ TẢI VỀ'
       : playbackContext.type === 'playlist'
-      ? 'ĐANG PHÁT TỪ DANH SÁCH PHÁT'
+      ? 'ĐANG NGHE NHẠC Ở DANH SÁCH PHÁT'
       : playbackContext.type === 'artist'
-      ? 'ĐANG PHÁT TỪ NGHỆ SĨ'
+      ? 'ĐANG NGHE NHẠC Ở NGHỆ SĨ'
       : playbackContext.type === 'chart'
-      ? 'ĐANG PHÁT TỪ BẢNG XẾP HẠNG'
+      ? 'ĐANG NGHE NHẠC Ở BẢNG XẾP HẠNG'
       : playbackContext.type === 'search'
-      ? 'ĐANG PHÁT TỪ TÌM KIẾM'
+      ? 'ĐANG NGHE NHẠC Ở TÌM KIẾM'
       : playbackContext.type === 'extracted'
-      ? 'ĐANG PHÁT TỪ TRÍCH XUẤT'
-      : 'ĐANG PHÁT TỪ'
-    : 'ĐANG PHÁT';
+      ? 'ĐANG NGHE NHẠC Ở TRÍCH XUẤT'
+      : 'ĐANG NGHE NHẠC Ở'
+    : 'ĐANG NGHE NHẠC Ở';
 
   const contextTitle =
     playbackContext?.title ||
@@ -393,39 +365,33 @@ const FullPlayerContent: React.FC = () => {
       onRequestClose={closeFullPlayer}
     >
       <View style={styles.container}>
-        {/* Top Header Floating Navigation */}
-        <View style={[styles.topNav, { paddingTop: safeTopPadding }]}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            hitSlop={{ top: SPACING.xl, bottom: SPACING.xl, left: SPACING.xl, right: SPACING.xl }}
-            onPress={closeFullPlayer}
-            style={styles.navCircleBtn}
-          >
-            <ChevronDown size={24} color={COLORS.white} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={handleHeaderPress}
-            style={styles.headerTitleCenter}
-          >
-            <Text style={styles.headerSub}>{contextSub}</Text>
-            <Text numberOfLines={1} style={styles.headerMain}>
-              {contextTitle}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
-            onPress={() => setShowSongOptions(true)}
-            style={styles.navCircleBtn}
-          >
-            <MoreHorizontal size={20} color={COLORS.white} />
-          </TouchableOpacity>
+        {/* Top Hero Artwork Background (Ends at lyrics button level to prevent blurring) */}
+        <View style={[styles.bgArtworkContainer, { height: ARTWORK_HEIGHT }]}>
+          <Image
+            source={{
+              uri: getHighResArtworkUrl(
+                currentSong.thumbnail || (currentSong as any).thumbnailM
+              ),
+            }}
+            style={styles.bgArtworkImage}
+            resizeMode="cover"
+          />
+          {/* SoundCloud-Style Multi-stop Vignette Gradient Overlay smoothly fading into bgPrimary */}
+          <LinearGradient
+            colors={[
+              "rgba(10, 10, 14, 0.72)",
+              "rgba(10, 10, 14, 0.08)",
+              "rgba(10, 10, 14, 0.20)",
+              "rgba(10, 10, 14, 0.55)",
+              "rgba(15, 15, 19, 0.90)",
+              COLORS.bgPrimary,
+            ]}
+            locations={[0, 0.18, 0.45, 0.70, 0.88, 1]}
+            style={StyleSheet.absoluteFill}
+          />
         </View>
 
-        {/* Scrollable Content with Instant Touch Response */}
+        {/* Scrollable Container */}
         <ScrollView
           ref={scrollRef}
           style={styles.contentScroll}
@@ -433,180 +399,214 @@ const FullPlayerContent: React.FC = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
-          {/* Full-Width Edge-to-Edge Hero Artwork */}
-          <View style={styles.fullHeroWrapper}>
-            <Image
-              source={{
-                uri:
-                  currentSong.thumbnail ||
-                  "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800",
-              }}
-              style={styles.fullHeroImage}
-            />
-            <LinearGradient
-              colors={["rgba(11, 11, 14, 0.4)", "rgba(11, 11, 14, 0.1)", "rgba(11, 11, 14, 0.95)", COLORS.bgPrimary]}
-              locations={[0, 0.35, 0.8, 1]}
-              style={styles.fullHeroGradient}
-            />
-          </View>
-
-          {/* Controls Container */}
-          <View style={styles.controlsContentContainer}>
-            {/* Track Title, Artist & Like Row */}
-            <View style={styles.trackHeaderRow}>
-              <View style={styles.titleInfo}>
-                <View style={styles.titleRow}>
-                  <Text numberOfLines={2} style={styles.titleText}>
-                    {currentSong.title}
-                  </Text>
-                  {currentSong.source === "audius" && (
-                    <View style={styles.badgeBox}>
-                      <Text style={styles.badgeText}>GLOBAL</Text>
-                    </View>
-                  )}
-                </View>
-                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.artistText}>
+          {/* --- TOP SOUNDCLOUD-STYLE HERO SECTION (100vh) --- */}
+          <View style={[styles.mainHeroSection, { paddingTop: safeTopPadding }]}>
+            {/* Top Navigation & Track Title Row */}
+            <View style={styles.headerInfoRow}>
+              {/* Left Column: Context Subtitle, Title & Artist */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleHeaderPress}
+                style={styles.titleCol}
+              >
+                <Text style={styles.contextSubText}>{contextSub}</Text>
+                <Text numberOfLines={1} style={styles.contextTitleText}>
+                  {contextTitle}
+                </Text>
+                <Text numberOfLines={2} style={styles.songTitleText}>
+                  {currentSong.title}
+                </Text>
+                <Text numberOfLines={1} style={styles.songArtistText}>
                   {currentSong.artistsNames}
                 </Text>
+              </TouchableOpacity>
+
+              {/* Right Column: Close, Follow & Cast Buttons */}
+              <View style={styles.navIconsCol}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  onPress={closeFullPlayer}
+                  style={styles.topIconBtn}
+                >
+                  <ChevronDown size={28} color={COLORS.white} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  onPress={handleToggleFollow}
+                  style={styles.topIconBtn}
+                >
+                  {isFollowingArtist ? (
+                    <Check size={22} color={COLORS.accentPrimary} />
+                  ) : (
+                    <UserPlus size={22} color={COLORS.white} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Middle Artwork Focus Area */}
+            <View style={styles.artworkCenterSpacer} />
+
+            {/* SoundCloud-Style Dual-Waveform Scrubber directly over artwork */}
+            <View style={styles.waveformContainer}>
+              <WaveformScrubber
+                mode="scrolling"
+                progress={progress}
+                positionMs={positionMs}
+                durationMs={durationMs > 0 ? durationMs : (currentSong?.duration ? currentSong.duration * 1000 : 0)}
+                onSeek={seekTo}
+                seed={currentSong.id || currentSong.title}
+                activeColor={COLORS.accentPrimary}
+                inactiveColor="rgba(255, 255, 255, 0.88)"
+                height={108}
+                barCount={120}
+              />
+            </View>
+
+            {/* --- BOTTOM CONTROLS DOCK (Replaces Comment Box & Bottom Bar) --- */}
+            <View style={styles.bottomControlsDock}>
+              {/* Row 1 (Replaces Comment Box): Main Playback Controls */}
+              <View style={styles.playbackControlsRow}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleToggleShuffle}
+                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                >
+                  <Shuffle
+                    size={22}
+                    color={isShuffle ? COLORS.accentPrimary : COLORS.textSecondary}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handlePlayPrev}
+                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                >
+                  <SkipBack size={28} color={COLORS.white} fill={COLORS.white} />
+                </TouchableOpacity>
+
+                <GradientPlayButton onPress={togglePlayPause} size={LAYOUT.iconButtonPlay}>
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color={COLORS.white} />
+                  ) : isPlaying ? (
+                    <Pause size={30} color={COLORS.white} fill={COLORS.white} />
+                  ) : (
+                    <Play size={30} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 3 }} />
+                  )}
+                </GradientPlayButton>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handlePlayNext}
+                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                >
+                  <SkipForward size={28} color={COLORS.white} fill={COLORS.white} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleCycleRepeat}
+                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                >
+                  {repeatMode === "one" ? (
+                    <Repeat1 size={22} color={COLORS.accentPrimary} />
+                  ) : (
+                    <Repeat
+                      size={22}
+                      color={repeatMode === "all" ? COLORS.accentPrimary : COLORS.textSecondary}
+                    />
+                  )}
+                </TouchableOpacity>
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                {/* Chỉ hiện nút tải xuống nếu bài hát CHƯA được tải về máy */}
-                {!isDownloaded(currentSong.id) && !currentSong.isOffline && (
+              {/* Row 2 (Replaces Bottom Bar): Tempo App Actions */}
+              <View style={styles.tempoActionsRow}>
+                {/* Heart / Like */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleToggleLike}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={styles.tempoActionBtn}
+                >
+                  <Heart
+                    size={24}
+                    color={liked ? COLORS.accentPrimary : COLORS.white}
+                    fill={liked ? COLORS.accentPrimary : "transparent"}
+                  />
+                </TouchableOpacity>
+
+                {/* Download / Downloaded status */}
+                {isDownloaded(currentSong.id) || currentSong.isOffline ? (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => showToast("Bài hát đã được lưu trong bộ nhớ máy", "success")}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={styles.tempoActionBtn}
+                    accessibilityLabel="Đã tải xuống"
+                  >
+                    <CheckCircle2 size={22} color="#1DB954" />
+                  </TouchableOpacity>
+                ) : (
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => downloadSong(currentSong)}
-                    hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
-                    style={styles.heartButton}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={styles.tempoActionBtn}
+                    accessibilityLabel="Tải bài hát"
                   >
                     {isDownloading(currentSong.id) ? (
                       <ActivityIndicator size="small" color="#1DB954" />
                     ) : (
-                      <Download size={24} color={COLORS.textSecondary} />
+                      <Download size={22} color={COLORS.white} />
                     )}
                   </TouchableOpacity>
                 )}
 
                 <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={handleToggleLike}
-                  hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
-                  style={styles.heartButton}
+                  activeOpacity={0.8}
+                  onPress={handleOpenLyrics}
+                  style={styles.lyricsPillButton}
                 >
-                  <Heart
-                    size={26}
-                    color={liked ? COLORS.accentPrimary : COLORS.textSecondary}
-                    fill={liked ? COLORS.accentPrimary : COLORS.transparent}
-                  />
+                  <Mic2 size={16} color={COLORS.white} />
+                  <Text style={styles.lyricsPillButtonText}>Lời bài hát</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handleToggleStory}
+                  style={[styles.tempoActionBtn, showStory && styles.tempoActionBtnActive]}
+                  accessibilityLabel="Câu chuyện bài hát"
+                >
+                  <BookOpen size={22} color={showStory ? COLORS.accentPrimary : COLORS.white} />
+                </TouchableOpacity>
+
+                {/* More Options */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setShowSongOptions(true)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={styles.tempoActionBtn}
+                >
+                  <MoreHorizontal size={24} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Scrub Bar / Timeline */}
-            <View style={styles.timelineWrapper}>
-              <TouchableOpacity
-                activeOpacity={1}
-                onPress={(e) => {
-                  const clickX = e.nativeEvent.locationX;
-                  const totalWidth = SCREEN_WIDTH - SPACING.xl * 2;
-                  const ratio = Math.max(0, Math.min(clickX / totalWidth, 1));
-                  seekTo(ratio * durationMs);
-                }}
-                style={styles.trackSlider}
-              >
-                <View style={[styles.activeSlider, { width: `${progress * 100}%` }]} />
-                <View style={[styles.thumb, { left: `${progress * 100}%` }]} />
-              </TouchableOpacity>
-              <View style={styles.timeRow}>
-                <Text style={styles.timeText}>{formatDurationMs(positionMs)}</Text>
-                <Text style={styles.timeText}>{formatDurationMs(durationMs)}</Text>
-              </View>
-            </View>
+            {/* Smooth Upward Black Gradient for seamless blend ("đen dần dần đi lên") */}
+            <LinearGradient
+              colors={["transparent", "rgba(11, 11, 14, 0.4)", "rgba(11, 11, 14, 0.85)", COLORS.bgPrimary]}
+              locations={[0, 0.35, 0.72, 1]}
+              style={styles.bottomBlendGradient}
+              pointerEvents="none"
+            />
+          </View>
 
-            {/* Main Controls Row (Shuffle, Prev, Play/Pause, Next, Repeat) */}
-            <View style={styles.controlsRow}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={handleToggleShuffle}
-                hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
-              >
-                <Shuffle
-                  size={22}
-                  color={isShuffle ? COLORS.accentPrimary : COLORS.textSecondary}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={handlePlayPrev}
-                hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
-              >
-                <SkipBack size={28} color={COLORS.white} fill={COLORS.white} />
-              </TouchableOpacity>
-
-              <GradientPlayButton onPress={togglePlayPause} size={LAYOUT.iconButtonPlay}>
-                {isLoading ? (
-                  <ActivityIndicator size="small" color={COLORS.white} />
-                ) : isPlaying ? (
-                  <Pause size={30} color={COLORS.white} fill={COLORS.white} />
-                ) : (
-                  <Play size={30} color={COLORS.white} fill={COLORS.white} style={{ marginLeft: 3 }} />
-                )}
-              </GradientPlayButton>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={handlePlayNext}
-                hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
-              >
-                <SkipForward size={28} color={COLORS.white} fill={COLORS.white} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={handleCycleRepeat}
-                hitSlop={{ top: SPACING.lg, bottom: SPACING.lg, left: SPACING.lg, right: SPACING.lg }}
-              >
-                {repeatMode === "one" ? (
-                  <Repeat1 size={22} color={COLORS.accentPrimary} />
-                ) : (
-                  <Repeat
-                    size={22}
-                    color={repeatMode === "all" ? COLORS.accentPrimary : COLORS.textSecondary}
-                  />
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* 3 Nút Hành Động Ở Dưới (Cast | Lời bài hát | AI Story) */}
-            <View style={styles.actionPillRow}>
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={handleCast}
-                style={[styles.actionCircleBtn, isRemote && { backgroundColor: 'rgba(252, 71, 92, 0.15)' }]}
-              >
-                <Cast size={18} color={isRemote ? COLORS.accentPrimary : COLORS.textPrimary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleToggleLyrics}
-                style={[styles.lyricsPill, showLyrics && styles.lyricsPillActive]}
-              >
-                <Text style={[styles.lyricsPillText, showLyrics && styles.lyricsPillTextActive]}>
-                  Lời bài hát
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleToggleStory}
-                style={[styles.actionCircleBtn, showStory && styles.actionCircleBtnActive]}
-              >
-                <Sparkles size={18} color={showStory ? COLORS.accentPrimary : COLORS.textPrimary} />
-              </TouchableOpacity>
-            </View>
-
+          {/* --- SCROLLABLE DETAILS SECTION (Below the fold) --- */}
+          <View style={styles.detailsContentContainer}>
             {/* Thanh Kéo Âm Lượng Khi Đang Cast Trên PC */}
             {isRemote && (
               <View style={styles.remoteVolumeCard}>
@@ -648,38 +648,6 @@ const FullPlayerContent: React.FC = () => {
               </View>
             )}
 
-            {/* Khối Lời Bài Hát Đồng Bộ (Synced Lyrics) */}
-            {showLyrics && (
-              <View style={styles.lyricsBox}>
-                <Text style={styles.sectionLabel}>LỜI BÀI HÁT ĐỒNG BỘ</Text>
-                {isLoadingLyrics ? (
-                  <ActivityIndicator size="small" color={COLORS.accentPrimary} style={{ marginVertical: SPACING.xl }} />
-                ) : lyrics?.sentences && lyrics.sentences.length > 0 ? (
-                  lyrics.sentences.map((sentence, idx) => {
-                    const sentenceText = sentence.words.map((w) => w.data).join(" ");
-                    const isSentenceActive =
-                      positionMs >= (sentence.words[0]?.startTime || 0) &&
-                      positionMs <=
-                        (sentence.words[sentence.words.length - 1]?.endTime || Infinity);
-
-                    return (
-                      <Text
-                        key={idx}
-                        style={[
-                          styles.lyricSentence,
-                          isSentenceActive && styles.lyricSentenceActive,
-                        ]}
-                      >
-                        {sentenceText}
-                      </Text>
-                    );
-                  })
-                ) : (
-                  <Text style={styles.emptyNotice}>Chưa có lời bài hát đồng bộ cho bài này</Text>
-                )}
-              </View>
-            )}
-
             {/* Khối Ý Nghĩa & Câu Chuyện Bài Hát AI */}
             {showStory && (
               <View style={styles.storyBox}>
@@ -697,7 +665,7 @@ const FullPlayerContent: React.FC = () => {
               </View>
             )}
 
-            {/* 1. BÀI TIẾP THEO TRONG DANH SÁCH (ĐƯỢC ĐẶT LÊN TRÊN PHẦN NGHỆ SĨ) */}
+            {/* 1. BÀI TIẾP THEO TRONG DANH SÁCH */}
             {nextTrackInfo && (
               <View style={styles.nextSongCard}>
                 <View style={styles.nextSongHeader}>
@@ -727,7 +695,7 @@ const FullPlayerContent: React.FC = () => {
             {artistInfo && (
               <View style={styles.artistSection}>
                 <View style={styles.artistSectionHeader}>
-                  <Text style={styles.sectionLabel}>GIỚI THIỆU VỀ NGHỆ SĨ</Text>
+                  <Text style={styles.artistSectionLabel}>GIỚI THIỆU VỀ NGHỆ SĨ</Text>
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={openArtistDetail}
@@ -843,7 +811,10 @@ const FullPlayerContent: React.FC = () => {
           </View>
         </ScrollView>
 
-        {/* Song Options Modal (Download, Sleep Timer, Artist Info, etc.) */}
+        {/* Fullscreen Dedicated Lyrics Screen */}
+        <LyricsModalScreen />
+
+        {/* Song Options Modal */}
         <SongOptionsModal
           visible={showSongOptions}
           song={currentSong}
@@ -872,195 +843,158 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bgPrimary,
   },
-  topNav: {
+  bgArtworkContainer: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: SPACING.xl,
-    zIndex: 20,
+    zIndex: 0,
+    overflow: "hidden",
   },
-  navCircleBtn: {
-    width: LAYOUT.iconButtonMd,
-    height: LAYOUT.iconButtonMd,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dragBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
-    marginBottom: 6,
-  },
-  headerTitleCenter: {
-    alignItems: "center",
-  },
-  headerSub: {
-    fontSize: TYPOGRAPHY.sizeMicro,
-    fontWeight: "700",
-    color: COLORS.accentPrimary,
-    letterSpacing: TYPOGRAPHY.letterSpacingWide,
-    marginBottom: 2,
-  },
-  headerMain: {
-    fontSize: TYPOGRAPHY.sizeSecondary,
-    fontWeight: "600",
-    color: COLORS.textPrimary,
-    maxWidth: 200,
+  bgArtworkImage: {
+    width: "100%",
+    height: "100%",
   },
   contentScroll: {
     flex: 1,
   },
-  fullHeroWrapper: {
-    width: SCREEN_WIDTH,
-    height: FULL_HERO_HEIGHT,
-    position: "relative",
-    backgroundColor: COLORS.bgSurface,
-  },
-  fullHeroImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  fullHeroGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  controlsContentContainer: {
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.sm,
-    marginTop: -20,
-  },
-  trackHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  mainHeroSection: {
+    minHeight: SCREEN_HEIGHT * 0.92,
     justifyContent: "space-between",
-    marginBottom: SPACING.xl,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.lg,
+    position: "relative",
   },
-  titleInfo: {
+  bottomBlendGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 360,
+    zIndex: 1,
+  },
+  headerInfoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    zIndex: 10,
+  },
+  titleCol: {
     flex: 1,
     marginRight: SPACING.md,
   },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: SPACING.sm,
-    marginBottom: SPACING.xs,
-  },
-  titleText: {
-    fontSize: TYPOGRAPHY.sizeTitle,
+  contextSubText: {
+    fontSize: TYPOGRAPHY.sizeMicro,
     fontWeight: "800",
-    color: COLORS.textPrimary,
-    lineHeight: TYPOGRAPHY.lineHeightTitle,
+    color: COLORS.accentPrimary,
+    letterSpacing: TYPOGRAPHY.letterSpacingWide,
+    marginBottom: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  badgeBox: {
-    backgroundColor: COLORS.bgSurfaceSecondary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: LAYOUT.radiusXs,
-  },
-  badgeText: {
-    fontSize: TYPOGRAPHY.sizeBadge,
-    fontWeight: "800",
-    color: COLORS.textSecondary,
-    letterSpacing: TYPOGRAPHY.letterSpacingTight,
-  },
-  artistText: {
-    fontSize: TYPOGRAPHY.sizeBodyLarge,
-    color: COLORS.textSecondary,
-    fontWeight: "400",
-  },
-  heartButton: {
-    padding: SPACING.xs,
-  },
-  timelineWrapper: {
-    width: "100%",
-    marginBottom: SPACING.xxl + 4,
-  },
-  trackSlider: {
-    width: "100%",
-    height: 4,
-    backgroundColor: COLORS.bgProgressTrack,
-    borderRadius: 2,
-    position: "relative",
-    justifyContent: "center",
-  },
-  activeSlider: {
-    height: "100%",
-    backgroundColor: COLORS.accentPrimary,
-    borderRadius: 2,
-  },
-  thumb: {
-    position: "absolute",
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.white,
-    marginLeft: -6,
-  },
-  timeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: SPACING.sm,
-  },
-  timeText: {
+  contextTitleText: {
     fontSize: TYPOGRAPHY.sizeCaption,
-    fontWeight: "500",
-    color: COLORS.textMuted,
-    fontVariant: ["tabular-nums"],
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.75)",
+    marginBottom: 6,
+    maxWidth: 240,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  controlsRow: {
+  songTitleText: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: COLORS.white,
+    lineHeight: 28,
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  songArtistText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.85)",
+    marginBottom: SPACING.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  navIconsCol: {
+    alignItems: "center",
+    gap: SPACING.md,
+  },
+  topIconBtn: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    borderRadius: 19,
+  },
+  artworkCenterSpacer: {
+    flex: 1,
+    minHeight: SCREEN_HEIGHT * 0.16,
+  },
+  waveformContainer: {
+    width: SCREEN_WIDTH,
+    marginHorizontal: -SPACING.xl,
+    marginBottom: 36,
+    zIndex: 5,
+    overflow: "visible",
+  },
+  bottomControlsDock: {
+    width: "100%",
+    gap: SPACING.lg,
+    zIndex: 5,
+  },
+  playbackControlsRow: {
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: SPACING.xxl + 4,
     paddingHorizontal: SPACING.xs,
   },
-  actionPillRow: {
+  tempoActionsRow: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING.md,
-    width: "100%",
-    marginBottom: SPACING.xxxl,
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING.xs,
   },
-  actionCircleBtn: {
-    width: LAYOUT.iconButtonLg,
-    height: LAYOUT.iconButtonLg,
-    borderRadius: 22,
-    backgroundColor: COLORS.bgActionBtn,
+  tempoActionBtn: {
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  actionCircleBtnActive: {
-    backgroundColor: COLORS.bgActionBtnActive,
-  },
-  lyricsPill: {
-    flex: 1,
-    maxWidth: 200,
-    height: LAYOUT.iconButtonLg,
+  tempoActionBtnActive: {
+    backgroundColor: "rgba(252, 71, 92, 0.2)",
     borderRadius: 22,
-    backgroundColor: COLORS.bgActionBtn,
+  },
+  lyricsPillButton: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 22,
   },
-  lyricsPillActive: {
-    backgroundColor: COLORS.accentPrimary,
-  },
-  lyricsPillText: {
+  lyricsPillButtonText: {
     fontSize: TYPOGRAPHY.sizeBodySmall,
-    fontWeight: "600",
-    color: COLORS.textPrimary,
-  },
-  lyricsPillTextActive: {
+    fontWeight: "700",
     color: COLORS.white,
   },
-  // Remote Volume Card (Điều khiển âm lượng PC)
+  detailsContentContainer: {
+    backgroundColor: COLORS.bgPrimary,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xxxl * 2,
+    minHeight: SCREEN_HEIGHT,
+  },
   remoteVolumeCard: {
     backgroundColor: COLORS.bgCardDark,
     borderRadius: LAYOUT.radiusLg,
@@ -1098,12 +1032,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 32,
   },
-  lyricsBox: {
-    backgroundColor: COLORS.bgCardDark,
-    borderRadius: LAYOUT.radiusLg,
-    padding: SPACING.xl,
-    marginBottom: SPACING.xl,
-  },
   storyBox: {
     backgroundColor: COLORS.bgCardAmber,
     borderRadius: LAYOUT.radiusLg,
@@ -1125,24 +1053,6 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     letterSpacing: TYPOGRAPHY.letterSpacingWide,
     marginBottom: SPACING.md,
-  },
-  lyricSentence: {
-    fontSize: TYPOGRAPHY.sizeBodyLarge,
-    fontWeight: "600",
-    color: COLORS.textMuted,
-    lineHeight: TYPOGRAPHY.lineHeightTitle,
-    marginBottom: SPACING.xs,
-  },
-  lyricSentenceActive: {
-    color: COLORS.white,
-    fontWeight: "800",
-    fontSize: TYPOGRAPHY.sizeTitle,
-  },
-  emptyNotice: {
-    fontSize: TYPOGRAPHY.sizeSecondary,
-    color: COLORS.textMuted,
-    textAlign: "center",
-    marginVertical: SPACING.md,
   },
   storyContentText: {
     fontSize: TYPOGRAPHY.sizeBodySmall,
@@ -1247,15 +1157,25 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: SPACING.md,
   },
+  artistSectionLabel: {
+    fontSize: TYPOGRAPHY.sizeSmall,
+    fontWeight: "800",
+    color: COLORS.textMuted,
+    letterSpacing: TYPOGRAPHY.letterSpacingWide,
+    lineHeight: 18,
+    includeFontPadding: false,
+  },
   seeArtistBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: 3,
   },
   seeArtistText: {
     fontSize: TYPOGRAPHY.sizeCaption,
-    fontWeight: "600",
+    fontWeight: "700",
     color: COLORS.accentPrimary,
+    lineHeight: 18,
+    includeFontPadding: false,
   },
   artistCard: {
     height: 240,
@@ -1266,13 +1186,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bgSurfaceSecondary,
   },
   artistCoverImg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
   artistGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   artistCardOverlay: {
     padding: SPACING.lg,

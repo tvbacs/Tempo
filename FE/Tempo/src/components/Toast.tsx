@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { useToastStore } from '../store/toastStore';
+import { useDownloadStore } from '../store/downloadStore';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 
 export const Toast: React.FC = () => {
@@ -32,13 +33,22 @@ export const Toast: React.FC = () => {
       case 'vip':
       case 'info':
       default:
-        return <Info size={22} color={COLORS.accentPrimary} />;
+        return <Info size={22} color="#EF4444" />;
     }
   };
 
   // Download toast hiện độc lập
   const showDownload = !!downloadToast;
   const downloadTopOffset = (visible && message) ? topPos + 62 : topPos;
+
+  const handleCancelDownload = (e?: any) => {
+    e?.stopPropagation?.();
+    if (downloadToast?.songId) {
+      useDownloadStore.getState().cancelDownload(downloadToast.songId);
+    } else {
+      hideDownloadToast();
+    }
+  };
 
   return (
     <>
@@ -77,11 +87,9 @@ export const Toast: React.FC = () => {
             <Maximize2 size={16} color={COLORS.textSecondary} style={{ marginLeft: 2 }} />
             <TouchableOpacity
               hitSlop={{ top: 12, bottom: 12, left: 10, right: 12 }}
-              onPress={(e) => {
-                e.stopPropagation();
-                hideDownloadToast();
-              }}
+              onPress={handleCancelDownload}
               style={styles.minimizedCloseBtn}
+              accessibilityLabel="Hủy tải xuống"
             >
               <X size={16} color={COLORS.textMuted} />
             </TouchableOpacity>
@@ -126,13 +134,13 @@ export const Toast: React.FC = () => {
                 <Minimize2 size={16} color={COLORS.textSecondary} />
               </TouchableOpacity>
 
-              {/* Nút Đóng */}
+              {/* Nút Đóng / Hủy tải */}
               <TouchableOpacity
                 activeOpacity={0.7}
                 hitSlop={{ top: 12, bottom: 12, left: 8, right: 12 }}
-                onPress={() => hideDownloadToast()}
+                onPress={handleCancelDownload}
                 style={styles.actionIconBtn}
-                accessibilityLabel="Đóng"
+                accessibilityLabel="Hủy tải xuống"
               >
                 <X size={17} color={COLORS.textSecondary} />
               </TouchableOpacity>

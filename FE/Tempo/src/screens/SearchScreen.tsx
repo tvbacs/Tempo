@@ -547,13 +547,13 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   genreCardBg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
   genreCardOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   genreName: {
     fontSize: TYPOGRAPHY.sizeBody,

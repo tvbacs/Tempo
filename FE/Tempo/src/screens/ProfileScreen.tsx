@@ -10,10 +10,9 @@ import {
   TouchableOpacity,
   Switch,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, LogOut, Crown, Zap, Sparkles, HardDrive, Download, Trash2, Share2 } from 'lucide-react-native';
+import { ChevronLeft, LogOut, Crown, Zap, Sparkles, HardDrive, Download, Share2 } from 'lucide-react-native';
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { useLibraryStore } from '../store/libraryStore';
 import { useDownloadStore } from '../store/downloadStore';
@@ -29,14 +28,11 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     setPreserveOnUninstall,
     totalStorageBytes,
     exportAllDownloads,
-    clearAllDownloads,
     calculateStorageUsage,
     scanAndSyncLocalFiles,
   } = useDownloadStore();
 
   const [streamQuality, setStreamQuality] = useState<'Tiêu chuẩn (128k)' | 'Chất lượng cao (320k)' | 'Không nén (Lossless)'>('Chất lượng cao (320k)');
-  const [dataSaver, setDataSaver] = useState(false);
-  const [gaplessPlayback, setGaplessPlayback] = useState(true);
 
   useEffect(() => {
     calculateStorageUsage();
@@ -60,16 +56,6 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     await logout();
   };
 
-  const handleConfirmClearAll = () => {
-    Alert.alert(
-      'Xóa toàn bộ nhạc ngoại tuyến?',
-      `Hành động này sẽ xóa ${downloadedSongs.length} bài hát đã tải và giải phóng ${formatBytes(totalStorageBytes)} dung lượng trên máy.`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Xóa sạch', style: 'destructive', onPress: clearAllDownloads },
-      ]
-    );
-  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -169,31 +155,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
             </TouchableOpacity>
           </View>
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Tiết kiệm dữ liệu</Text>
-              <Text style={styles.settingSubLabel}>Tự động đặt chất lượng tiêu chuẩn khi dùng 4G/5G</Text>
-            </View>
-            <Switch
-              value={dataSaver}
-              onValueChange={setDataSaver}
-              trackColor={{ false: COLORS.bgPill, true: COLORS.accentPrimary }}
-              thumbColor={COLORS.white}
-            />
-          </View>
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Phát liền mạch (Gapless)</Text>
-              <Text style={styles.settingSubLabel}>Chuyển bài mượt mà không ngắt quãng âm thanh</Text>
-            </View>
-            <Switch
-              value={gaplessPlayback}
-              onValueChange={setGaplessPlayback}
-              trackColor={{ false: COLORS.bgPill, true: COLORS.accentPrimary }}
-              thumbColor={COLORS.white}
-            />
-          </View>
         </View>
 
         {/* Section: Storage & Downloads */}
@@ -271,24 +233,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
             </View>
           </TouchableOpacity>
 
-          {/* 4. Nút Xoá toàn bộ tệp nhạc tải về */}
-          {downloadedSongs.length > 0 && (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleConfirmClearAll}
-              style={styles.settingRow}
-            >
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: '#EF4444' }]}>Xóa toàn bộ nhạc ngoại tuyến</Text>
-                <Text style={styles.settingSubLabel}>
-                  Giải phóng {formatBytes(totalStorageBytes)} bộ nhớ trên máy
-                </Text>
-              </View>
-              <View style={[styles.pillActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                <Text style={[styles.pillActionText, { color: '#EF4444' }]}>Xóa sạch</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+
         </View>
 
         {/* Section: Account Actions */}

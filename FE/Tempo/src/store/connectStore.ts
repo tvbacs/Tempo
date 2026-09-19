@@ -5,9 +5,11 @@
  */
 import { create } from 'zustand';
 import { AppState, AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../api/supabase';
 import { audioEngine } from '../services/audioPlayer';
 import { useToastStore } from './toastStore';
+import { useAuthStore } from './authStore';
 
 export interface ConnectedDevice {
   deviceId: string;
@@ -41,6 +43,7 @@ interface ConnectState {
   remotePlayback: RemotePlaybackState | null;
 
   initConnect: () => void;
+  syncUserConnect: (userId: string | null) => void;
   openConnectModal: () => void;
   closeConnectModal: () => void;
   clearNewlyDiscoveredDevice: () => void;
@@ -59,6 +62,10 @@ export const THIS_DEVICE: ConnectedDevice = {
 };
 
 let realtimeChannel: any = null;
+let currentUserId: string | null = null;
+let isAuthSubscribed = false;
+let heartbeatInterval: any = null;
+let cleanupInterval: any = null;
 let lastResumeTime = Date.now();
 let isAppStateListenerAttached = false;
 let lastUserVolumeChangeTime = 0;
@@ -66,12 +73,12 @@ let lastUserPlayPauseChangeTime = 0;
 let lastUserSeekChangeTime = 0;
 
 const safeBroadcast = (event: string, payload: any) => {
-  if (realtimeChannel && realtimeChannel.state === 'joined') {
+  if (realtimeChannel && realtimeChannel.state === 'joined' && currentUserId) {
     try {
       realtimeChannel.send({
         type: 'broadcast',
         event,
-        payload,
+        payload: { ...payload, userId: currentUserId },
       });
     } catch (_) {}
   }
@@ -148,15 +155,82 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
   clearNewlyDiscoveredDevice: () => set({ newlyDiscoveredDevice: null }),
 
   initConnect: () => {
-    if (realtimeChannel) return;
+    if (!isAuthSubscribed) {
+      isAuthSubscribed = true;
+      useAuthStore.subscribe((state) => {
+        const uid = state.user?.id || null;
+        if (uid !== currentUserId) {
+          get().syncUserConnect(uid);
+        }
+      });
+    }
+
+    const currentAuthUser = useAuthStore.getState().user;
+    if (currentAuthUser?.id) {
+      get().syncUserConnect(currentAuthUser.id);
+    } else {
+      AsyncStorage.getItem('tempo_active_user_session').then((cached) => {
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (parsed?.id) {
+              get().syncUserConnect(parsed.id);
+              return;
+            }
+          } catch (_) {}
+        }
+        supabase.auth.getSession().then(({ data }) => {
+          get().syncUserConnect(data?.session?.user?.id || null);
+        }).catch(() => {
+          get().syncUserConnect(null);
+        });
+      });
+    }
+  },
+
+  syncUserConnect: (userId: string | null) => {
+    if (userId === currentUserId && realtimeChannel) return;
+
+    if (realtimeChannel) {
+      try {
+        if (realtimeChannel.state === 'joined' && currentUserId) {
+          realtimeChannel.send({
+            type: 'broadcast',
+            event: 'device_offline',
+            payload: { deviceId: THIS_DEVICE.deviceId, userId: currentUserId },
+          });
+        }
+        supabase.removeChannel(realtimeChannel);
+      } catch (_) {}
+      realtimeChannel = null;
+    }
+
+    if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+    if (cleanupInterval) { clearInterval(cleanupInterval); cleanupInterval = null; }
+
+    currentUserId = userId;
+
+    if (!userId) {
+      set({
+        availableDevices: [THIS_DEVICE],
+        activeDevice: THIS_DEVICE,
+        newlyDiscoveredDevice: null,
+        isInitialized: false,
+        isSubscribed: false,
+        remotePlayback: null,
+      });
+      return;
+    }
 
     try {
-      realtimeChannel = supabase.channel('tempo_connect_channel', {
+      const channelName = `tempo_connect_${userId}`;
+      realtimeChannel = supabase.channel(channelName, {
         config: { broadcast: { self: false } },
       });
 
       realtimeChannel
-        .on('broadcast', { event: 'device_presence' }, ({ payload }: { payload: ConnectedDevice }) => {
+        .on('broadcast', { event: 'device_presence' }, ({ payload }: { payload: ConnectedDevice & { userId?: string } }) => {
+          if (payload?.userId && payload.userId !== currentUserId) return;
           if (!payload?.deviceId || payload.deviceId === THIS_DEVICE.deviceId) return;
           const isNewlyOnline = !get().availableDevices.some((d) => d.deviceId === payload.deviceId);
           const currentList = get().availableDevices.filter((d) => d.deviceId !== payload.deviceId);
@@ -169,14 +243,17 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           // Yêu cầu lấy ngay bài hát và trạng thái từ Web Player
           safeBroadcast('playback_state_query', {});
         })
-        .on('broadcast', { event: 'device_offline' }, ({ payload }: { payload: { deviceId: string } }) => {
+        .on('broadcast', { event: 'device_offline' }, ({ payload }: { payload: { deviceId: string; userId?: string } }) => {
+          if (payload?.userId && payload.userId !== currentUserId) return;
           if (!payload?.deviceId) return;
           handleRemoteDeviceLost(payload.deviceId, useConnectStore);
         })
-        .on('broadcast', { event: 'device_presence_query' }, () => {
+        .on('broadcast', { event: 'device_presence_query' }, ({ payload }: { payload: any }) => {
+          if (payload?.userId && payload.userId !== currentUserId) return;
           safeBroadcast('device_presence', THIS_DEVICE);
         })
-        .on('broadcast', { event: 'playback_state_query' }, () => {
+        .on('broadcast', { event: 'playback_state_query' }, ({ payload }: { payload: any }) => {
+          if (payload?.userId && payload.userId !== currentUserId) return;
           const { usePlayerStore } = require('./playerStore');
           const ps = usePlayerStore.getState();
           if (get().activeDevice.deviceId === THIS_DEVICE.deviceId && ps.currentSong) {
@@ -185,6 +262,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         })
         .on('broadcast', { event: 'playback_state' }, ({ payload }: { payload: any }) => {
           if (!payload?.activeDeviceId) return;
+          if (payload.userId && payload.userId !== currentUserId) return;
 
           // Bỏ qua broadcast của chính mình
           if (payload.activeDeviceId === THIS_DEVICE.deviceId) return;
@@ -229,6 +307,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         })
         .on('broadcast', { event: 'command' }, async ({ payload }: { payload: any }) => {
           if (!payload) return;
+          if (payload.userId && payload.userId !== currentUserId) return;
 
           // Bỏ qua nếu lệnh không dành cho thiết bị này
           if (!isTargetedToThisDevice(payload)) return;
@@ -311,52 +390,18 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
                   }
                 );
 
-                // Heartbeat position mỗi 2 giây khi đang phát trên Điện thoại
-                setInterval(() => {
-                  try {
-                    const { usePlayerStore: ps } = require('./playerStore');
-                    const { currentSong, isPlaying, positionMs, durationMs } = ps.getState();
-                    const connectState = get();
-                    if (connectState.activeDevice.deviceId !== THIS_DEVICE.deviceId) return;
-                    if (currentSong && isPlaying) {
-                      connectState.broadcastLocalState(currentSong, isPlaying, positionMs, durationMs);
-                    }
-                  } catch (_) {}
-                }, 2000);
-
                 // Lắng nghe AppState khi người dùng mở lại app từ Background
                 if (!isAppStateListenerAttached) {
                   isAppStateListenerAttached = true;
                   AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
                     if (nextAppState === 'active') {
                       lastResumeTime = Date.now();
-                      // Re-query ngay lập tức từ PC Web Player
                       safeBroadcast('device_presence', THIS_DEVICE);
                       safeBroadcast('device_presence_query', {});
                       safeBroadcast('playback_state_query', {});
                     }
                   });
                 }
-
-                // Tự động dọn dẹp thiết bị offline (> 18s, có grace period 8s khi vừa mở lại app)
-                setInterval(() => {
-                  const now = Date.now();
-                  // Nếu app vừa thức dậy từ background chưa đầy 8 giây, bỏ qua để đợi phản hồi từ PC
-                  if (now - lastResumeTime < 8000) return;
-
-                  const valid = get().availableDevices.filter((d) => {
-                    if (d.deviceId === THIS_DEVICE.deviceId) return true;
-                    return d.lastSeen && now - d.lastSeen < 18000;
-                  });
-                  if (valid.length !== get().availableDevices.length) {
-                    set({ availableDevices: valid });
-                    const curActive = get().activeDevice;
-                    if (curActive.deviceId !== THIS_DEVICE.deviceId && !valid.some((d) => d.deviceId === curActive.deviceId)) {
-                      set({ activeDevice: THIS_DEVICE, remotePlayback: null });
-                      useToastStore.getState().showToast('Mất kết nối với máy tính, chuyển về điện thoại', 'info');
-                    }
-                  }
-                }, 4000);
               } catch (e) {
                 console.warn('[ConnectStore] subscribe error:', e);
               }
@@ -366,13 +411,46 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           }
         });
 
+      heartbeatInterval = setInterval(() => {
+        try {
+          const { usePlayerStore: ps } = require('./playerStore');
+          const { currentSong, isPlaying, positionMs, durationMs } = ps.getState();
+          const connectState = get();
+          if (connectState.activeDevice.deviceId !== THIS_DEVICE.deviceId) return;
+          if (currentSong && isPlaying) {
+            connectState.broadcastLocalState(currentSong, isPlaying, positionMs, durationMs);
+          }
+        } catch (_) {}
+      }, 2000);
+
+      cleanupInterval = setInterval(() => {
+        const now = Date.now();
+        if (now - lastResumeTime < 8000) return;
+
+        const valid = get().availableDevices.filter((d) => {
+          if (d.deviceId === THIS_DEVICE.deviceId) return true;
+          return d.lastSeen && now - d.lastSeen < 18000;
+        });
+        if (valid.length !== get().availableDevices.length) {
+          set({ availableDevices: valid });
+          const curActive = get().activeDevice;
+          if (curActive.deviceId !== THIS_DEVICE.deviceId && !valid.some((d) => d.deviceId === curActive.deviceId)) {
+            set({ activeDevice: THIS_DEVICE, remotePlayback: null });
+            useToastStore.getState().showToast('Mất kết nối với máy tính, chuyển về điện thoại', 'info');
+          }
+        }
+      }, 4000);
+
     } catch (e) {
       console.warn('[ConnectStore] Failed to init connect channel:', e);
     }
   },
 
   openConnectModal: () => {
-    get().initConnect();
+    const user = useAuthStore.getState().user;
+    if (user?.id && (!realtimeChannel || currentUserId !== user.id)) {
+      get().syncUserConnect(user.id);
+    }
     safeBroadcast('device_presence_query', {});
     set({ isConnectModalVisible: true });
   },

@@ -47,7 +47,10 @@ export const SeeAllScreen: React.FC<{ route: any; navigation: any }> = ({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const { playSong, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
+  const playSong = usePlayerStore((s) => s.playSong);
+  const isShuffle = usePlayerStore((s) => s.isShuffle);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const playbackContext = usePlayerStore((s) => s.playbackContext);
   const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { history } = useLibraryStore();
   const { showToast } = useToastStore();

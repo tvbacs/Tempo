@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../api/supabase';
 import { usePlayerStore } from './playerStore';
+import { useAuthStore } from './authStore';
 
 interface ConnectState {
   isOnline: boolean;
@@ -8,6 +9,7 @@ interface ConnectState {
   activeDeviceId: string;
   activeDeviceName: string;
   initConnect: () => void;
+  syncUserConnect: (userId: string | null) => void;
   broadcastPresence: () => void;
   broadcastState: () => void;
   sendCommand: (command: string, data?: any) => void;
@@ -18,7 +20,12 @@ interface ConnectState {
 const DEVICE_ID = 'web-player-pc';
 const DEVICE_NAME = 'Máy tính (PC)';
 let realtimeChannel: any = null;
+let currentUserId: string | null = null;
 let mobileLastSeen = 0;
+let isAuthSubscribed = false;
+let presenceInterval: any = null;
+let healthCheckInterval: any = null;
+let heartbeatInterval: any = null;
 
 const isTargetedToThisDevice = (payload: any) => {
   const targetDeviceId = payload?.targetDeviceId ?? payload?.data?.targetDeviceId;
@@ -33,14 +40,77 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
   activeDeviceName: DEVICE_NAME,
 
   initConnect: () => {
-    if (realtimeChannel) return;
+    // 1. Subscribe to auth store changes if not already attached
+    if (!isAuthSubscribed) {
+      isAuthSubscribed = true;
+      useAuthStore.subscribe((state) => {
+        const uid = state.user?.id || null;
+        if (uid !== currentUserId) {
+          get().syncUserConnect(uid);
+        }
+      });
+    }
 
-    realtimeChannel = supabase.channel('tempo_connect_channel', {
+    // 2. Initial sync with current user or session
+    const currentAuthUser = useAuthStore.getState().user;
+    if (currentAuthUser?.id) {
+      get().syncUserConnect(currentAuthUser.id);
+    } else {
+      supabase.auth.getSession().then(({ data }) => {
+        const uid = data?.session?.user?.id || null;
+        get().syncUserConnect(uid);
+      }).catch(() => {
+        get().syncUserConnect(null);
+      });
+    }
+  },
+
+  syncUserConnect: (userId: string | null) => {
+    // If same user and channel is active, do nothing
+    if (userId === currentUserId && realtimeChannel) return;
+
+    // 1. Cleanup old channel if exists
+    if (realtimeChannel) {
+      try {
+        if (realtimeChannel.state === 'joined' && currentUserId) {
+          realtimeChannel.send({
+            type: 'broadcast',
+            event: 'device_offline',
+            payload: { deviceId: DEVICE_ID, userId: currentUserId },
+          });
+        }
+        supabase.removeChannel(realtimeChannel);
+      } catch (_) {}
+      realtimeChannel = null;
+    }
+
+    if (presenceInterval) { clearInterval(presenceInterval); presenceInterval = null; }
+    if (healthCheckInterval) { clearInterval(healthCheckInterval); healthCheckInterval = null; }
+    if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+
+    currentUserId = userId;
+    mobileLastSeen = 0;
+
+    // 2. If no user is logged in, reset connect state and do not join any channel
+    if (!userId) {
+      set({
+        isOnline: false,
+        isMobileOnline: false,
+        activeDeviceId: DEVICE_ID,
+        activeDeviceName: DEVICE_NAME,
+      });
+      return;
+    }
+
+    // 3. Connect to user-scoped channel: tempo_connect_${userId}
+    const channelName = `tempo_connect_${userId}`;
+    realtimeChannel = supabase.channel(channelName, {
       config: { broadcast: { self: false } },
     });
 
     realtimeChannel
       .on('broadcast', { event: 'device_presence' }, ({ payload }: { payload: any }) => {
+        if (payload?.userId && payload.userId !== currentUserId) return;
         if (!payload?.deviceId || payload.deviceId === DEVICE_ID) return;
         mobileLastSeen = Date.now();
         set({
@@ -49,6 +119,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         });
       })
       .on('broadcast', { event: 'device_offline' }, ({ payload }: { payload: any }) => {
+        if (payload?.userId && payload.userId !== currentUserId) return;
         if (!payload?.deviceId || payload.deviceId === DEVICE_ID) return;
         mobileLastSeen = 0;
         set({
@@ -57,11 +128,13 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           activeDeviceName: DEVICE_NAME,
         });
       })
-      .on('broadcast', { event: 'device_presence_query' }, () => {
+      .on('broadcast', { event: 'device_presence_query' }, ({ payload }: { payload: any }) => {
+        if (payload?.userId && payload.userId !== currentUserId) return;
         get().broadcastPresence();
       })
       .on('broadcast', { event: 'command' }, ({ payload }: { payload: any }) => {
         if (!payload) return;
+        if (payload.userId && payload.userId !== currentUserId) return;
         if (!isTargetedToThisDevice(payload)) return;
 
         const { command, data = {} } = payload;
@@ -139,7 +212,8 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           return;
         }
       })
-      .on('broadcast', { event: 'playback_state_query' }, () => {
+      .on('broadcast', { event: 'playback_state_query' }, ({ payload }: { payload: any }) => {
+        if (payload?.userId && payload.userId !== currentUserId) return;
         get().broadcastPresence();
         if (get().activeDeviceId === DEVICE_ID) {
           get().broadcastState();
@@ -147,12 +221,13 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
       })
       .on('broadcast', { event: 'playback_state' }, ({ payload }: { payload: any }) => {
         if (!payload) return;
+        if (payload.userId && payload.userId !== currentUserId) return;
 
         // Bỏ qua nếu là state của chính PC
         if (!payload.activeDeviceId || payload.activeDeviceId === DEVICE_ID) return;
 
         mobileLastSeen = Date.now();
-        // Điện thoại đang phát → PC nhường ngay
+        // Điện thoại đang phát -> PC nhường ngay
         const cleanDeviceName = (payload.activeDeviceName || 'Điện thoại').replace(/ này/g, '').trim();
         set({
           isMobileOnline: true,
@@ -187,31 +262,29 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
               realtimeChannel.send({
                 type: 'broadcast',
                 event: 'device_presence_query',
-                payload: {},
+                payload: { userId: currentUserId },
               });
               realtimeChannel.send({
                 type: 'broadcast',
                 event: 'playback_state_query',
-                payload: {},
+                payload: { userId: currentUserId },
               });
             } catch (_) {}
           }
 
           setTimeout(() => {
-            // Chỉ broadcast nếu sau 1.5s vẫn là active device (mobile chưa trả lời)
             if (get().activeDeviceId === DEVICE_ID) {
               get().broadcastState();
             }
           }, 1500);
 
-          // Gửi tín hiệu offline ngay khi người dùng đóng tab, reload hoặc tắt trình duyệt
           const notifyOffline = () => {
-            if (realtimeChannel && realtimeChannel.state === 'joined') {
+            if (realtimeChannel && realtimeChannel.state === 'joined' && currentUserId) {
               try {
                 realtimeChannel.send({
                   type: 'broadcast',
                   event: 'device_offline',
-                  payload: { deviceId: DEVICE_ID },
+                  payload: { deviceId: DEVICE_ID, userId: currentUserId },
                 });
               } catch (_) {}
             }
@@ -222,10 +295,10 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         }
       });
 
-    setInterval(() => get().broadcastPresence(), 8000);
+    presenceInterval = setInterval(() => get().broadcastPresence(), 8000);
 
     // Kiểm tra điện thoại có còn online không (timeout 16s)
-    setInterval(() => {
+    healthCheckInterval = setInterval(() => {
       if (mobileLastSeen > 0 && Date.now() - mobileLastSeen > 16000) {
         if (get().isMobileOnline) {
           set({ isMobileOnline: false });
@@ -237,7 +310,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
     }, 4000);
 
     // Heartbeat phát nhạc sang điện thoại mỗi 2s khi đang phát trên PC
-    setInterval(() => {
+    heartbeatInterval = setInterval(() => {
       const ps = usePlayerStore.getState();
       if (ps.currentSong && ps.isPlaying && get().activeDeviceId === DEVICE_ID) {
         get().broadcastState();
@@ -246,7 +319,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
   },
 
   broadcastPresence: () => {
-    if (!realtimeChannel || realtimeChannel.state !== 'joined') return;
+    if (!realtimeChannel || realtimeChannel.state !== 'joined' || !currentUserId) return;
     const ps = usePlayerStore.getState();
     try {
       realtimeChannel.send({
@@ -260,13 +333,14 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           isPlaying: ps.isPlaying,
           currentSong: ps.currentSong,
           volume: ps.volume,
+          userId: currentUserId,
         },
       });
     } catch (_) {}
   },
 
   broadcastState: () => {
-    if (!realtimeChannel || realtimeChannel.state !== 'joined') return;
+    if (!realtimeChannel || realtimeChannel.state !== 'joined' || !currentUserId) return;
     const ps = usePlayerStore.getState();
     const isLocalActive = get().activeDeviceId === DEVICE_ID;
     if (!isLocalActive) return;
@@ -284,25 +358,26 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           currentSong: ps.currentSong,
           queue: ps.queue,
           volume: ps.volume,
+          userId: currentUserId,
         },
       });
     } catch (_) {}
   },
 
   sendCommand: (command: string, data?: any) => {
-    if (!realtimeChannel || realtimeChannel.state !== 'joined') return;
+    if (!realtimeChannel || realtimeChannel.state !== 'joined' || !currentUserId) return;
     try {
       realtimeChannel.send({
         type: 'broadcast',
         event: 'command',
-        payload: { command, data },
+        payload: { command, data, userId: currentUserId },
       });
     } catch (_) {}
   },
 
   requestTransferPlayback: () => {
     if (get().activeDeviceId === DEVICE_ID) return; // Đã đang active trên Web -> Không làm gì cả
-    if (!realtimeChannel) return;
+    if (!realtimeChannel || !currentUserId) return;
     const ps = usePlayerStore.getState();
     set({ activeDeviceId: DEVICE_ID, activeDeviceName: DEVICE_NAME });
 
@@ -315,7 +390,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
         realtimeChannel.send({
           type: 'broadcast',
           event: 'command',
-          payload: { command: 'pause', targetDeviceId: 'mobile-app' },
+          payload: { command: 'pause', targetDeviceId: 'mobile-app', userId: currentUserId },
         });
       } catch (_) {}
     }
@@ -323,7 +398,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
 
   transferPlaybackToMobile: () => {
     if (get().activeDeviceId !== DEVICE_ID) return; // Đã đang active trên Mobile -> Không làm gì cả
-    if (!realtimeChannel) return;
+    if (!realtimeChannel || !currentUserId) return;
     const ps = usePlayerStore.getState();
     if (ps.audioElement) {
       ps.audioElement.pause();
@@ -339,6 +414,7 @@ export const useConnectStore = create<ConnectState>((set, get) => ({
           payload: {
             command: 'transfer_playback',
             targetDeviceId: 'mobile-app',
+            userId: currentUserId,
             data: {
               song: ps.currentSong,
               queue: ps.queue,

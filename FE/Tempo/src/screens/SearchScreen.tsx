@@ -139,7 +139,7 @@ export const SearchScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState<UnifiedSong | null>(null);
   const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
 
-  const { playSong } = usePlayerStore();
+  const playSong = usePlayerStore((s) => s.playSong);
   const searchTimeout = useRef<any>(null);
 
   useEffect(() => {
@@ -547,13 +547,13 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   genreCardBg: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
   genreCardOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   genreName: {
     fontSize: TYPOGRAPHY.sizeBody,

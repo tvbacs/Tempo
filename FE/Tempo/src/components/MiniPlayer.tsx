@@ -51,7 +51,7 @@ export const MiniPlayerProgressBar: React.FC<{ isRemote: boolean }> = React.memo
 export const MiniPlayer: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { hasTabBar } = useNavStore();
-  const { openFullPlayer } = usePlayerStore();
+  const openFullPlayer = usePlayerStore((s) => s.openFullPlayer);
   const {
     isRemote,
     song,
@@ -71,9 +71,8 @@ export const MiniPlayer: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const bottomInset = insets.bottom > 0 ? insets.bottom : SPACING.sm;
-  const bottomPosition = hasTabBar
-    ? LAYOUT.tabBarHeight + bottomInset + SPACING.xs
-    : bottomInset + SPACING.xs;
+  const navBarHeight = LAYOUT.tabBarHeight - 4 + (insets.bottom > 0 ? insets.bottom - 6 : 0);
+  const bottomPosition = hasTabBar ? navBarHeight : bottomInset;
 
   // Trigger Spotify-style speech bubble tooltip khi thiết bị từ xa đang active HOẶC vừa phát hiện Web Player online
   useEffect(() => {
@@ -343,11 +342,11 @@ const styles = StyleSheet.create({
   // Main MiniPlayer Card
   wrapper: {
     position: 'absolute',
-    left: SPACING.md,
-    right: SPACING.md,
+    left: 8,
+    right: 8,
     height: LAYOUT.miniPlayerHeight,
     backgroundColor: '#1C1C24',
-    borderRadius: LAYOUT.radiusMd,
+    borderRadius: 10,
     overflow: 'hidden',
     elevation: 12,
     shadowColor: COLORS.black,
@@ -367,7 +366,7 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: 46,
     height: 46,
-    borderRadius: LAYOUT.radiusSm,
+    borderRadius: 8,
     backgroundColor: COLORS.bgSurfaceSecondary,
   },
   info: {
@@ -428,7 +427,7 @@ const styles = StyleSheet.create({
   },
   collapsedWrapper: {
     position: 'absolute',
-    right: SPACING.md,
+    right: 8,
     zIndex: 999,
     elevation: 20,
     shadowColor: COLORS.black,

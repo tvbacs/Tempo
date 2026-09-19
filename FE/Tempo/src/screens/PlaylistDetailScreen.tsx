@@ -52,7 +52,10 @@ export const PlaylistDetailScreen: React.FC<{
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const { playSong, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
+  const playSong = usePlayerStore((s) => s.playSong);
+  const isShuffle = usePlayerStore((s) => s.isShuffle);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const playbackContext = usePlayerStore((s) => s.playbackContext);
   const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { playlists, savedAlbums, setLastPlayedContext, toggleSaveAlbum, isAlbumSaved, removeSongFromPlaylist } = useLibraryStore();
   const { showToast } = useToastStore();

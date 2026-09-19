@@ -142,7 +142,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const isPlayStateChanged = state.isPlaying !== status.isPlaying;
       const isBufferingChanged = state.isLoading !== status.isBuffering;
       const isDurationChanged = Math.abs(state.durationMs - accurateDurationMs) > 500;
-      const isPositionChanged = Math.abs(accuratePositionMs - state.positionMs) >= 250;
+      const isPositionChanged = Math.abs(accuratePositionMs - state.positionMs) >= 500;
 
       if (isPlayStateChanged || isBufferingChanged || isDurationChanged || isPositionChanged) {
         set({

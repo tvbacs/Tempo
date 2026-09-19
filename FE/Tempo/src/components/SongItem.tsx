@@ -31,8 +31,8 @@ export const SongItem: React.FC<SongItemProps> = React.memo(({
   onPlusPress,
 }) => {
   const isCurrent = usePlayerStore((s) => s.currentSong?.id === song.id);
-  const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const isLoading = usePlayerStore((s) => s.isLoading);
+  const isPlaying = usePlayerStore((s) => s.isPlaying && s.currentSong?.id === song.id);
+  const isLoading = usePlayerStore((s) => s.isLoading && s.currentSong?.id === song.id);
   const playSong = usePlayerStore((s) => s.playSong);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
   const isDownloaded = useDownloadStore((s) => s.downloadedSongs.some((ds) => ds.id === song.id));
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   playingOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: COLORS.bgOverlay,
     alignItems: 'center',
     justifyContent: 'center',

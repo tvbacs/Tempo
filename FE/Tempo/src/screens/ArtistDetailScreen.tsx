@@ -68,7 +68,10 @@ export const ArtistDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const [selectedSongForOptions, setSelectedSongForOptions] = useState<UnifiedSong | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showFullBio, setShowFullBio] = useState<boolean>(false);
-  const { playSong, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
+  const playSong = usePlayerStore((s) => s.playSong);
+  const isShuffle = usePlayerStore((s) => s.isShuffle);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const playbackContext = usePlayerStore((s) => s.playbackContext);
   const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { toggleFollowArtist, isArtistFollowed } = useLibraryStore();
   const { showToast } = useToastStore();
@@ -401,13 +404,13 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   heroImage: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
   heroGradientOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   artistHeroInfo: {
     paddingHorizontal: SPACING.screenPadding,

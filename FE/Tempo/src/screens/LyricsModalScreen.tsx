@@ -57,7 +57,12 @@ export const LyricsModalScreen: React.FC = () => {
   const flatListRef = useRef<FlatList<LyricSentence>>(null);
   const prevActiveIndexRef = useRef<number>(-1);
 
-  const { isLyricsScreenVisible, closeLyricsScreen, toggleShuffle, cycleRepeat, isShuffle, repeatMode } = usePlayerStore();
+  const isLyricsScreenVisible = usePlayerStore((s) => s.isLyricsScreenVisible);
+  const closeLyricsScreen = usePlayerStore((s) => s.closeLyricsScreen);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
+  const isShuffle = usePlayerStore((s) => s.isShuffle);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
   const {
     isRemote,
     song: currentSong,

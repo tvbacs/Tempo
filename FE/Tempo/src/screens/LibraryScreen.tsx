@@ -70,7 +70,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   } = useLibraryStore();
 
   const { downloadedSongs, fetchDownloads } = useDownloadStore();
-  const { playSong } = usePlayerStore();
+  const playSong = usePlayerStore((s) => s.playSong);
   const { user } = useAuthStore();
 
   useEffect(() => {
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   diagonalPillContainer: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
     opacity: 0.7,
   },

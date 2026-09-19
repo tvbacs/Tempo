@@ -87,7 +87,7 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   const [recentExtracts, setRecentExtracts] = useState<UnifiedSong[]>([]);
   const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState<UnifiedSong | null>(null);
 
-  const { playSong } = usePlayerStore();
+  const playSong = usePlayerStore((s) => s.playSong);
   const { downloadedSongs, downloadSong, isDownloaded, isDownloading, fetchDownloads } = useDownloadStore();
   const { isLiked, toggleLike } = useLibraryStore();
   const { showToast } = useToastStore();
@@ -227,10 +227,6 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
           />
 
           <View style={styles.extractorHeader}>
-            <View style={styles.tagWrap}>
-              <Music size={14} color={COLORS.accentPrimary} />
-              <Text style={styles.tagText}>UNIVERSAL MUSIC DOWNLOADER</Text>
-            </View>
             <Text style={styles.extractorTitle}>Tải Nhạc Trực Tiếp & Trích Xuất</Text>
             <Text style={styles.extractorSub}>
               Có thể nghe & thêm vào Yêu thích / Danh sách phát mà không cần tải xuống, hoặc lưu về máy để nghe Offline.
@@ -455,7 +451,7 @@ export const DownloaderScreen: React.FC<{ navigation: any }> = ({ navigation }) 
           />
           <View style={styles.offlineHubContent}>
             <View style={styles.offlineHubIconBox}>
-              <HardDriveDownload size={24} color={COLORS.white} />
+              <HardDriveDownload size={24} color="#1DB954" />
             </View>
             <View style={styles.offlineHubTextWrap}>
               <Text style={styles.offlineHubTitle}>Bài Hát Đã Tải Xuống</Text>
@@ -614,7 +610,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   offlineHubGradient: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   offlineHubContent: {
     flexDirection: "row",
@@ -625,7 +621,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: LAYOUT.radiusMd,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(29, 185, 84, 0.12)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: SPACING.md,
@@ -668,7 +664,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   extractorGradient: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   extractorHeader: {
     marginBottom: SPACING.md,

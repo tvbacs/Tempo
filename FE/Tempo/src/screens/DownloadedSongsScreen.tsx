@@ -64,7 +64,11 @@ export const DownloadedSongsScreen: React.FC<{
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const { playSong, isLoading, isShuffle, toggleShuffle, playbackContext } = usePlayerStore();
+  const playSong = usePlayerStore((s) => s.playSong);
+  const isLoading = usePlayerStore((s) => s.isLoading);
+  const isShuffle = usePlayerStore((s) => s.isShuffle);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const playbackContext = usePlayerStore((s) => s.playbackContext);
   const { song: currentSong, isPlaying, togglePlayPause } = useActivePlayback();
   const { downloadedSongs, fetchDownloads, removeDownload } = useDownloadStore();
   const { showToast } = useToastStore();

@@ -136,7 +136,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [isOffline, setIsOffline] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  const { playSong, currentSong } = usePlayerStore();
+  const playSong = usePlayerStore((s) => s.playSong);
+  const currentSong = usePlayerStore((s) => s.currentSong);
   const {
     history,
     fetchHistory,
@@ -1486,7 +1487,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xs,
   },
   diagonalPillContainer: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     overflow: "hidden",
     opacity: 0.7,
   },
@@ -1744,11 +1745,11 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   continueCoverOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.35)",
   },
   continueCenterPlayBtn: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 2,
@@ -2008,7 +2009,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs + 2,
   },
   dailyMixGradient: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   dailyMixCoverImg: {
     position: "absolute",

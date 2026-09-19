@@ -41,7 +41,7 @@ export const SleepTimerModal: React.FC = () => {
     cancelTimer,
   } = useSleepTimerStore();
 
-  const { currentSong } = usePlayerStore();
+  const currentSong = usePlayerStore((s) => s.currentSong);
 
   if (!isModalVisible) return null;
 

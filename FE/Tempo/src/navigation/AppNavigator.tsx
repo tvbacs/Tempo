@@ -39,23 +39,32 @@ const Stack = createStackNavigator();
 
 const MainTabs: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const bottomInset = insets.bottom > 0 ? insets.bottom : SPACING.sm;
+  const bottomInset = insets.bottom > 0 ? insets.bottom - 6 : 4;
+  const navHeight = LAYOUT.tabBarHeight - 4 + (insets.bottom > 0 ? insets.bottom - 6 : 0);
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarBackground: () => (
+          <LinearGradient
+            colors={["rgba(16, 16, 20, 0.95)", "#000000"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
         tabBarStyle: {
-          backgroundColor: COLORS.bgPrimary,
+          backgroundColor: "transparent",
           borderTopWidth: LAYOUT.borderNone,
           elevation: 0,
           shadowOpacity: 0,
-          height: LAYOUT.tabBarHeight + (insets.bottom > 0 ? insets.bottom - 4 : 0),
+          height: navHeight,
           paddingBottom: bottomInset,
-          paddingTop: 8,
+          paddingTop: 6,
         },
-        tabBarActiveTintColor: COLORS.accentPrimary,
-        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarActiveTintColor: "#FFFFFF",
+        tabBarInactiveTintColor: "#8E8E93",
         tabBarLabelStyle: {
           fontSize: TYPOGRAPHY.sizeMicro,
           fontWeight: "700",
@@ -69,7 +78,7 @@ const MainTabs: React.FC = () => {
         options={{
           tabBarLabel: "Trang chủ",
           tabBarIcon: ({ color, focused }) => (
-            <Home size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            <Home size={24} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
         }}
       />
@@ -79,17 +88,7 @@ const MainTabs: React.FC = () => {
         options={{
           tabBarLabel: "Tìm kiếm",
           tabBarIcon: ({ color, focused }) => (
-            <Search size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Library"
-        component={LibraryScreen}
-        options={{
-          tabBarLabel: "Thư viện",
-          tabBarIcon: ({ color, focused }) => (
-            <Library size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            <Search size={24} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
         }}
       />
@@ -99,7 +98,17 @@ const MainTabs: React.FC = () => {
         options={{
           tabBarLabel: "Tải xuống",
           tabBarIcon: ({ color, focused }) => (
-            <Download size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            <Download size={24} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Library"
+        component={LibraryScreen}
+        options={{
+          tabBarLabel: "Thư viện",
+          tabBarIcon: ({ color, focused }) => (
+            <Library size={24} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
         }}
       />
@@ -109,7 +118,7 @@ const MainTabs: React.FC = () => {
         options={{
           tabBarLabel: "Nâng cấp",
           tabBarIcon: ({ color, focused }) => (
-            <Crown size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            <Crown size={24} color={color} strokeWidth={focused ? 2.5 : 1.8} />
           ),
         }}
       />
@@ -117,7 +126,8 @@ const MainTabs: React.FC = () => {
   );
 };
 
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SavedAlbumsScreen } from "../screens/SavedAlbumsScreen";
 import { NotificationScreen } from "../screens/NotificationScreen";
 

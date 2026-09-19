@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bgPrimary,
   },
   heroBackgroundContainer: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
   },
   floatingArtworkCard: {

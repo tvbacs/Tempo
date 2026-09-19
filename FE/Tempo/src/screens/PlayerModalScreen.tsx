@@ -92,18 +92,16 @@ const FullPlayerContent: React.FC = () => {
     seekTo,
   } = useActivePlayback(true);
 
-  const {
-    isShuffle,
-    repeatMode,
-    isFullPlayerVisible,
-    toggleShuffle,
-    cycleRepeat,
-    closeFullPlayer,
-    openLyricsScreen,
-    playSong,
-    playbackContext,
-    getNextTrack,
-  } = usePlayerStore();
+  const isShuffle = usePlayerStore((s) => s.isShuffle);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const isFullPlayerVisible = usePlayerStore((s) => s.isFullPlayerVisible);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
+  const closeFullPlayer = usePlayerStore((s) => s.closeFullPlayer);
+  const openLyricsScreen = usePlayerStore((s) => s.openLyricsScreen);
+  const playSong = usePlayerStore((s) => s.playSong);
+  const playbackContext = usePlayerStore((s) => s.playbackContext);
+  const getNextTrack = usePlayerStore((s) => s.getNextTrack);
 
   const { volume: remoteVolume, setVolume: setRemoteVolume } = useConnectStore();
   const { isLiked, toggleLike, toggleFollowArtist, isArtistFollowed } = useLibraryStore();
@@ -1186,13 +1184,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bgSurfaceSecondary,
   },
   artistCoverImg: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
   artistGradient: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   artistCardOverlay: {
     padding: SPACING.lg,

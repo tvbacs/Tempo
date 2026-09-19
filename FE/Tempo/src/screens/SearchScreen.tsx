@@ -29,6 +29,7 @@ import { UnifiedSong, Artist } from "../types/music";
 import { SongItem } from "../components/SongItem";
 import { AddToPlaylistModal } from "../components/AddToPlaylistModal";
 import { SongOptionsModal } from "../components/SongOptionsModal";
+import { AppAvatarBadge } from "../components/AppAvatarBadge";
 import { usePlayerStore } from "../store/playerStore";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 
@@ -198,9 +199,21 @@ export const SearchScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Tìm kiếm</Text>
+      <View style={styles.topNav}>
+        <View style={styles.navLeft}>
+          <Text style={styles.headerMainTitle}>Tìm kiếm</Text>
+        </View>
 
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate("Profile")}
+          style={styles.headerAvatarBtn}
+        >
+          <AppAvatarBadge size={42} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.searchBarWrapper}>
         <View style={styles.searchBar}>
           <SearchIcon size={18} color={COLORS.textSecondary} />
           <TextInput
@@ -412,16 +425,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bgPrimary,
   },
-  header: {
+  topNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: SPACING.screenPadding,
     paddingTop: SPACING.sm,
-    paddingBottom: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
-  title: {
-    fontSize: TYPOGRAPHY.sizeBody + 1.5,
+  navLeft: {
+    flex: 1,
+  },
+  headerMainTitle: {
+    fontSize: TYPOGRAPHY.sizeHero,
     fontWeight: "800",
-    color: "#EEEEF2",
-    marginBottom: SPACING.md,
+    color: COLORS.textPrimary,
+    letterSpacing: -0.5,
+  },
+  headerAvatarBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    overflow: "visible",
+  },
+  searchBarWrapper: {
+    paddingHorizontal: SPACING.screenPadding,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.md,
   },
   searchBar: {
     flexDirection: "row",

@@ -118,7 +118,7 @@ export const UpgradeScreen: React.FC = () => {
         <LinearGradient
           colors={['#5A122A', '#2D0A16', '#14060B', COLORS.bgPrimary]}
           locations={[0, 0.35, 0.65, 1]}
-          style={[styles.heroGradientBackground, { paddingTop: topSafePadding + SPACING.lg }]}
+          style={[styles.heroGradientBackground, { paddingTop: topSafePadding + SPACING.xxl }]}
         >
           <View style={styles.glowAura} pointerEvents="none" />
 
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   crownBox: {
     width: 24,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     letterSpacing: -0.5,
     lineHeight: 28,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg + 4,
   },
   planSelectorRow: {
     flexDirection: 'row',

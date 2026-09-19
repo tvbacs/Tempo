@@ -618,10 +618,6 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
   },
   offlineHubIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: LAYOUT.radiusMd,
-    backgroundColor: "rgba(29, 185, 84, 0.12)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: SPACING.md,

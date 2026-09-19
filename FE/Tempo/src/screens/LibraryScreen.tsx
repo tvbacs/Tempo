@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -45,7 +45,6 @@ const formatDuration = (ms: number): string => {
 };
 
 export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPlaylistForOptions, setSelectedPlaylistForOptions] = useState<CustomPlaylist | null>(null);
   const [showAddSongsModal, setShowAddSongsModal] = useState(false);
@@ -87,47 +86,47 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   );
 
   return (
-    <View style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.topNav}>
+        <View style={styles.navLeft}>
+          <Text style={styles.headerMainTitle}>Thư viện</Text>
+        </View>
+
+        <View style={styles.navRight}>
+          {!user?.isVip && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('Upgrade')}
+              style={styles.proUpgradeBadge}
+            >
+              <LinearGradient
+                colors={['#FC475C', '#FC655A']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.proUpgradeGradient}
+              >
+                <Crown size={11} color={COLORS.white} fill={COLORS.white} style={{ marginRight: 3 }} />
+                <Text style={styles.proUpgradeText}>VIP</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Profile')}
+            style={styles.headerAvatarBtn}
+          >
+            <AppAvatarBadge size={42} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Top SoundCloud-style Header Section */}
-        <View style={[styles.heroHeaderRow, { paddingTop: Math.max(insets.top, 20), paddingBottom: SPACING.md }]}>
-          <View style={styles.headerLeftGroup}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate('Profile')}
-              style={styles.headerAvatarBtn}
-            >
-              <AppAvatarBadge size={38} />
-            </TouchableOpacity>
-
-            {!user?.isVip ? (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('Upgrade')}
-                style={styles.proUpgradeBadge}
-              >
-                <LinearGradient
-                  colors={['#FC475C', '#FC655A']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.proUpgradeGradient}
-                >
-                  <Crown size={11} color={COLORS.white} fill={COLORS.white} style={{ marginRight: 3 }} />
-                  <Text style={styles.proUpgradeText}>Nâng cấp VIP</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            ) : null}
-
-            <Text style={styles.title}>Thư viện</Text>
-          </View>
-
-          <View style={styles.headerRightRow} />
-        </View>
 
         {/* SoundCloud-style Clean Vertical Navigation Rows */}
         <View style={styles.bannerCardsContainer}>
@@ -166,7 +165,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               />
             ) : (
               <LinearGradient
-                colors={['#065F46', '#10B981']}
+                colors={['#1D4ED8', '#06B6D4']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.cardIconBox}
@@ -394,7 +393,7 @@ export const LibraryScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         visible={showAddSongsModal}
         onClose={() => setShowAddSongsModal(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -452,42 +451,32 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
 
-  heroHeaderRow: {
+  topNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.screenPadding,
     paddingTop: SPACING.sm,
-    zIndex: 3,
+    paddingBottom: SPACING.sm,
   },
-  headerLeftGroup: {
+  navLeft: {
+    flex: 1,
+  },
+  navRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm + 2,
   },
-  title: {
-    fontSize: TYPOGRAPHY.sizeHero - 2,
+  headerMainTitle: {
+    fontSize: TYPOGRAPHY.sizeHero,
     fontWeight: '800',
-    color: '#EEEEF2',
+    color: COLORS.textPrimary,
     letterSpacing: -0.5,
   },
-  headerRightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  headerIconBtn: {
-    width: LAYOUT.iconButtonMd,
-    height: LAYOUT.iconButtonMd,
-    borderRadius: LAYOUT.radiusFull,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerAvatarBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     overflow: 'visible',
   },
   proUpgradeBadge: {

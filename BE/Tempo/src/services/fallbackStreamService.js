@@ -137,7 +137,28 @@ const resolveAudioStream = async (songId, title = "", artist = "") => {
     };
   }
 
-  // ─── 2. Zing MP3 Track: Thử phát trực tiếp nếu là bài miễn phí ───
+  // ─── 2. YouTube track ID trực tiếp (youtube_xxx hoặc yt_xxx) ───
+  if (songId.startsWith("youtube_") || songId.startsWith("yt_")) {
+    const rawYtId = songId.replace(/^youtube_/, "").replace(/^yt_/, "");
+    if (rawYtId) {
+      try {
+        const { extractYouTubeMetadata } = require("./ytDlpService");
+        const extResult = await extractYouTubeMetadata(`https://www.youtube.com/watch?v=${rawYtId}`);
+        if (extResult?.audioUrl) {
+          console.log(`[YouTube Direct ID] OK - Lấy audio thành công cho "${extResult.title || title}"`);
+          return {
+            ...extResult,
+            isFallback: false,
+            fallbackSource: "youtube_direct",
+          };
+        }
+      } catch (ytIdErr) {
+        console.warn(`[YouTube Direct ID] Lỗi giải mã rawId ${rawYtId}:`, ytIdErr.message);
+      }
+    }
+  }
+
+  // ─── 3. Zing MP3 Track: Thử phát trực tiếp nếu là bài miễn phí ───
   const rawId = songId.replace("zing_", "");
   try {
     const res = await ZingMp3.getSong(rawId);

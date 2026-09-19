@@ -179,7 +179,7 @@ class AudioEngine {
         || (song.source as string) === 'soundcloud'
         || (song.source as string) === 'extract'
         || (song as any).isExtracted === true
-        || (song.id?.startsWith('yt_') || song.id?.startsWith('tt_') || song.id?.startsWith('sc_'));
+        || (song.id?.startsWith('yt_') || song.id?.startsWith('youtube_') || song.id?.startsWith('tt_') || song.id?.startsWith('sc_'));
 
       // Ưu tiên 2: Nếu bài có direct audioUrl HTTP trực tiếp (không phải file:// và không phải extract hết hạn)
       if (!streamUrl && song.audioUrl && song.audioUrl.startsWith('http') && !isOnlineExtract) {
@@ -191,7 +191,18 @@ class AudioEngine {
       if (!streamUrl && isOnlineExtract) {
         try {
           console.log('[AudioEngine] Refreshing extract URL for:', song.title);
-          const ytUrl = (song as any).url || (song as any).webpageUrl || (song as any).originalUrl || (song.id?.startsWith('yt_') ? `https://www.youtube.com/watch?v=${song.id.replace('yt_', '')}` : undefined);
+          let rawYtId = '';
+          if (song.id?.startsWith('youtube_')) {
+            rawYtId = song.id.replace('youtube_', '');
+          } else if (song.id?.startsWith('yt_')) {
+            rawYtId = song.id.replace('yt_', '');
+          }
+
+          const ytUrl = (song as any).url
+            || (song as any).webpageUrl
+            || (song as any).originalUrl
+            || (rawYtId ? `https://www.youtube.com/watch?v=${rawYtId}` : undefined);
+
           if (ytUrl && ytUrl.startsWith('http')) {
             try {
               const ext = await apiClient.extractYouTube(ytUrl);

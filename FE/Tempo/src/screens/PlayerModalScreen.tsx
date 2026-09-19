@@ -61,6 +61,7 @@ import { useConnectStore, useActivePlayback } from "../store/connectStore";
 import { COLORS, LAYOUT, SPACING, TYPOGRAPHY } from "../constants/theme";
 import { WaveformScrubber } from "../components/WaveformScrubber";
 import { LyricsModalScreen } from "./LyricsModalScreen";
+import { Skeleton } from "../components/SkeletonLoader";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -72,6 +73,56 @@ function getHighResArtworkUrl(url?: string): string {
   // Tự động nâng cấp thumbnail Zing MP3 từ w240/w360 lên w1024 để không bị vỡ/mờ
   return url.replace(/\/w\d+_/g, "/w1024_");
 }
+
+const ArtistSectionSkeleton: React.FC = () => (
+  <View style={styles.artistSection}>
+    <View style={styles.artistSectionHeader}>
+      <Skeleton width={140} height={14} borderRadius={LAYOUT.radiusXs} />
+      <Skeleton width={60} height={14} borderRadius={LAYOUT.radiusXs} />
+    </View>
+    <View
+      style={[
+        styles.artistCard,
+        {
+          backgroundColor: COLORS.bgSurfaceSecondary,
+          padding: SPACING.lg,
+          justifyContent: "flex-end",
+        },
+      ]}
+    >
+      <View style={styles.artistInfoRow}>
+        <View style={styles.artistTextCol}>
+          <Skeleton width="55%" height={20} style={{ marginBottom: 6 }} />
+          <Skeleton width="35%" height={12} />
+        </View>
+        <Skeleton width={88} height={32} borderRadius={LAYOUT.radiusFull} />
+      </View>
+      <Skeleton width="92%" height={12} style={{ marginBottom: 6 }} />
+      <Skeleton width="65%" height={12} />
+    </View>
+  </View>
+);
+
+const RecommendSectionSkeleton: React.FC = () => (
+  <View style={styles.recommendSection}>
+    <Skeleton width={140} height={14} borderRadius={LAYOUT.radiusXs} style={{ marginBottom: SPACING.md }} />
+    {[1, 2, 3, 4].map((i) => (
+      <View key={i} style={styles.recSongRow}>
+        <Skeleton
+          width={LAYOUT.avatarSm}
+          height={LAYOUT.avatarSm}
+          borderRadius={LAYOUT.radiusSm}
+          style={{ marginRight: SPACING.md }}
+        />
+        <View style={styles.recInfo}>
+          <Skeleton width="65%" height={14} style={{ marginBottom: 6 }} />
+          <Skeleton width="35%" height={11} />
+        </View>
+        <Skeleton width={20} height={20} borderRadius={10} />
+      </View>
+    ))}
+  </View>
+);
 
 const FullPlayerContent: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -124,6 +175,8 @@ const FullPlayerContent: React.FC = () => {
     alias: string;
   } | null>(null);
   const [showFullBio, setShowFullBio] = useState(false);
+  const [isLoadingArtist, setIsLoadingArtist] = useState(false);
+  const [isLoadingRecommended, setIsLoadingRecommended] = useState(false);
 
   const liked = currentSong ? isLiked(currentSong.id) : false;
 
@@ -133,62 +186,81 @@ const FullPlayerContent: React.FC = () => {
       setShowStory(false);
       setArtistInfo(null);
       setShowFullBio(false);
+      setRecommendedSongs([]);
+
+      const isLocalSong =
+        (currentSong as any)?.source === 'local' ||
+        (typeof currentSong?.id === 'string' && currentSong.id.startsWith('local_'));
+
+      if (isLocalSong) {
+        setIsLoadingArtist(false);
+        setIsLoadingRecommended(false);
+        return;
+      }
 
       // Tải danh sách bài hát gợi ý và thông tin nghệ sĩ chính thức
       const artistQuery = (currentSong.artistsNames || "").split(",")[0].trim();
-      if (artistQuery) {
-        apiClient
-          .search(artistQuery)
-          .then((res) => {
-            const filtered = (res.songs || []).filter((s) => s.id !== currentSong.id).slice(0, 5);
-            setRecommendedSongs(filtered);
+      if (!artistQuery) {
+        setIsLoadingArtist(false);
+        setIsLoadingRecommended(false);
+        return;
+      }
 
-            if (res.artists && res.artists.length > 0) {
-              const matched = res.artists[0];
-              if (matched) {
-                setArtistInfo((prev) => ({
-                  name: matched.name || artistQuery,
-                  thumbnail: matched.thumbnail || prev?.thumbnail || currentSong.thumbnail || '',
-                  cover: matched.thumbnail || prev?.cover || currentSong.thumbnail || '',
-                  biography: prev?.biography || `Nghệ sĩ ${matched.name || artistQuery}`,
-                  sortBiography: prev?.sortBiography || '',
-                  totalFollow: matched.totalFollow || prev?.totalFollow || 0,
-                  alias: (matched as any).alias || (matched as any).id || artistQuery.toLowerCase().replace(/\s+/g, "-"),
-                }));
-              }
+      setIsLoadingRecommended(true);
+      setIsLoadingArtist(true);
+
+      apiClient
+        .search(artistQuery)
+        .then((res) => {
+          const filtered = (res.songs || []).filter((s) => s.id !== currentSong.id).slice(0, 5);
+          setRecommendedSongs(filtered);
+
+          if (res.artists && res.artists.length > 0) {
+            const matched = res.artists[0];
+            if (matched) {
+              setArtistInfo((prev) => ({
+                name: matched.name || artistQuery,
+                thumbnail: matched.thumbnail || prev?.thumbnail || currentSong.thumbnail || '',
+                cover: matched.thumbnail || prev?.cover || currentSong.thumbnail || '',
+                biography: prev?.biography || (matched as any).biography || '',
+                sortBiography: prev?.sortBiography || (matched as any).sortBiography || '',
+                totalFollow: matched.totalFollow || prev?.totalFollow || 0,
+                alias: (matched as any).alias || (matched as any).id || artistQuery.toLowerCase().replace(/\s+/g, "-"),
+              }));
+            }
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          setIsLoadingRecommended(false);
+        });
+
+      const artistAlias =
+        currentSong.artists?.[0]?.link?.replace("/", "") ||
+        artistQuery.toLowerCase().replace(/\s+/g, "-");
+
+      if (artistAlias) {
+        apiClient
+          .getArtistInfo(artistAlias)
+          .then((info) => {
+            if (info) {
+              setArtistInfo((prev) => ({
+                ...info,
+                thumbnail: info.thumbnail || info.cover || prev?.thumbnail || currentSong.thumbnail || '',
+                cover: info.cover || info.thumbnail || prev?.cover || currentSong.thumbnail || '',
+              }));
             }
           })
-          .catch(() => {});
-
-        const artistAlias =
-          currentSong.artists?.[0]?.link?.replace("/", "") ||
-          artistQuery.toLowerCase().replace(/\s+/g, "-");
-
-        if (artistAlias) {
-          apiClient
-            .getArtistInfo(artistAlias)
-            .then((info) => {
-              if (info) {
-                setArtistInfo((prev) => ({
-                  ...info,
-                  thumbnail: info.thumbnail || info.cover || prev?.thumbnail || currentSong.thumbnail || '',
-                  cover: info.cover || info.thumbnail || prev?.cover || currentSong.thumbnail || '',
-                }));
-              }
-            })
-            .catch(() => {
-              setArtistInfo((prev) => prev || {
-                name: artistQuery,
-                thumbnail: currentSong.thumbnail || '',
-                cover: currentSong.thumbnail || '',
-                biography: `Nghệ sĩ ${artistQuery}`,
-                sortBiography: '',
-                totalFollow: 0,
-                alias: artistAlias,
-              });
-            });
-        }
+          .catch(() => {})
+          .finally(() => {
+            setIsLoadingArtist(false);
+          });
+      } else {
+        setIsLoadingArtist(false);
       }
+    } else {
+      setIsLoadingArtist(false);
+      setIsLoadingRecommended(false);
     }
   }, [currentSong?.id]);
 
@@ -690,7 +762,9 @@ const FullPlayerContent: React.FC = () => {
             )}
 
             {/* 2. GIỚI THIỆU VỀ NGHỆ SĨ */}
-            {artistInfo && (
+            {isLoadingArtist ? (
+              <ArtistSectionSkeleton />
+            ) : artistInfo ? (
               <View style={styles.artistSection}>
                 <View style={styles.artistSectionHeader}>
                   <Text style={styles.artistSectionLabel}>GIỚI THIỆU VỀ NGHỆ SĨ</Text>
@@ -772,10 +846,12 @@ const FullPlayerContent: React.FC = () => {
                   </View>
                 </TouchableOpacity>
               </View>
-            )}
+            ) : null}
 
             {/* 3. GỢI Ý CÙNG THỂ LOẠI */}
-            {recommendedSongs.length > 0 && (
+            {isLoadingRecommended ? (
+              <RecommendSectionSkeleton />
+            ) : recommendedSongs.length > 0 ? (
               <View style={styles.recommendSection}>
                 <Text style={styles.sectionLabel}>GỢI Ý CÙNG THỂ LOẠI</Text>
                 {recommendedSongs.map((rec) => (
@@ -805,7 +881,7 @@ const FullPlayerContent: React.FC = () => {
                   </TouchableOpacity>
                 ))}
               </View>
-            )}
+            ) : null}
           </View>
         </ScrollView>
 

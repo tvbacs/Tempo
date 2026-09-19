@@ -108,16 +108,30 @@ class AudioEngine {
     // Dừng watchdog cũ nếu có
     this.clearWatchdog();
 
-    const oldPlayer = this.player;
-    this.player = null;
+    // Dừng ngay lập tức bài cũ đang phát, huỷ player cũ và lock screen controls
+    if (this.player) {
+      try { this.player.pause(); } catch (_) {}
+      try { (this.player as any).clearLockScreenControls?.(); } catch (_) {}
+      try { this.player.remove(); } catch (_) {}
+      this.player = null;
+    }
+    this.currentSongId = null;
+
+    // Reset ngay lập tức trạng thái phát nhạc về loading, position 0
+    if (this.onStatusUpdateCallback) {
+      this.onStatusUpdateCallback({
+        isLoaded: false,
+        isPlaying: false,
+        durationMillis: (song.duration && song.duration > 0) ? song.duration * 1000 : 0,
+        positionMillis: 0,
+        isBuffering: true,
+        didJustFinish: false,
+      });
+    }
 
     try {
       // Nếu trong lúc chuyển bài có request mới hơn đến thì dừng luôn
       if (myLoadId !== this.currentLoadId) {
-        if (oldPlayer) {
-          try { oldPlayer.pause(); } catch (_) {}
-          try { oldPlayer.remove(); } catch (_) {}
-        }
         console.log(`[AudioEngine] Load #${myLoadId} superseded, aborting.`);
         return false;
       }
@@ -383,14 +397,7 @@ class AudioEngine {
         }
       });
 
-      // 5. Giải phóng player cũ ngay khi player mới đã sẵn sàng phát
-      if (oldPlayer) {
-        try { oldPlayer.pause(); } catch (_) {}
-        try { oldPlayer.clearLockScreenControls(); } catch (_) {}
-        try { oldPlayer.remove(); } catch (_) {}
-      }
-
-      // 6. Bắt đầu phát + khởi động watchdog
+      // 5. Bắt đầu phát + khởi động watchdog
       this.hasTriggeredEndForCurrentTrack = false;
       newPlayer.play();
       this.startWatchdog();
@@ -401,10 +408,6 @@ class AudioEngine {
       return true;
 
     } catch (error: any) {
-      if (oldPlayer) {
-        try { oldPlayer.pause(); } catch (_) {}
-        try { oldPlayer.remove(); } catch (_) {}
-      }
       console.warn('Audio playback error:', error?.message);
       if (song.isVip || error?.message?.includes('VIP')) {
         useToastStore.getState().showToast('Bài hát này chỉ dành cho tài khoản VIP Zing MP3', 'vip');

@@ -320,6 +320,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       // 2. Nếu đang phát tại Điện Thoại Này: Dừng máy tính và phát tại điện thoại
       connect.sendRemoteCommand('pause');
 
+      // Dừng ngay lập tức audio bài cũ đang phát
+      await audioEngine.stopAndUnload();
+
+      // Reset ngay lập tức toàn bộ data sang bài mới, hiển thị trạng thái loading
       set({
         currentSong: song,
         queue,
@@ -339,12 +343,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       const success = await audioEngine.loadAndPlay(song);
       set({ isLoading: false, isPlaying: success });
-      if (!success && queue.length > 1) {
-        // Tự động chuyển bài kế tiếp nếu bài này không khả dụng
-        setTimeout(() => {
-          get().playNext();
-        }, 500);
-      }
+      // Đã loại bỏ hoàn toàn cơ chế tự động chuyển bài khi bị lỗi
     },
 
     togglePlayPause: async () => {

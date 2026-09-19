@@ -221,6 +221,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       get().initAudio();
     }
 
+    const audio = get().audioElement;
+    if (audio) {
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch (_) {}
+    }
+
     let queue = newQueue || get().queue;
     if (!queue.some(s => (s.encodeId || s.id) === (song.encodeId || song.id))) {
       queue = [song, ...queue];
@@ -239,6 +247,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       shuffledQueue,
       currentIndex,
       isLoading: true,
+      isPlaying: false,
       loadingSongId: song.encodeId || song.id,
       positionSec: startPosSec,
       durationSec: song.duration || 0,
@@ -281,11 +290,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       streamUrl = await apiClient.getSongStream(song.encodeId || song.id, song.title, song.artistsNames) || undefined;
     }
 
-    const audio = get().audioElement;
-    if (audio && streamUrl) {
-      audio.src = streamUrl;
-      audio.currentTime = startPosSec;
-      audio.play().then(() => {
+    const currentAudio = get().audioElement;
+    if (currentAudio && streamUrl) {
+      currentAudio.src = streamUrl;
+      currentAudio.currentTime = startPosSec;
+      currentAudio.play().then(() => {
         set({ isPlaying: true, isLoading: false, loadingSongId: null, isAutoplayBlocked: false });
         useConnectStore.getState().broadcastState();
       }).catch((err) => {

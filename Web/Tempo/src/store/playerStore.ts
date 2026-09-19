@@ -78,7 +78,7 @@ interface PlayerState {
   initAudio: () => void;
   playSong: (song: UnifiedSong, newQueue?: UnifiedSong[], startPosSec?: number) => Promise<void>;
   togglePlayPause: () => void;
-  playNext: () => void;
+  playNext: (delayMs?: any) => void;
   playPrev: () => void;
   seekTo: (sec: number) => void;
   setVolume: (vol: number) => void;
@@ -195,13 +195,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
 
     audio.addEventListener('ended', () => {
-      const { repeatMode, currentSong } = get();
+      const { repeatMode, currentSong, queue } = get();
       if (repeatMode === 'one' && currentSong) {
+        audio.pause();
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        set({ isLoading: true, isPlaying: false, positionSec: 0 });
         useConnectStore.getState().broadcastState();
+        clearAutoNextTimeout();
+        autoNextTimeoutId = setTimeout(() => {
+          autoNextTimeoutId = null;
+          get().playSong(currentSong, queue);
+        }, 750);
       } else {
-        get().playNext();
+        get().playNext(750);
       }
     });
 
@@ -382,7 +388,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  playNext: () => {
+  playNext: (delayMs?: any) => {
+    const delay = typeof delayMs === 'number' ? delayMs : 0;
     clearAutoNextTimeout();
     const connect = useConnectStore.getState();
     const isRemote = connect.activeDeviceId !== 'web-player-pc';
@@ -405,19 +412,35 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
+    let nextSong: any = null;
+    let newShuffledQueue = shuffledQueue;
+
     if (isShuffle) {
       const activeQueue = shuffledQueue.length > 0 ? shuffledQueue : queue;
       const currentShuffledIdx = activeQueue.findIndex(
         (s) => (s.encodeId || s.id) === (get().currentSong?.encodeId || get().currentSong?.id)
       );
       if (currentShuffledIdx >= 0 && currentShuffledIdx + 1 < activeQueue.length) {
-        get().playSong(activeQueue[currentShuffledIdx + 1], queue);
-        return;
+        nextSong = activeQueue[currentShuffledIdx + 1];
       } else if (repeatMode === 'all') {
-        const reshuffled = generateShuffledQueue(null, queue);
-        set({ shuffledQueue: reshuffled });
-        get().playSong(reshuffled[0], queue);
+        newShuffledQueue = generateShuffledQueue(null, queue);
+        set({ shuffledQueue: newShuffledQueue });
+        nextSong = newShuffledQueue[0];
+      } else {
+        const audio = get().audioElement;
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+        set({ isPlaying: false, positionSec: 0 });
+        useConnectStore.getState().broadcastState();
         return;
+      }
+    } else {
+      if (currentIndex + 1 < queue.length) {
+        nextSong = queue[currentIndex + 1];
+      } else if (repeatMode === 'all') {
+        nextSong = queue[0];
       } else {
         const audio = get().audioElement;
         if (audio) {
@@ -430,18 +453,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
     }
 
-    if (currentIndex + 1 < queue.length) {
-      get().playSong(queue[currentIndex + 1], queue);
-    } else if (repeatMode === 'all') {
-      get().playSong(queue[0], queue);
-    } else {
-      const audio = get().audioElement;
-      if (audio) {
+    if (!nextSong) return;
+
+    const audio = get().audioElement;
+    if (audio) {
+      try {
         audio.pause();
         audio.currentTime = 0;
-      }
-      set({ isPlaying: false, positionSec: 0 });
-      useConnectStore.getState().broadcastState();
+      } catch (_) {}
+    }
+
+    // Reset ngay lập tức toàn bộ data sang bài mới, hiển thị loading, position 0
+    set({
+      currentSong: nextSong,
+      isLoading: true,
+      isPlaying: false,
+      positionSec: 0,
+      durationSec: nextSong.duration || 0,
+    });
+    useConnectStore.getState().broadcastState();
+
+    if (delay > 0) {
+      clearAutoNextTimeout();
+      autoNextTimeoutId = setTimeout(() => {
+        autoNextTimeoutId = null;
+        get().playSong(nextSong, queue);
+      }, delay);
+    } else {
+      get().playSong(nextSong, queue);
     }
   },
 

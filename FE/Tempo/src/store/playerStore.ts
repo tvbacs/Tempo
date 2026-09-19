@@ -45,7 +45,7 @@ interface PlayerState {
   togglePlayPause: () => Promise<void>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
-  playNext: () => Promise<void>;
+  playNext: (delayMs?: any) => Promise<void>;
   playPrev: () => Promise<void>;
   seekTo: (positionMs: number) => Promise<void>;
   toggleShuffle: () => void;
@@ -156,8 +156,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
   });
 
   // Track finished listener
-  audioEngine.setTrackEndedCallback(() => {
-    const { repeatMode, playNext, seekTo } = get();
+  audioEngine.setTrackEndedCallback(async () => {
+    const { repeatMode, playNext, playSong, currentSong } = get();
 
     // 1. Kiểm tra hẹn giờ đi ngủ "Dừng khi hết bài hát"
     try {
@@ -172,9 +172,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     }
 
     if (repeatMode === 'one') {
-      seekTo(0).then(() => audioEngine.play());
+      await audioEngine.stopAndUnload();
+      if (currentSong) {
+        set({ isLoading: true, isPlaying: false, positionMs: 0 });
+        clearAutoNextTimeout();
+        autoNextTimeoutId = setTimeout(async () => {
+          autoNextTimeoutId = null;
+          await playSong(currentSong);
+        }, 750);
+      }
     } else {
-      playNext();
+      await playNext(750);
     }
   });
 
@@ -467,7 +475,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       set({ isPlaying: true });
     },
 
-    playNext: async () => {
+    playNext: async (delayMs?: any) => {
+      const delay = typeof delayMs === 'number' ? delayMs : 0;
       clearAutoNextTimeout();
       const { queue, currentIndex, isShuffle, repeatMode, shuffledQueue, shuffledIndex, playSong, seekTo } = get();
       const { useConnectStore } = require('./connectStore');
@@ -512,29 +521,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         return;
       }
 
+      let nextSong: UnifiedSong | null = null;
+      let newShuffledIndex = shuffledIndex;
+      let newShuffledQueue = shuffledQueue;
+
       // 1. Chế độ Trộn Bài (Shuffle = TRUE): Phát chính xác bài tiếp theo trong shuffledQueue
       if (isShuffle) {
         const activeShuffled = shuffledQueue.length > 0 ? shuffledQueue : queue;
         const nextIdx = shuffledIndex + 1;
 
         if (nextIdx < activeShuffled.length) {
-          const nextSong = activeShuffled[nextIdx];
-          set({ shuffledIndex: nextIdx });
-          await playSong(nextSong, queue);
-          return;
+          nextSong = activeShuffled[nextIdx];
+          newShuffledIndex = nextIdx;
         } else {
           // Đã nghe hết toàn bộ danh sách shuffle
           if (repeatMode === 'all' || isSleepTimerCounting) {
             const currentSongId = get().currentSong?.id;
             const others = queue.filter((s) => s.id !== currentSongId);
-            const newShuffled = [get().currentSong!, ...shuffleArray(others)].filter(Boolean) as UnifiedSong[];
-            const nextSong = newShuffled[1] || queue[0];
-            set({
-              shuffledQueue: newShuffled,
-              shuffledIndex: 1,
-            });
-            await playSong(nextSong, queue);
-            return;
+            newShuffledQueue = [get().currentSong!, ...shuffleArray(others)].filter(Boolean) as UnifiedSong[];
+            nextSong = newShuffledQueue[1] || queue[0];
+            newShuffledIndex = 1;
           } else {
             // repeatMode === 'off': dừng phát khi hết danh sách
             await seekTo(0);
@@ -543,25 +549,51 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
             return;
           }
         }
+      } else {
+        // 2. Chế độ Phát Tuần Tự (Shuffle = FALSE): Theo đúng thứ tự 1, 2, 3...
+        const nextIndex = currentIndex + 1;
+
+        if (nextIndex < queue.length) {
+          nextSong = queue[nextIndex];
+        } else {
+          // Đã đến cuối danh sách
+          if (repeatMode === 'all' || isSleepTimerCounting) {
+            nextSong = queue[0];
+          } else {
+            await seekTo(0);
+            await audioEngine.pause();
+            set({ isPlaying: false });
+            return;
+          }
+        }
       }
 
-      // 2. Chế độ Phát Tuần Tự (Shuffle = FALSE): Theo đúng thứ tự 1, 2, 3...
-      const nextIndex = currentIndex + 1;
+      if (!nextSong) return;
 
-      if (nextIndex < queue.length) {
-        const nextSong = queue[nextIndex];
-        await playSong(nextSong, queue);
+      if (isShuffle) {
+        set({ shuffledQueue: newShuffledQueue, shuffledIndex: newShuffledIndex });
+      }
+
+      // Dừng ngay lập tức audio bài cũ đang phát
+      await audioEngine.stopAndUnload();
+
+      // Reset ngay lập tức toàn bộ data sang bài mới, hiển thị trạng thái loading, position 0
+      set({
+        currentSong: nextSong,
+        isLoading: true,
+        isPlaying: false,
+        positionMs: 0,
+        durationMs: nextSong.duration ? nextSong.duration * 1000 : 0,
+      });
+
+      if (delay > 0) {
+        clearAutoNextTimeout();
+        autoNextTimeoutId = setTimeout(async () => {
+          autoNextTimeoutId = null;
+          await playSong(nextSong!, queue);
+        }, delay);
       } else {
-        // Đã đến cuối danh sách
-        if (repeatMode === 'all' || isSleepTimerCounting) {
-          // Lặp lại từ bài đầu tiên
-          await playSong(queue[0], queue);
-        } else {
-          // repeatMode === 'off': Dừng phát
-          await seekTo(0);
-          await audioEngine.pause();
-          set({ isPlaying: false });
-        }
+        await playSong(nextSong, queue);
       }
     },
 

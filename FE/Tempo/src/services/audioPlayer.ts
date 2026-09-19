@@ -92,6 +92,13 @@ class AudioEngine {
         console.log(`[AudioEngine][Watchdog] iOS stopped events. pos=${pos.toFixed(2)}s / dur=${dur.toFixed(2)}s / silence=${silenceSec.toFixed(1)}s → triggering next`);
         this.hasTriggeredEndForCurrentTrack = true;
         this.clearWatchdog();
+        if (this.player) {
+          try { this.player.pause(); } catch (_) {}
+          try { (this.player as any).clearLockScreenControls?.(); } catch (_) {}
+          try { this.player.remove(); } catch (_) {}
+          this.player = null;
+        }
+        this.currentSongId = null;
         if (this.onTrackEndedCallback) {
           this.onTrackEndedCallback();
         }
@@ -390,6 +397,14 @@ class AudioEngine {
 
         if (isReachedEnd && !this.isStopping && !this.hasTriggeredEndForCurrentTrack) {
           this.hasTriggeredEndForCurrentTrack = true;
+          this.clearWatchdog();
+          if (this.player) {
+            try { this.player.pause(); } catch (_) {}
+            try { (this.player as any).clearLockScreenControls?.(); } catch (_) {}
+            try { this.player.remove(); } catch (_) {}
+            this.player = null;
+          }
+          this.currentSongId = null;
           console.log(`[AudioEngine] Track finished -> next (native=${nativeEnded}, reachEnd=${reachEndThreshold}, stalled=${isStalledNearEnd}, pos=${curTime.toFixed(2)}s / rawDur=${rawDur.toFixed(2)}s / metaDur=${metaDurSec.toFixed(2)}s)`);
           if (this.onTrackEndedCallback) {
             this.onTrackEndedCallback();

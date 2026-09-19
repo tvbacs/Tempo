@@ -103,6 +103,15 @@ const shuffleArray = <T>(array: T[]): T[] => {
   return arr;
 };
 
+let autoNextTimeoutId: any = null;
+
+const clearAutoNextTimeout = () => {
+  if (autoNextTimeoutId) {
+    clearTimeout(autoNextTimeoutId);
+    autoNextTimeoutId = null;
+  }
+};
+
 export const usePlayerStore = create<PlayerState>((set, get) => {
   // Listen to engine playback updates
   audioEngine.setStatusCallback((status) => {
@@ -341,12 +350,28 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       saveLastSession(song, queue, currentIndex, currentContext);
       useLibraryStore.getState().recordHistory(song);
 
+      clearAutoNextTimeout();
       const success = await audioEngine.loadAndPlay(song);
       set({ isLoading: false, isPlaying: success });
-      // Đã loại bỏ hoàn toàn cơ chế tự động chuyển bài khi bị lỗi
+
+      if (!success && queue.length > 1) {
+        // Tự động chuyển sang bài tiếp theo sau 750ms nếu bài này không khả dụng
+        clearAutoNextTimeout();
+        autoNextTimeoutId = setTimeout(() => {
+          autoNextTimeoutId = null;
+          const current = get().currentSong;
+          const currentId = current?.id || (current as any)?.encodeId;
+          const targetSongId = song.id || (song as any).encodeId;
+          if (currentId === targetSongId && !get().isPlaying) {
+            console.log('[PlayerStore] Auto-nexting after 750ms error delay...');
+            get().playNext();
+          }
+        }, 750);
+      }
     },
 
     togglePlayPause: async () => {
+      clearAutoNextTimeout();
       const { isPlaying, currentSong, playSong, queue } = get();
       const { useConnectStore } = require('./connectStore');
       const connect = useConnectStore.getState();
@@ -392,6 +417,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     pause: async () => {
+      clearAutoNextTimeout();
       const { useConnectStore } = require('./connectStore');
       const connect = useConnectStore.getState();
       const isRemote = connect.activeDevice?.deviceId && connect.activeDevice.deviceId !== 'mobile-app';
@@ -407,6 +433,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     resume: async () => {
+      clearAutoNextTimeout();
       const { currentSong, queue, playSong, seekTo } = get();
       const { useConnectStore } = require('./connectStore');
       const connect = useConnectStore.getState();
@@ -441,6 +468,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     playNext: async () => {
+      clearAutoNextTimeout();
       const { queue, currentIndex, isShuffle, repeatMode, shuffledQueue, shuffledIndex, playSong, seekTo } = get();
       const { useConnectStore } = require('./connectStore');
       const connect = useConnectStore.getState();
@@ -538,6 +566,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     playPrev: async () => {
+      clearAutoNextTimeout();
       const { queue, currentIndex, isShuffle, shuffledQueue, shuffledIndex, positionMs, playSong, seekTo } = get();
       const { useConnectStore } = require('./connectStore');
       const connect = useConnectStore.getState();
@@ -593,6 +622,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     seekTo: async (positionMs: number) => {
+      clearAutoNextTimeout();
       set({ positionMs });
       await audioEngine.seekTo(positionMs);
     },

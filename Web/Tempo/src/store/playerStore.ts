@@ -91,6 +91,15 @@ interface PlayerState {
   setLyricsOpen: (open: boolean) => void;
 }
 
+let autoNextTimeoutId: any = null;
+
+const clearAutoNextTimeout = () => {
+  if (autoNextTimeoutId) {
+    clearTimeout(autoNextTimeoutId);
+    autoNextTimeoutId = null;
+  }
+};
+
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentSong: _saved.song,
   isPlaying: false,
@@ -173,6 +182,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     audio.addEventListener('error', () => {
       set({ isLoading: false, loadingSongId: null, isPlaying: false });
+      const { queue, currentSong } = get();
+      if (queue.length > 1 && currentSong) {
+        clearAutoNextTimeout();
+        autoNextTimeoutId = setTimeout(() => {
+          autoNextTimeoutId = null;
+          if (!get().isPlaying) {
+            get().playNext();
+          }
+        }, 750);
+      }
     });
 
     audio.addEventListener('ended', () => {
@@ -217,6 +236,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   playSong: async (song, newQueue, startPosSec = 0) => {
+    clearAutoNextTimeout();
     if (!get().audioElement) {
       get().initAudio();
     }
@@ -306,10 +326,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     } else {
       set({ isLoading: false, loadingSongId: null });
       useConnectStore.getState().broadcastState();
+      if (queue.length > 1) {
+        clearAutoNextTimeout();
+        autoNextTimeoutId = setTimeout(() => {
+          autoNextTimeoutId = null;
+          const current = get().currentSong;
+          const currentId = current?.encodeId || current?.id;
+          const targetId = song.encodeId || song.id;
+          if (currentId === targetId && !get().isPlaying) {
+            get().playNext();
+          }
+        }, 750);
+      }
     }
   },
 
   togglePlayPause: () => {
+    clearAutoNextTimeout();
     if (!get().audioElement) {
       get().initAudio();
     }
@@ -350,6 +383,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   playNext: () => {
+    clearAutoNextTimeout();
     const connect = useConnectStore.getState();
     const isRemote = connect.activeDeviceId !== 'web-player-pc';
 
@@ -412,6 +446,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   playPrev: () => {
+    clearAutoNextTimeout();
     const connect = useConnectStore.getState();
     const isRemote = connect.activeDeviceId !== 'web-player-pc';
 
@@ -434,6 +469,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   seekTo: (sec) => {
+    clearAutoNextTimeout();
     const connect = useConnectStore.getState();
     const isRemote = connect.activeDeviceId !== 'web-player-pc';
 
